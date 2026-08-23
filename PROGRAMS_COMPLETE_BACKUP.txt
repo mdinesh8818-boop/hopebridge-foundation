@@ -1,0 +1,3111 @@
+==================================================
+HOPEBRIDGE FOUNDATION — PROGRAMS MODULE BACKUP
+==================================================
+
+Created on: Sun Jul 26 23:12:50 EDT 2026
+
+
+==================================================
+FILE: src/app/dashboard/programs/components/ActivityTimeline.tsx
+==================================================
+
+"use client";
+
+import { Clock3 } from "lucide-react";
+import { PROGRAM_ACTIVITIES } from "../data";
+
+export default function ActivityTimeline() {
+  return (
+    <section className="rounded-[32px] border border-white/10 bg-[#111722] p-7 shadow-[0_20px_60px_rgba(0,0,0,.35)]">
+      <div className="flex items-center gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-300">
+          <Clock3 size={22} />
+        </div>
+
+        <div>
+          <h2 className="text-xl font-bold text-white">
+            Recent Activity
+          </h2>
+
+          <p className="text-sm text-neutral-500">
+            Latest updates across all programs
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-8 space-y-6">
+      {PROGRAM_ACTIVITIES.map((activity) => (
+          <div
+            key={activity.id}
+            className="flex gap-4"
+          >
+            <div className="mt-1 flex flex-col items-center">
+              <div className="h-3 w-3 rounded-full bg-cyan-400" />
+
+              <div className="mt-2 h-full w-px bg-white/10" />
+            </div>
+
+            <div className="flex-1">
+              <h3 className="font-semibold text-white">
+                {activity.title}
+              </h3>
+
+              <p className="mt-1 text-sm leading-6 text-neutral-400">
+                {activity.description}
+              </p>
+
+              <div className="mt-2 flex items-center gap-3 text-xs text-neutral-500">
+                <span>{activity.user}</span>
+                <span>•</span>
+                <span>{activity.time}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+==================================================
+FILE: src/app/dashboard/programs/components/CreateProgramModal.tsx
+==================================================
+
+"use client";
+
+import { FormEvent, useEffect, useState } from "react";
+import { Plus, X } from "lucide-react";
+
+import {
+  PROGRAM_CATEGORIES,
+  PROGRAM_PRIORITIES,
+  PROGRAM_STATUSES,
+} from "../data";
+
+import {
+  Program,
+  ProgramPriority,
+  ProgramStatus,
+} from "../types";
+
+import {
+  generateProgramId,
+  today,
+} from "../utils";
+
+interface CreateProgramModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onCreate: (program: Program) => void;
+}
+
+interface ProgramFormState {
+  name: string;
+  category: string;
+  description: string;
+  manager: string;
+  beneficiaries: string;
+  budget: string;
+  spent: string;
+  progress: string;
+  startDate: string;
+  endDate: string;
+  status: ProgramStatus;
+  priority: ProgramPriority;
+  location: string;
+}
+
+const initialForm: ProgramFormState = {
+  name: "",
+  category: PROGRAM_CATEGORIES[0],
+  description: "",
+  manager: "",
+  beneficiaries: "",
+  budget: "",
+  spent: "0",
+  progress: "0",
+  startDate: today(),
+  endDate: "",
+  status: "Planning",
+  priority: "Medium",
+  location: "",
+};
+
+export default function CreateProgramModal({
+  isOpen,
+  onClose,
+  onCreate,
+}: CreateProgramModalProps) {
+  const [form, setForm] =
+    useState<ProgramFormState>(initialForm);
+
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.body.style.overflow = "";
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) {
+    return null;
+  }
+
+  function updateField(
+    field: keyof ProgramFormState,
+    value: string
+  ) {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+
+    setError("");
+  }
+
+  function resetAndClose() {
+    setForm(initialForm);
+    setError("");
+    onClose();
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (
+      !form.name.trim() ||
+      !form.manager.trim() ||
+      !form.description.trim() ||
+      !form.location.trim() ||
+      !form.endDate
+    ) {
+      setError("Please complete all required fields.");
+      return;
+    }
+
+    if (form.endDate < form.startDate) {
+      setError("End date must be after the start date.");
+      return;
+    }
+
+    const now = today();
+
+    const newProgram: Program = {
+      id: generateProgramId(),
+      name: form.name.trim(),
+      category: form.category,
+      description: form.description.trim(),
+      manager: form.manager.trim(),
+      beneficiaries: Math.max(
+        Number(form.beneficiaries) || 0,
+        0
+      ),
+      budget: Math.max(Number(form.budget) || 0, 0),
+      spent: Math.max(Number(form.spent) || 0, 0),
+      progress: Math.min(
+        Math.max(Number(form.progress) || 0, 0),
+        100
+      ),
+      startDate: form.startDate,
+      endDate: form.endDate,
+      status: form.status,
+      priority: form.priority,
+      location: form.location.trim(),
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    onCreate(newProgram);
+    setForm(initialForm);
+    setError("");
+    onClose();
+  }
+
+  const inputClassName =
+    "mt-2 h-12 w-full rounded-xl border border-white/10 bg-[#0d121b] px-4 text-sm text-white outline-none transition placeholder:text-neutral-600 focus:border-cyan-400";
+
+  const labelClassName =
+    "text-sm font-medium text-neutral-300";
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-md"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          resetAndClose();
+        }
+      }}
+    >
+      <section className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-[32px] border border-white/10 bg-gradient-to-br from-[#111722] to-[#090d14] shadow-[0_30px_100px_rgba(0,0,0,0.7)]">
+        <div className="sticky top-0 z-10 flex items-start justify-between border-b border-white/10 bg-[#111722]/95 px-7 py-6 backdrop-blur-xl">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
+              Program Portfolio
+            </p>
+
+            <h2 className="mt-2 text-3xl font-bold text-white">
+              Create New Program
+            </h2>
+
+            <p className="mt-2 text-sm text-neutral-500">
+              Add a new initiative to the HopeBridge portfolio.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={resetAndClose}
+            aria-label="Close create program modal"
+            className="rounded-xl border border-white/10 bg-white/5 p-2.5 text-neutral-400 transition hover:bg-white/10 hover:text-white"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <form
+          onSubmit={handleSubmit}
+          className="p-7"
+        >
+          <div className="grid gap-6 md:grid-cols-2">
+            <label className={labelClassName}>
+              Program name *
+              <input
+                value={form.name}
+                onChange={(event) =>
+                  updateField("name", event.target.value)
+                }
+                placeholder="Example: Youth Skills Initiative"
+                className={inputClassName}
+              />
+            </label>
+
+            <label className={labelClassName}>
+              Program manager *
+              <input
+                value={form.manager}
+                onChange={(event) =>
+                  updateField("manager", event.target.value)
+                }
+                placeholder="Manager's full name"
+                className={inputClassName}
+              />
+            </label>
+
+            <label className={labelClassName}>
+              Category
+              <select
+                value={form.category}
+                onChange={(event) =>
+                  updateField("category", event.target.value)
+                }
+                className={inputClassName}
+              >
+                {PROGRAM_CATEGORIES.map((category) => (
+                  <option
+                    key={category}
+                    value={category}
+                  >
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={labelClassName}>
+              Location *
+              <input
+                value={form.location}
+                onChange={(event) =>
+                  updateField("location", event.target.value)
+                }
+                placeholder="State, city, or region"
+                className={inputClassName}
+              />
+            </label>
+
+            <label className={labelClassName}>
+              Status
+              <select
+                value={form.status}
+                onChange={(event) =>
+                  updateField(
+                    "status",
+                    event.target.value as ProgramStatus
+                  )
+                }
+                className={inputClassName}
+              >
+                {PROGRAM_STATUSES.map((status) => (
+                  <option
+                    key={status}
+                    value={status}
+                  >
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={labelClassName}>
+              Priority
+              <select
+                value={form.priority}
+                onChange={(event) =>
+                  updateField(
+                    "priority",
+                    event.target.value as ProgramPriority
+                  )
+                }
+                className={inputClassName}
+              >
+                {PROGRAM_PRIORITIES.map((priority) => (
+                  <option
+                    key={priority}
+                    value={priority}
+                  >
+                    {priority}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={labelClassName}>
+              Start date
+              <input
+                type="date"
+                value={form.startDate}
+                onChange={(event) =>
+                  updateField("startDate", event.target.value)
+                }
+                className={inputClassName}
+              />
+            </label>
+
+            <label className={labelClassName}>
+              End date *
+              <input
+                type="date"
+                value={form.endDate}
+                min={form.startDate}
+                onChange={(event) =>
+                  updateField("endDate", event.target.value)
+                }
+                className={inputClassName}
+              />
+            </label>
+
+            <label className={labelClassName}>
+              Total budget
+              <input
+                type="number"
+                min="0"
+                value={form.budget}
+                onChange={(event) =>
+                  updateField("budget", event.target.value)
+                }
+                placeholder="250000"
+                className={inputClassName}
+              />
+            </label>
+
+            <label className={labelClassName}>
+              Amount spent
+              <input
+                type="number"
+                min="0"
+                value={form.spent}
+                onChange={(event) =>
+                  updateField("spent", event.target.value)
+                }
+                className={inputClassName}
+              />
+            </label>
+
+            <label className={labelClassName}>
+              Beneficiaries
+              <input
+                type="number"
+                min="0"
+                value={form.beneficiaries}
+                onChange={(event) =>
+                  updateField(
+                    "beneficiaries",
+                    event.target.value
+                  )
+                }
+                placeholder="Number of people supported"
+                className={inputClassName}
+              />
+            </label>
+
+            <label className={labelClassName}>
+              Progress: {form.progress}%
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={form.progress}
+                onChange={(event) =>
+                  updateField("progress", event.target.value)
+                }
+                className="mt-5 w-full accent-cyan-400"
+              />
+            </label>
+          </div>
+
+          <label className={`${labelClassName} mt-6 block`}>
+            Description *
+            <textarea
+              rows={5}
+              value={form.description}
+              onChange={(event) =>
+                updateField("description", event.target.value)
+              }
+              placeholder="Describe the program objectives, activities, and expected impact..."
+              className="mt-2 w-full resize-none rounded-xl border border-white/10 bg-[#0d121b] px-4 py-4 text-sm text-white outline-none transition placeholder:text-neutral-600 focus:border-cyan-400"
+            />
+          </label>
+
+          {error && (
+            <p className="mt-5 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {error}
+            </p>
+          )}
+
+          <div className="mt-8 flex flex-col-reverse gap-3 border-t border-white/10 pt-6 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={resetAndClose}
+              className="h-12 rounded-xl border border-white/10 bg-white/5 px-6 font-semibold text-neutral-300 transition hover:bg-white/10"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              className="flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-orange-500 px-7 font-bold text-black transition hover:scale-[1.02]"
+            >
+              <Plus size={19} />
+              Create Program
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+==================================================
+FILE: src/app/dashboard/programs/components/DeleteProgramModal.tsx
+==================================================
+
+"use client";
+
+import { AlertTriangle, Trash2, X } from "lucide-react";
+
+import { Program } from "../types";
+
+interface DeleteProgramModalProps {
+  isOpen: boolean;
+  program: Program | null;
+  onClose: () => void;
+  onConfirm: (programId: string) => void;
+}
+
+export default function DeleteProgramModal({
+  isOpen,
+  program,
+  onClose,
+  onConfirm,
+}: DeleteProgramModalProps) {
+  if (!isOpen || !program) {
+    return null;
+  }
+
+  function handleDelete() {
+    const currentProgram = program;
+  
+    if (!currentProgram) {
+      return;
+    }
+  
+    onConfirm(currentProgram.id);
+    onClose();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-md"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <section className="w-full max-w-lg rounded-[30px] border border-red-400/20 bg-gradient-to-br from-[#171018] via-[#120d14] to-[#09090d] p-7 shadow-[0_30px_100px_rgba(0,0,0,0.75)]">
+        <div className="flex items-start justify-between">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-red-400/20 bg-red-500/10 text-red-300">
+            <AlertTriangle size={27} />
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close delete confirmation"
+            className="rounded-xl border border-white/10 bg-white/5 p-2.5 text-neutral-400 transition hover:bg-white/10 hover:text-white"
+          >
+            <X size={19} />
+          </button>
+        </div>
+
+        <h2 className="mt-6 text-2xl font-bold text-white">
+          Delete Program?
+        </h2>
+
+        <p className="mt-3 leading-7 text-neutral-400">
+          You are about to permanently delete{" "}
+          <span className="font-semibold text-white">
+            {program.name}
+          </span>
+          . This action cannot be undone.
+        </p>
+
+        <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+            Program
+          </p>
+
+          <p className="mt-2 font-semibold text-white">
+            {program.name}
+          </p>
+
+          <p className="mt-1 text-sm text-neutral-500">
+            {program.category} · {program.location}
+          </p>
+        </div>
+
+        <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-12 rounded-xl border border-white/10 bg-white/5 px-6 font-semibold text-neutral-300 transition hover:bg-white/10"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="flex h-12 items-center justify-center gap-2 rounded-xl bg-red-500 px-6 font-bold text-white transition hover:bg-red-400"
+          >
+            <Trash2 size={18} />
+            Delete Program
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+==================================================
+FILE: src/app/dashboard/programs/components/EditProgramModal.tsx
+==================================================
+
+"use client";
+
+import { FormEvent, useEffect, useState } from "react";
+import { Pencil, X } from "lucide-react";
+
+import {
+  PROGRAM_CATEGORIES,
+  PROGRAM_PRIORITIES,
+  PROGRAM_STATUSES,
+} from "../data";
+
+import {
+  Program,
+  ProgramPriority,
+  ProgramStatus,
+} from "../types";
+
+import { today } from "../utils";
+
+interface EditProgramModalProps {
+  isOpen: boolean;
+  program: Program | null;
+  onClose: () => void;
+  onSave: (program: Program) => void;
+}
+
+interface ProgramFormState {
+  name: string;
+  category: string;
+  description: string;
+  manager: string;
+  beneficiaries: string;
+  budget: string;
+  spent: string;
+  progress: string;
+  startDate: string;
+  endDate: string;
+  status: ProgramStatus;
+  priority: ProgramPriority;
+  location: string;
+}
+
+function createFormState(program: Program): ProgramFormState {
+  return {
+    name: program.name,
+    category: program.category,
+    description: program.description,
+    manager: program.manager,
+    beneficiaries: String(program.beneficiaries),
+    budget: String(program.budget),
+    spent: String(program.spent),
+    progress: String(program.progress),
+    startDate: program.startDate,
+    endDate: program.endDate,
+    status: program.status,
+    priority: program.priority,
+    location: program.location,
+  };
+}
+
+export default function EditProgramModal({
+  isOpen,
+  program,
+  onClose,
+  onSave,
+}: EditProgramModalProps) {
+  const [form, setForm] = useState<ProgramFormState | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (isOpen && program) {
+      setForm(createFormState(program));
+      setError("");
+    }
+  }, [isOpen, program]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.body.style.overflow = "";
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !program || !form) {
+    return null;
+  }
+
+  function updateField(
+    field: keyof ProgramFormState,
+    value: string
+  ) {
+    setForm((current) =>
+      current
+        ? {
+            ...current,
+            [field]: value,
+          }
+        : current
+    );
+
+    setError("");
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+  
+    const currentForm = form;
+    const currentProgram = program;
+  
+    if (!currentForm || !currentProgram) {
+      return;
+    }
+  
+    if (
+      !currentForm.name.trim() ||
+      !currentForm.manager.trim() ||
+      !currentForm.description.trim() ||
+      !currentForm.location.trim() ||
+      !currentForm.endDate
+    ) {
+      setError("Please complete all required fields.");
+      return;
+    }
+  
+    if (currentForm.endDate < currentForm.startDate) {
+      setError("End date must be after the start date.");
+      return;
+    }
+  
+    const updatedProgram: Program = {
+      ...currentProgram,
+      name: currentForm.name.trim(),
+      category: currentForm.category,
+      description: currentForm.description.trim(),
+      manager: currentForm.manager.trim(),
+      beneficiaries: Math.max(
+        Number(currentForm.beneficiaries) || 0,
+        0
+      ),
+      budget: Math.max(Number(currentForm.budget) || 0, 0),
+      spent: Math.max(Number(currentForm.spent) || 0, 0),
+      progress: Math.min(
+        Math.max(Number(currentForm.progress) || 0, 0),
+        100
+      ),
+      startDate: currentForm.startDate,
+      endDate: currentForm.endDate,
+      status: currentForm.status,
+      priority: currentForm.priority,
+      location: currentForm.location.trim(),
+      updatedAt: today(),
+    };
+  
+    onSave(updatedProgram);
+    onClose();
+  }
+
+  const inputClassName =
+    "mt-2 h-12 w-full rounded-xl border border-white/10 bg-[#0d121b] px-4 text-sm text-white outline-none transition placeholder:text-neutral-600 focus:border-cyan-400";
+
+  const labelClassName =
+    "text-sm font-medium text-neutral-300";
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-md"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <section className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-[32px] border border-white/10 bg-gradient-to-br from-[#111722] to-[#090d14] shadow-[0_30px_100px_rgba(0,0,0,0.7)]">
+        <div className="sticky top-0 z-10 flex items-start justify-between border-b border-white/10 bg-[#111722]/95 px-7 py-6 backdrop-blur-xl">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">
+              Program Portfolio
+            </p>
+
+            <h2 className="mt-2 text-3xl font-bold text-white">
+              Edit Program
+            </h2>
+
+            <p className="mt-2 text-sm text-neutral-500">
+              Update ownership, budget, schedule, and delivery information.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close edit program modal"
+            className="rounded-xl border border-white/10 bg-white/5 p-2.5 text-neutral-400 transition hover:bg-white/10 hover:text-white"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <form
+          onSubmit={handleSubmit}
+          className="p-7"
+        >
+          <div className="grid gap-6 md:grid-cols-2">
+            <label className={labelClassName}>
+              Program name *
+              <input
+                value={form.name}
+                onChange={(event) =>
+                  updateField("name", event.target.value)
+                }
+                className={inputClassName}
+              />
+            </label>
+
+            <label className={labelClassName}>
+              Program manager *
+              <input
+                value={form.manager}
+                onChange={(event) =>
+                  updateField("manager", event.target.value)
+                }
+                className={inputClassName}
+              />
+            </label>
+
+            <label className={labelClassName}>
+              Category
+              <select
+                value={form.category}
+                onChange={(event) =>
+                  updateField("category", event.target.value)
+                }
+                className={inputClassName}
+              >
+                {PROGRAM_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={labelClassName}>
+              Location *
+              <input
+                value={form.location}
+                onChange={(event) =>
+                  updateField("location", event.target.value)
+                }
+                className={inputClassName}
+              />
+            </label>
+
+            <label className={labelClassName}>
+              Status
+              <select
+                value={form.status}
+                onChange={(event) =>
+                  updateField(
+                    "status",
+                    event.target.value as ProgramStatus
+                  )
+                }
+                className={inputClassName}
+              >
+                {PROGRAM_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={labelClassName}>
+              Priority
+              <select
+                value={form.priority}
+                onChange={(event) =>
+                  updateField(
+                    "priority",
+                    event.target.value as ProgramPriority
+                  )
+                }
+                className={inputClassName}
+              >
+                {PROGRAM_PRIORITIES.map((priority) => (
+                  <option key={priority} value={priority}>
+                    {priority}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className={labelClassName}>
+              Start date
+              <input
+                type="date"
+                value={form.startDate}
+                onChange={(event) =>
+                  updateField("startDate", event.target.value)
+                }
+                className={inputClassName}
+              />
+            </label>
+
+            <label className={labelClassName}>
+              End date *
+              <input
+                type="date"
+                value={form.endDate}
+                min={form.startDate}
+                onChange={(event) =>
+                  updateField("endDate", event.target.value)
+                }
+                className={inputClassName}
+              />
+            </label>
+
+            <label className={labelClassName}>
+              Total budget
+              <input
+                type="number"
+                min="0"
+                value={form.budget}
+                onChange={(event) =>
+                  updateField("budget", event.target.value)
+                }
+                className={inputClassName}
+              />
+            </label>
+
+            <label className={labelClassName}>
+              Amount spent
+              <input
+                type="number"
+                min="0"
+                value={form.spent}
+                onChange={(event) =>
+                  updateField("spent", event.target.value)
+                }
+                className={inputClassName}
+              />
+            </label>
+
+            <label className={labelClassName}>
+              Beneficiaries
+              <input
+                type="number"
+                min="0"
+                value={form.beneficiaries}
+                onChange={(event) =>
+                  updateField(
+                    "beneficiaries",
+                    event.target.value
+                  )
+                }
+                className={inputClassName}
+              />
+            </label>
+
+            <label className={labelClassName}>
+              Progress: {form.progress}%
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={form.progress}
+                onChange={(event) =>
+                  updateField("progress", event.target.value)
+                }
+                className="mt-5 w-full accent-amber-400"
+              />
+            </label>
+          </div>
+
+          <label className={`${labelClassName} mt-6 block`}>
+            Description *
+            <textarea
+              rows={5}
+              value={form.description}
+              onChange={(event) =>
+                updateField("description", event.target.value)
+              }
+              className="mt-2 w-full resize-none rounded-xl border border-white/10 bg-[#0d121b] px-4 py-4 text-sm text-white outline-none transition placeholder:text-neutral-600 focus:border-cyan-400"
+            />
+          </label>
+
+          {error && (
+            <p className="mt-5 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {error}
+            </p>
+          )}
+
+          <div className="mt-8 flex flex-col-reverse gap-3 border-t border-white/10 pt-6 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-12 rounded-xl border border-white/10 bg-white/5 px-6 font-semibold text-neutral-300 transition hover:bg-white/10"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              className="flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-orange-500 px-7 font-bold text-black transition hover:scale-[1.02]"
+            >
+              <Pencil size={18} />
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+==================================================
+FILE: src/app/dashboard/programs/components/ProgramChart.tsx
+==================================================
+
+"use client";
+
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ResponsiveContainer,
+} from "recharts";
+
+import { PERFORMANCE_DATA } from "../data";
+
+export default function ProgramChart() {
+  return (
+    <section className="mt-8 rounded-[32px] border border-white/10 bg-gradient-to-br from-[#0B0F18] via-[#101623] to-[#171D2C] p-8 shadow-[0_0_60px_rgba(0,255,255,0.05)]">
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-white">
+            Program Performance Analytics
+          </h2>
+
+          <p className="mt-2 text-neutral-400">
+            Monitor planning, execution, review and optimization across all
+            HopeBridge programs.
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-5 py-2">
+          <span className="text-sm font-semibold text-cyan-300">
+            Last 7 Months
+          </span>
+        </div>
+      </div>
+
+      <div className="h-[420px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={PERFORMANCE_DATA}>
+            <CartesianGrid
+              stroke="#222"
+              strokeDasharray="4 4"
+            />
+
+            <XAxis
+              dataKey="month"
+              stroke="#8B949E"
+            />
+
+            <YAxis stroke="#8B949E" />
+
+            <Tooltip
+              contentStyle={{
+                background: "#111827",
+                border: "1px solid #2E3440",
+                borderRadius: "16px",
+                color: "#fff",
+              }}
+            />
+
+            <Line
+              type="monotone"
+              dataKey="planning"
+              stroke="#38BDF8"
+              strokeWidth={3}
+              dot={{ r: 4 }}
+              activeDot={{ r: 7 }}
+            />
+
+            <Line
+              type="monotone"
+              dataKey="execution"
+              stroke="#10B981"
+              strokeWidth={3}
+              dot={{ r: 4 }}
+            />
+
+            <Line
+              type="monotone"
+              dataKey="review"
+              stroke="#F59E0B"
+              strokeWidth={3}
+              dot={{ r: 4 }}
+            />
+
+            <Line
+              type="monotone"
+              dataKey="optimization"
+              stroke="#A855F7"
+              strokeWidth={3}
+              dot={{ r: 4 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </section>
+  );
+}
+
+==================================================
+FILE: src/app/dashboard/programs/components/ProgramFilters.tsx
+==================================================
+
+"use client";
+
+import { RotateCcw, SlidersHorizontal } from "lucide-react";
+
+import {
+  PROGRAM_CATEGORIES,
+  PROGRAM_PRIORITIES,
+  PROGRAM_STATUSES,
+} from "../data";
+
+import { ProgramFilters as ProgramFiltersType } from "../types";
+
+interface ProgramFiltersProps {
+  filters: ProgramFiltersType;
+  onChange: (filters: ProgramFiltersType) => void;
+}
+
+export default function ProgramFilters({
+  filters,
+  onChange,
+}: ProgramFiltersProps) {
+  const hasActiveFilters =
+    filters.status !== "All" ||
+    filters.category !== "All" ||
+    filters.priority !== "All";
+
+  function updateFilter(
+    field: keyof ProgramFiltersType,
+    value: string
+  ) {
+    onChange({
+      ...filters,
+      [field]: value,
+    });
+  }
+
+  function resetFilters() {
+    onChange({
+      ...filters,
+      status: "All",
+      category: "All",
+      priority: "All",
+    });
+  }
+
+  const selectClassName =
+    "h-12 min-w-[170px] rounded-xl border border-white/10 bg-[#111722] px-4 text-sm text-neutral-200 outline-none transition focus:border-cyan-400";
+
+  return (
+    <section className="mt-8 rounded-[28px] border border-white/10 bg-white/[0.025] p-5">
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-500/10 text-cyan-300">
+            <SlidersHorizontal size={20} />
+          </div>
+
+          <div>
+            <h2 className="font-semibold text-white">
+              Portfolio Filters
+            </h2>
+
+            <p className="mt-1 text-sm text-neutral-500">
+              Refine programs by status, category, and priority.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 md:flex-row md:flex-wrap">
+          <select
+            aria-label="Filter by status"
+            value={filters.status}
+            onChange={(event) =>
+              updateFilter("status", event.target.value)
+            }
+            className={selectClassName}
+          >
+            <option value="All">All statuses</option>
+
+            {PROGRAM_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+
+          <select
+            aria-label="Filter by category"
+            value={filters.category}
+            onChange={(event) =>
+              updateFilter("category", event.target.value)
+            }
+            className={selectClassName}
+          >
+            <option value="All">All categories</option>
+
+            {PROGRAM_CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+
+          <select
+            aria-label="Filter by priority"
+            value={filters.priority}
+            onChange={(event) =>
+              updateFilter("priority", event.target.value)
+            }
+            className={selectClassName}
+          >
+            <option value="All">All priorities</option>
+
+            {PROGRAM_PRIORITIES.map((priority) => (
+              <option key={priority} value={priority}>
+                {priority}
+              </option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            onClick={resetFilters}
+            disabled={!hasActiveFilters}
+            className="flex h-12 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 text-sm font-semibold text-neutral-300 transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <RotateCcw size={17} />
+            Reset
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+==================================================
+FILE: src/app/dashboard/programs/components/ProgramHeader.tsx
+==================================================
+
+"use client";
+
+import { useRouter } from "next/navigation";
+import { Sparkles, Search, Plus, ArrowLeft } from "lucide-react";
+
+interface ProgramHeaderProps {
+  onCreate: () => void;
+  search: string;
+  onSearchChange: (value: string) => void;
+}
+
+export default function ProgramHeader({
+  onCreate,
+  search,
+  onSearchChange,
+}: ProgramHeaderProps) {
+    const router = useRouter();
+  return (
+    <section className="relative overflow-hidden rounded-[36px] border border-white/10 bg-gradient-to-br from-[#07070B] via-[#0E1016] to-[#151821] p-10 shadow-[0_0_80px_rgba(0,255,255,0.04)]">
+
+      {/* Background Glow */}
+      <div className="absolute -top-32 -left-24 h-72 w-72 rounded-full bg-cyan-500/10 blur-[140px]" />
+      <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-violet-500/10 blur-[170px]" />
+
+      {/* Grid */}
+      <div
+        className="absolute inset-0 opacity-[0.04]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.2) 1px, transparent 1px)",
+          backgroundSize: "42px 42px",
+        }}
+      />
+
+      <div className="relative z-10">
+
+      <button
+  type="button"
+  onClick={() => router.push("/dashboard")}
+  className="mb-8 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white transition hover:border-cyan-400 hover:bg-cyan-500/10"
+>
+          <ArrowLeft size={18} />
+          Back to Dashboard
+        </button>
+
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+
+          <div className="max-w-3xl">
+
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-500/10 px-4 py-2">
+
+              <Sparkles
+                size={16}
+                className="text-cyan-400"
+              />
+
+              <span className="text-xs font-semibold uppercase tracking-[0.35em] text-cyan-300">
+                HopeBridge Program Portfolio
+              </span>
+
+            </div>
+
+            <h1 className="bg-gradient-to-r from-white via-cyan-200 to-violet-300 bg-clip-text text-6xl font-black tracking-tight text-transparent">
+
+              Program Nexus
+
+            </h1>
+
+            <p className="mt-6 max-w-3xl text-lg leading-9 text-neutral-400">
+
+              Design, manage, monitor and optimize every HopeBridge
+              Foundation program through one centralized intelligent
+              workspace.
+
+            </p>
+
+          </div>
+
+          <div className="flex flex-col gap-4 lg:w-[460px]">
+
+            <div className="relative">
+
+              <Search
+                className="absolute left-5 top-1/2 -translate-y-1/2 text-neutral-500"
+                size={20}
+              />
+
+              <input
+                value={search}
+                onChange={(e) =>
+                  onSearchChange(e.target.value)
+                }
+                placeholder="Search programs, managers, locations..."
+                className="h-16 w-full rounded-2xl border border-white/10 bg-black/40 pl-14 pr-6 text-white outline-none transition focus:border-cyan-400"
+              />
+
+            </div>
+
+            <button
+              onClick={onCreate}
+              className="group flex h-16 items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-orange-500 text-lg font-bold text-black transition duration-300 hover:scale-[1.02]"
+            >
+
+              <Plus size={22} />
+
+              Create New Program
+
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+  );
+}
+
+==================================================
+FILE: src/app/dashboard/programs/components/ProgramInsights.tsx
+==================================================
+
+"use client";
+
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  Lightbulb,
+  ShieldCheck,
+} from "lucide-react";
+
+import { PROGRAM_INSIGHTS } from "../data";
+
+export default function ProgramInsights() {
+  function getInsightIcon(severity: string) {
+    if (severity === "High") {
+      return AlertTriangle;
+    }
+
+    if (severity === "Medium") {
+      return Lightbulb;
+    }
+
+    return ShieldCheck;
+  }
+
+  function getInsightStyle(severity: string) {
+    if (severity === "High") {
+      return {
+        border: "border-red-400/20",
+        background: "bg-red-500/10",
+        icon: "text-red-300",
+      };
+    }
+
+    if (severity === "Medium") {
+      return {
+        border: "border-amber-400/20",
+        background: "bg-amber-500/10",
+        icon: "text-amber-300",
+      };
+    }
+
+    return {
+      border: "border-emerald-400/20",
+      background: "bg-emerald-500/10",
+      icon: "text-emerald-300",
+    };
+  }
+
+  return (
+    <section className="rounded-[32px] border border-white/10 bg-gradient-to-br from-[#0d1119] via-[#111722] to-[#151c29] p-7 shadow-[0_25px_80px_rgba(0,0,0,0.35)]">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-cyan-300">
+            Portfolio Intelligence
+          </p>
+
+          <h2 className="mt-3 text-2xl font-bold text-white">
+            Program Insights
+          </h2>
+
+          <p className="mt-2 text-sm leading-6 text-neutral-500">
+            Key risks, opportunities, and recommendations across the current
+            program portfolio.
+          </p>
+        </div>
+
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-500/10 text-cyan-300">
+          <Lightbulb size={22} />
+        </div>
+      </div>
+
+      <div className="mt-7 space-y-4">
+        {PROGRAM_INSIGHTS.map((insight) => {
+          const Icon = getInsightIcon(insight.severity);
+          const style = getInsightStyle(insight.severity);
+
+          return (
+            <article
+              key={insight.id}
+              className={`rounded-2xl border ${style.border} ${style.background} p-5 transition duration-300 hover:-translate-y-1`}
+            >
+              <div className="flex items-start gap-4">
+                <div
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/20 ${style.icon}`}
+                >
+                  <Icon size={20} />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <h3 className="font-semibold text-white">
+                      {insight.title}
+                    </h3>
+
+                    <span className={`text-xs font-semibold ${style.icon}`}>
+                      {insight.severity} severity
+                    </span>
+                  </div>
+
+                  <p className="mt-2 text-sm leading-6 text-neutral-400">
+                    {insight.description}
+                  </p>
+
+                  <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                      Recommendation
+                    </p>
+
+                    <p className="mt-2 text-sm leading-6 text-neutral-300">
+                      {insight.recommendation}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      <button
+  type="button"
+  onClick={() => {
+    document
+      .getElementById("program-portfolio-table")
+      ?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+  }}
+  className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-semibold text-white transition hover:border-cyan-400/30 hover:bg-cyan-500/10"
+>
+  Review portfolio recommendations
+  <ArrowUpRight size={17} />
+</button>
+    </section>
+  );
+}
+
+==================================================
+FILE: src/app/dashboard/programs/components/ProgramSearch.tsx
+==================================================
+
+"use client";
+
+import { Search, X } from "lucide-react";
+
+interface ProgramSearchProps {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+export default function ProgramSearch({
+  value,
+  onChange,
+}: ProgramSearchProps) {
+  return (
+    <div className="relative w-full">
+      <Search
+        size={20}
+        className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500"
+      />
+
+      <input
+        type="text"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Search programs, managers, categories, or locations..."
+        className="h-14 w-full rounded-2xl border border-white/10 bg-[#111722] pl-12 pr-12 text-sm text-white outline-none transition placeholder:text-neutral-600 focus:border-cyan-400"
+      />
+
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          aria-label="Clear search"
+          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-neutral-500 transition hover:bg-white/10 hover:text-white"
+        >
+          <X size={17} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+==================================================
+FILE: src/app/dashboard/programs/components/ProgramStats.tsx
+==================================================
+
+"use client";
+
+import {
+  CheckCircle2,
+  Clock3,
+  AlertTriangle,
+  Layers3,
+  DollarSign,
+  Users,
+} from "lucide-react";
+import { ProgramStatistics } from "../types";
+import { formatCurrency } from "../utils";
+
+interface ProgramStatsProps {
+  statistics: ProgramStatistics;
+}
+
+export default function ProgramStats({
+  statistics,
+}: ProgramStatsProps) {
+  const cards = [
+    {
+      title: "Active Programs",
+      value: statistics.active,
+      subtitle: "Currently running",
+      icon: Layers3,
+      color:
+        "from-cyan-500/20 to-cyan-400/10 border-cyan-400/20 text-cyan-300",
+    },
+    {
+      title: "Completed",
+      value: statistics.completed,
+      subtitle: "Successfully finished",
+      icon: CheckCircle2,
+      color:
+        "from-emerald-500/20 to-emerald-400/10 border-emerald-400/20 text-emerald-300",
+    },
+    {
+      title: "In Progress",
+      value: statistics.inProgress,
+      subtitle: "Currently progressing",
+      icon: Clock3,
+      color:
+        "from-amber-500/20 to-yellow-400/10 border-yellow-400/20 text-yellow-300",
+    },
+    {
+      title: "Needs Attention",
+      value: statistics.attention,
+      subtitle: "Critical priority",
+      icon: AlertTriangle,
+      color:
+        "from-red-500/20 to-red-400/10 border-red-400/20 text-red-300",
+    },
+    {
+      title: "Total Budget",
+      value: formatCurrency(statistics.totalBudget),
+      subtitle: "Across all programs",
+      icon: DollarSign,
+      color:
+        "from-violet-500/20 to-fuchsia-500/10 border-violet-400/20 text-violet-300",
+    },
+    {
+      title: "Beneficiaries",
+      value: statistics.totalBeneficiaries.toLocaleString(),
+      subtitle: "People supported",
+      icon: Users,
+      color:
+        "from-sky-500/20 to-blue-400/10 border-sky-400/20 text-sky-300",
+    },
+  ];
+
+  return (
+    <section className="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+      {cards.map((card) => {
+        const Icon = card.icon;
+
+        return (
+          <article
+            key={card.title}
+            className={`group relative overflow-hidden rounded-3xl border bg-gradient-to-br ${card.color} p-6 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_60px_rgba(0,0,0,0.35)]`}
+          >
+            <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/5 blur-3xl transition-all duration-500 group-hover:scale-125" />
+
+            <div className="relative flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-neutral-400">
+                  {card.title}
+                </p>
+
+                <h2 className="mt-3 text-4xl font-black text-white">
+                  {card.value}
+                </h2>
+
+                <p className="mt-3 text-sm text-neutral-500">
+                  {card.subtitle}
+                </p>
+              </div>
+
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 transition-all duration-300 group-hover:rotate-6 group-hover:scale-110">
+                <Icon size={28} />
+              </div>
+            </div>
+          </article>
+        );
+      })}
+    </section>
+  );
+}
+
+==================================================
+FILE: src/app/dashboard/programs/components/ProgramTable.tsx
+==================================================
+
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import {
+  Eye,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  FolderOpen,
+  Users,
+} from "lucide-react";
+
+import { Program } from "../types";
+import {
+  formatCurrency,
+  priorityColor,
+  statusColor,
+} from "../utils";
+
+interface ProgramTableProps {
+  programs: Program[];
+  onView: (program: Program) => void;
+  onEdit: (program: Program) => void;
+  onDelete: (program: Program) => void;
+}
+
+export default function ProgramTable({
+  programs,
+  onView,
+  onEdit,
+  onDelete,
+}: ProgramTableProps) {
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function handleOutsideClick(event: MouseEvent) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node)
+      ) {
+        setOpenMenuId(null);
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
+
+  function handleView(program: Program) {
+    setOpenMenuId(null);
+    onView(program);
+  }
+
+  function handleEdit(program: Program) {
+    setOpenMenuId(null);
+    onEdit(program);
+  }
+
+  function handleDelete(program: Program) {
+    setOpenMenuId(null);
+    onDelete(program);
+  }
+
+  if (programs.length === 0) {
+    return (
+        <section
+        id="program-portfolio-table"
+        className="mt-8 rounded-[32px] border border-dashed border-white/15 bg-white/[0.025] px-6 py-20 text-center"
+      >
+        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl border border-white/10 bg-white/5">
+          <FolderOpen size={34} className="text-neutral-500" />
+        </div>
+
+        <h2 className="mt-6 text-2xl font-bold text-white">
+          No programs found
+        </h2>
+
+        <p className="mx-auto mt-3 max-w-md text-neutral-500">
+          No programs match the current search or filter settings. Adjust the
+          filters or create a new program.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section
+  id="program-portfolio-table"
+  className="mt-8 overflow-visible rounded-[32px] border border-white/10 bg-[#0d1119] shadow-[0_25px_80px_rgba(0,0,0,0.35)]"
+>
+      <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-6 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white">
+            Program Portfolio
+          </h2>
+
+          <p className="mt-1 text-sm text-neutral-500">
+            Review performance, ownership, budgets, and delivery progress.
+          </p>
+        </div>
+
+        <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-neutral-300">
+          {programs.length} {programs.length === 1 ? "program" : "programs"}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="min-w-[1150px] w-full">
+          <thead>
+            <tr className="border-b border-white/10 bg-white/[0.025]">
+              <th className="px-6 py-5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                Program
+              </th>
+
+              <th className="px-6 py-5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                Manager
+              </th>
+
+              <th className="px-6 py-5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                Reach
+              </th>
+
+              <th className="px-6 py-5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                Budget
+              </th>
+
+              <th className="px-6 py-5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                Progress
+              </th>
+
+              <th className="px-6 py-5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                Status
+              </th>
+
+              <th className="px-6 py-5 text-left text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                Priority
+              </th>
+
+              <th className="px-6 py-5 text-right text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                Actions
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {programs.map((program) => {
+              const budgetUsed =
+                program.budget > 0
+                  ? Math.min(
+                      Math.round((program.spent / program.budget) * 100),
+                      100
+                    )
+                  : 0;
+
+              return (
+                <tr
+                  key={program.id}
+                  className="group border-b border-white/5 transition-colors duration-200 last:border-b-0 hover:bg-white/[0.035]"
+                >
+                  <td className="px-6 py-6">
+                    <div className="max-w-[270px]">
+                      <button
+                        type="button"
+                        onClick={() => handleView(program)}
+                        className="text-left"
+                      >
+                        <h3 className="font-semibold text-white transition group-hover:text-cyan-300">
+                          {program.name}
+                        </h3>
+                      </button>
+
+                      <p className="mt-1 text-sm text-neutral-500">
+                        {program.category} · {program.location}
+                      </p>
+
+                      <p className="mt-2 line-clamp-1 text-xs text-neutral-600">
+                        {program.description}
+                      </p>
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-6">
+                    <p className="font-medium text-neutral-200">
+                      {program.manager}
+                    </p>
+
+                    <p className="mt-1 text-xs text-neutral-600">
+                      Program owner
+                    </p>
+                  </td>
+
+                  <td className="px-6 py-6">
+                    <div className="flex items-center gap-2 text-neutral-300">
+                      <Users size={16} className="text-cyan-400" />
+
+                      <span className="font-medium">
+                        {program.beneficiaries.toLocaleString()}
+                      </span>
+                    </div>
+
+                    <p className="mt-1 text-xs text-neutral-600">
+                      Beneficiaries
+                    </p>
+                  </td>
+
+                  <td className="px-6 py-6">
+                    <p className="font-semibold text-emerald-400">
+                      {formatCurrency(program.budget)}
+                    </p>
+
+                    <p className="mt-1 text-xs text-neutral-500">
+                      {formatCurrency(program.spent)} spent
+                    </p>
+
+                    <div className="mt-3 h-1.5 w-28 overflow-hidden rounded-full bg-neutral-800">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400"
+                        style={{ width: `${budgetUsed}%` }}
+                      />
+                    </div>
+                  </td>
+
+                  <td className="w-[190px] px-6 py-6">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-sm font-semibold text-white">
+                        {program.progress}%
+                      </span>
+
+                      <span className="text-xs text-neutral-600">
+                        Complete
+                      </span>
+                    </div>
+
+                    <div className="h-2 overflow-hidden rounded-full bg-neutral-800">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-amber-400 via-emerald-400 to-cyan-400 transition-all duration-500"
+                        style={{
+                          width: `${Math.min(program.progress, 100)}%`,
+                        }}
+                      />
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-6">
+                    <span
+                      className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${statusColor(
+                        program.status
+                      )}`}
+                    >
+                      {program.status}
+                    </span>
+                  </td>
+
+                  <td className="px-6 py-6">
+                    <span
+                      className={`text-sm font-semibold ${priorityColor(
+                        program.priority
+                      )}`}
+                    >
+                      {program.priority}
+                    </span>
+                  </td>
+
+                  <td className="relative px-6 py-6 text-right">
+                    <button
+                      type="button"
+                      aria-label={`Open actions for ${program.name}`}
+                      onClick={() =>
+                        setOpenMenuId((current) =>
+                          current === program.id ? null : program.id
+                        )
+                      }
+                      className="rounded-xl border border-transparent p-2 text-neutral-400 transition hover:border-white/10 hover:bg-white/10 hover:text-white"
+                    >
+                      <MoreVertical size={19} />
+                    </button>
+
+                    {openMenuId === program.id && (
+                      <div
+                        ref={menuRef}
+                        className="absolute right-6 top-[68px] z-50 w-48 overflow-hidden rounded-2xl border border-white/10 bg-[#151a24] p-2 text-left shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleView(program)}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-neutral-300 transition hover:bg-white/10 hover:text-white"
+                        >
+                          <Eye size={17} className="text-cyan-400" />
+                          View details
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleEdit(program)}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-neutral-300 transition hover:bg-white/10 hover:text-white"
+                        >
+                          <Pencil size={17} className="text-amber-400" />
+                          Edit program
+                        </button>
+
+                        <div className="my-1 border-t border-white/10" />
+
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(program)}
+                          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm text-red-400 transition hover:bg-red-500/10"
+                        >
+                          <Trash2 size={17} />
+                          Delete program
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+==================================================
+FILE: src/app/dashboard/programs/components/ViewProgramModal.tsx
+==================================================
+
+"use client";
+
+import {
+  CalendarDays,
+  DollarSign,
+  MapPin,
+  Target,
+  UserRound,
+  Users,
+  X,
+} from "lucide-react";
+
+import { Program } from "../types";
+import {
+  formatCurrency,
+  priorityColor,
+  statusColor,
+} from "../utils";
+
+interface ViewProgramModalProps {
+  isOpen: boolean;
+  program: Program | null;
+  onClose: () => void;
+}
+
+export default function ViewProgramModal({
+  isOpen,
+  program,
+  onClose,
+}: ViewProgramModalProps) {
+  if (!isOpen || !program) {
+    return null;
+  }
+
+  const budgetUsed =
+    program.budget > 0
+      ? Math.min(
+          Math.round((program.spent / program.budget) * 100),
+          100
+        )
+      : 0;
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-md"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <section className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-[32px] border border-white/10 bg-gradient-to-br from-[#111722] to-[#090d14] shadow-[0_30px_100px_rgba(0,0,0,0.7)]">
+        <div className="flex items-start justify-between border-b border-white/10 px-7 py-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
+              Program Details
+            </p>
+
+            <h2 className="mt-2 text-3xl font-bold text-white">
+              {program.name}
+            </h2>
+
+            <p className="mt-2 text-sm text-neutral-500">
+              {program.category} · {program.location}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close program details"
+            className="rounded-xl border border-white/10 bg-white/5 p-2.5 text-neutral-400 transition hover:bg-white/10 hover:text-white"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-7">
+          <div className="flex flex-wrap gap-3">
+            <span
+              className={`rounded-full px-4 py-2 text-xs font-semibold ${statusColor(
+                program.status
+              )}`}
+            >
+              {program.status}
+            </span>
+
+            <span
+              className={`rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold ${priorityColor(
+                program.priority
+              )}`}
+            >
+              {program.priority} priority
+            </span>
+          </div>
+
+          <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <h3 className="text-lg font-semibold text-white">
+              Program Overview
+            </h3>
+
+            <p className="mt-3 leading-7 text-neutral-400">
+              {program.description}
+            </p>
+          </div>
+
+          <div className="mt-7 grid gap-4 md:grid-cols-2">
+            <DetailCard
+              icon={UserRound}
+              label="Program Manager"
+              value={program.manager}
+            />
+
+            <DetailCard
+              icon={MapPin}
+              label="Location"
+              value={program.location}
+            />
+
+            <DetailCard
+              icon={Users}
+              label="Beneficiaries"
+              value={program.beneficiaries.toLocaleString()}
+            />
+
+            <DetailCard
+              icon={DollarSign}
+              label="Total Budget"
+              value={formatCurrency(program.budget)}
+            />
+
+            <DetailCard
+              icon={CalendarDays}
+              label="Start Date"
+              value={program.startDate}
+            />
+
+            <DetailCard
+              icon={CalendarDays}
+              label="End Date"
+              value={program.endDate}
+            />
+          </div>
+
+          <div className="mt-7 grid gap-6 lg:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-neutral-500">
+                    Program Progress
+                  </p>
+
+                  <h3 className="mt-1 text-2xl font-bold text-white">
+                    {program.progress}%
+                  </h3>
+                </div>
+
+                <Target className="text-cyan-400" size={24} />
+              </div>
+
+              <div className="mt-5 h-3 overflow-hidden rounded-full bg-neutral-800">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-amber-400 via-emerald-400 to-cyan-400"
+                  style={{
+                    width: `${Math.min(program.progress, 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-neutral-500">
+                    Budget Utilization
+                  </p>
+
+                  <h3 className="mt-1 text-2xl font-bold text-white">
+                    {budgetUsed}%
+                  </h3>
+                </div>
+
+                <DollarSign className="text-emerald-400" size={24} />
+              </div>
+
+              <div className="mt-5 h-3 overflow-hidden rounded-full bg-neutral-800">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400"
+                  style={{
+                    width: `${budgetUsed}%`,
+                  }}
+                />
+              </div>
+
+              <p className="mt-3 text-sm text-neutral-500">
+                {formatCurrency(program.spent)} spent of{" "}
+                {formatCurrency(program.budget)}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-7 flex justify-end border-t border-white/10 pt-6">
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-12 rounded-xl border border-white/10 bg-white/5 px-6 font-semibold text-neutral-300 transition hover:bg-white/10"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+interface DetailCardProps {
+  icon: typeof UserRound;
+  label: string;
+  value: string;
+}
+
+function DetailCard({
+  icon: Icon,
+  label,
+  value,
+}: DetailCardProps) {
+  return (
+    <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-500/10 text-cyan-300">
+        <Icon size={21} />
+      </div>
+
+      <div>
+        <p className="text-sm text-neutral-500">{label}</p>
+        <p className="mt-1 font-semibold text-white">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+==================================================
+FILE: src/app/dashboard/programs/data.ts
+==================================================
+
+import {
+    Program,
+    ProgramActivity,
+    PerformancePoint,
+    ProgramInsight,
+  } from "./types";
+  
+  export const PROGRAMS: Program[] = [
+    {
+      id: "PG001",
+      name: "Education For Every Child",
+      category: "Education",
+      description:
+        "Providing educational resources and digital learning opportunities to underserved children.",
+      manager: "Sarah Johnson",
+      beneficiaries: 5400,
+      budget: 250000,
+      spent: 182500,
+      progress: 73,
+      startDate: "2026-01-15",
+      endDate: "2026-12-20",
+      status: "Active",
+      priority: "High",
+      location: "Arizona",
+      createdAt: "2026-01-10",
+      updatedAt: "2026-07-20",
+    },
+  
+    {
+      id: "PG002",
+      name: "Healthcare Outreach",
+      category: "Healthcare",
+      description:
+        "Delivering mobile healthcare services to rural communities.",
+      manager: "David Miller",
+      beneficiaries: 3200,
+      budget: 180000,
+      spent: 180000,
+      progress: 100,
+      startDate: "2026-02-01",
+      endDate: "2026-06-30",
+      status: "Completed",
+      priority: "High",
+      location: "Nevada",
+      createdAt: "2026-01-25",
+      updatedAt: "2026-06-30",
+    },
+  
+    {
+      id: "PG003",
+      name: "Clean Water Initiative",
+      category: "Environment",
+      description:
+        "Installing sustainable clean water systems in underserved regions.",
+      manager: "Emily Brown",
+      beneficiaries: 8900,
+      budget: 340000,
+      spent: 218000,
+      progress: 64,
+      startDate: "2026-03-05",
+      endDate: "2026-11-30",
+      status: "Active",
+      priority: "Critical",
+      location: "Texas",
+      createdAt: "2026-03-01",
+      updatedAt: "2026-07-22",
+    },
+  
+    {
+      id: "PG004",
+      name: "Food Distribution",
+      category: "Community",
+      description:
+        "Supporting vulnerable families through monthly food distribution.",
+      manager: "Michael Lee",
+      beneficiaries: 7200,
+      budget: 160000,
+      spent: 48000,
+      progress: 30,
+      startDate: "2026-05-01",
+      endDate: "2026-12-31",
+      status: "Planning",
+      priority: "Medium",
+      location: "California",
+      createdAt: "2026-04-25",
+      updatedAt: "2026-07-18",
+    },
+  ];
+  
+  export const PROGRAM_ACTIVITIES: ProgramActivity[] = [
+    {
+      id: "A001",
+      programId: "PG001",
+      title: "Program Created",
+      description: "Education For Every Child program created.",
+      time: "15 minutes ago",
+      user: "Sarah Johnson",
+      type: "created",
+    },
+  
+    {
+      id: "A002",
+      programId: "PG003",
+      title: "Budget Updated",
+      description: "Environmental funding increased.",
+      time: "2 hours ago",
+      user: "Emily Brown",
+      type: "updated",
+    },
+  
+    {
+      id: "A003",
+      programId: "PG002",
+      title: "Program Completed",
+      description: "Healthcare Outreach reached all milestones.",
+      time: "Yesterday",
+      user: "David Miller",
+      type: "completed",
+    },
+  ];
+  
+  export const PERFORMANCE_DATA: PerformancePoint[] = [
+    { month: "Jan", planning: 40, execution: 20, review: 10, optimization: 5 },
+    { month: "Feb", planning: 52, execution: 34, review: 18, optimization: 12 },
+    { month: "Mar", planning: 60, execution: 48, review: 30, optimization: 20 },
+    { month: "Apr", planning: 70, execution: 58, review: 42, optimization: 32 },
+    { month: "May", planning: 76, execution: 67, review: 54, optimization: 48 },
+    { month: "Jun", planning: 82, execution: 74, review: 63, optimization: 60 },
+    { month: "Jul", planning: 88, execution: 81, review: 72, optimization: 70 },
+  ];
+  
+  export const PROGRAM_INSIGHTS: ProgramInsight[] = [
+    {
+      id: "I001",
+      title: "Budget Efficiency",
+      description:
+        "Healthcare Outreach completed under the allocated budget.",
+      severity: "Low",
+      recommendation:
+        "Redirect remaining funds to high-impact community initiatives.",
+    },
+  
+    {
+      id: "I002",
+      title: "Schedule Risk",
+      description:
+        "Food Distribution milestones are progressing slower than expected.",
+      severity: "High",
+      recommendation:
+        "Assign additional volunteers and review weekly deliverables.",
+    },
+  
+    {
+      id: "I003",
+      title: "Growth Opportunity",
+      description:
+        "Education programs show consistently increasing beneficiary reach.",
+      severity: "Medium",
+      recommendation:
+        "Expand the digital learning initiative into neighboring regions.",
+    },
+  ];
+  
+  export const PROGRAM_CATEGORIES = [
+    "Education",
+    "Healthcare",
+    "Community",
+    "Environment",
+  ];
+  
+  export const PROGRAM_STATUSES = [
+    "Planning",
+    "Active",
+    "Completed",
+    "On Hold",
+  ];
+  
+  export const PROGRAM_PRIORITIES = [
+    "Low",
+    "Medium",
+    "High",
+    "Critical",
+  ];
+
+==================================================
+FILE: src/app/dashboard/programs/page.tsx
+==================================================
+
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
+import ActivityTimeline from "./components/ActivityTimeline";
+import CreateProgramModal from "./components/CreateProgramModal";
+import DeleteProgramModal from "./components/DeleteProgramModal";
+import EditProgramModal from "./components/EditProgramModal";
+import ProgramChart from "./components/ProgramChart";
+import ProgramFilters from "./components/ProgramFilters";
+import ProgramHeader from "./components/ProgramHeader";
+import ProgramInsights from "./components/ProgramInsights";
+import ProgramSearch from "./components/ProgramSearch";
+import ProgramStats from "./components/ProgramStats";
+import ProgramTable from "./components/ProgramTable";
+import ViewProgramModal from "./components/ViewProgramModal";
+
+import { PROGRAMS } from "./data";
+
+import {
+  Program,
+  ProgramFilters as ProgramFiltersType,
+} from "./types";
+
+import {
+  calculateStatistics,
+  getVisiblePrograms,
+} from "./utils";
+
+const STORAGE_KEY = "hopebridge-programs";
+
+const INITIAL_FILTERS: ProgramFiltersType = {
+  search: "",
+  status: "All",
+  category: "All",
+  priority: "All",
+};
+
+export default function ProgramsPage() {
+  const [programs, setPrograms] =
+    useState<Program[]>(PROGRAMS);
+
+  const [filters, setFilters] =
+    useState<ProgramFiltersType>(INITIAL_FILTERS);
+
+  const [isStorageReady, setIsStorageReady] =
+    useState(false);
+
+  const [isCreateOpen, setIsCreateOpen] =
+    useState(false);
+
+  const [viewProgram, setViewProgram] =
+    useState<Program | null>(null);
+
+  const [editProgram, setEditProgram] =
+    useState<Program | null>(null);
+
+  const [deleteProgram, setDeleteProgram] =
+    useState<Program | null>(null);
+
+  useEffect(() => {
+    try {
+      const storedPrograms =
+        window.localStorage.getItem(STORAGE_KEY);
+
+      if (storedPrograms) {
+        const parsedPrograms: unknown =
+          JSON.parse(storedPrograms);
+
+        if (Array.isArray(parsedPrograms)) {
+          setPrograms(parsedPrograms as Program[]);
+        }
+      }
+    } catch (error) {
+      console.error(
+        "Unable to load saved programs:",
+        error
+      );
+    } finally {
+      setIsStorageReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isStorageReady) {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(programs)
+      );
+    } catch (error) {
+      console.error(
+        "Unable to save programs:",
+        error
+      );
+    }
+  }, [programs, isStorageReady]);
+
+  const visiblePrograms = useMemo(() => {
+    return getVisiblePrograms(programs, filters);
+  }, [programs, filters]);
+
+  const statistics = useMemo(() => {
+    return calculateStatistics(programs);
+  }, [programs]);
+
+  function handleSearchChange(value: string) {
+    setFilters((current) => ({
+      ...current,
+      search: value,
+    }));
+  }
+
+  function handleCreate(program: Program) {
+    setPrograms((current) => [
+      program,
+      ...current,
+    ]);
+  }
+
+  function handleSave(program: Program) {
+    setPrograms((current) =>
+      current.map((existingProgram) =>
+        existingProgram.id === program.id
+          ? program
+          : existingProgram
+      )
+    );
+
+    setEditProgram(null);
+  }
+
+  function handleDelete(programId: string) {
+    setPrograms((current) =>
+      current.filter(
+        (program) => program.id !== programId
+      )
+    );
+
+    setDeleteProgram(null);
+  }
+
+  return (
+    <main className="relative min-h-screen overflow-hidden bg-[#05070b] px-4 py-6 text-white sm:px-6 lg:px-8">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-[-160px] top-[-120px] h-[420px] w-[420px] rounded-full bg-cyan-500/10 blur-[150px]" />
+
+        <div className="absolute right-[-180px] top-[300px] h-[500px] w-[500px] rounded-full bg-violet-500/10 blur-[170px]" />
+
+        <div className="absolute bottom-[-220px] left-[30%] h-[500px] w-[500px] rounded-full bg-amber-500/5 blur-[180px]" />
+      </div>
+
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.025]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px)",
+          backgroundSize: "48px 48px",
+        }}
+      />
+
+      <div className="relative z-10 mx-auto max-w-[1600px]">
+        <ProgramHeader
+          onCreate={() => setIsCreateOpen(true)}
+          search={filters.search}
+          onSearchChange={handleSearchChange}
+        />
+
+        <ProgramStats statistics={statistics} />
+
+        <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1.6fr)_minmax(360px,0.8fr)]">
+          <ProgramChart />
+
+          <ProgramInsights />
+        </div>
+
+        <section className="mt-8 rounded-[32px] border border-white/10 bg-white/[0.025] p-6">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">
+                Portfolio Workspace
+              </p>
+
+              <h2 className="mt-2 text-2xl font-bold text-white">
+                Explore Programs
+              </h2>
+
+              <p className="mt-2 text-sm text-neutral-500">
+                Search and refine the program portfolio.
+              </p>
+            </div>
+
+            <div className="w-full xl:max-w-2xl">
+              <ProgramSearch
+                value={filters.search}
+                onChange={handleSearchChange}
+              />
+            </div>
+          </div>
+        </section>
+
+        <ProgramFilters
+          filters={filters}
+          onChange={setFilters}
+        />
+
+        <ProgramTable
+          programs={visiblePrograms}
+          onView={setViewProgram}
+          onEdit={setEditProgram}
+          onDelete={setDeleteProgram}
+        />
+
+        <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
+          <section className="rounded-[32px] border border-white/10 bg-gradient-to-br from-[#0d1119] to-[#111722] p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">
+              Portfolio Summary
+            </p>
+
+            <h2 className="mt-3 text-3xl font-bold text-white">
+              Creating measurable community impact
+            </h2>
+
+            <p className="mt-4 max-w-3xl leading-7 text-neutral-400">
+              HopeBridge programs combine responsible
+              budgeting, clear ownership, measurable
+              outcomes, and continuous performance
+              monitoring to improve the communities they
+              serve.
+            </p>
+
+            <div className="mt-8 grid gap-4 sm:grid-cols-3">
+              <SummaryItem
+                label="Total programs"
+                value={programs.length.toString()}
+              />
+
+              <SummaryItem
+                label="Total beneficiaries"
+                value={statistics.totalBeneficiaries.toLocaleString()}
+              />
+
+              <SummaryItem
+                label="Critical priorities"
+                value={statistics.attention.toString()}
+              />
+            </div>
+          </section>
+
+          <ActivityTimeline />
+        </div>
+      </div>
+
+      <CreateProgramModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onCreate={handleCreate}
+      />
+
+      <ViewProgramModal
+        isOpen={viewProgram !== null}
+        program={viewProgram}
+        onClose={() => setViewProgram(null)}
+      />
+
+      <EditProgramModal
+        isOpen={editProgram !== null}
+        program={editProgram}
+        onClose={() => setEditProgram(null)}
+        onSave={handleSave}
+      />
+
+      <DeleteProgramModal
+        isOpen={deleteProgram !== null}
+        program={deleteProgram}
+        onClose={() => setDeleteProgram(null)}
+        onConfirm={handleDelete}
+      />
+    </main>
+  );
+}
+
+interface SummaryItemProps {
+  label: string;
+  value: string;
+}
+
+function SummaryItem({
+  label,
+  value,
+}: SummaryItemProps) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+      <p className="text-sm text-neutral-500">
+        {label}
+      </p>
+
+      <p className="mt-2 text-3xl font-bold text-white">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+==================================================
+FILE: src/app/dashboard/programs/types.ts
+==================================================
+
+// ===============================
+// PROGRAM MANAGEMENT TYPES
+// HopeBridge Foundation
+// ===============================
+
+export type ProgramStatus =
+  | "Planning"
+  | "Active"
+  | "Completed"
+  | "On Hold";
+
+export type ProgramPriority =
+  | "Low"
+  | "Medium"
+  | "High"
+  | "Critical";
+
+export interface Program {
+  id: string;
+
+  name: string;
+
+  category: string;
+
+  description: string;
+
+  manager: string;
+
+  beneficiaries: number;
+
+  budget: number;
+
+  spent: number;
+
+  progress: number;
+
+  startDate: string;
+
+  endDate: string;
+
+  status: ProgramStatus;
+
+  priority: ProgramPriority;
+
+  location: string;
+
+  createdAt: string;
+
+  updatedAt: string;
+}
+
+export interface ProgramActivity {
+  id: string;
+
+  programId: string;
+
+  title: string;
+
+  description: string;
+
+  time: string;
+
+  user: string;
+
+  type:
+    | "created"
+    | "updated"
+    | "deleted"
+    | "completed"
+    | "reviewed";
+}
+
+export interface ProgramStatistics {
+  active: number;
+
+  completed: number;
+
+  inProgress: number;
+
+  attention: number;
+
+  totalBudget: number;
+
+  totalSpent: number;
+
+  totalBeneficiaries: number;
+}
+
+export interface ProgramFilters {
+  search: string;
+
+  status: string;
+
+  category: string;
+
+  priority: string;
+}
+
+export interface ProgramInsight {
+  id: string;
+
+  title: string;
+
+  description: string;
+
+  severity:
+    | "Low"
+    | "Medium"
+    | "High";
+
+  recommendation: string;
+}
+
+export interface PerformancePoint {
+  month: string;
+
+  planning: number;
+
+  execution: number;
+
+  review: number;
+
+  optimization: number;
+}
+
+==================================================
+FILE: src/app/dashboard/programs/utils.ts
+==================================================
+
+import { Program, ProgramFilters, ProgramStatistics } from "./types";
+
+/**
+ * Search programs by name, category, manager or location
+ */
+export function searchPrograms(
+  programs: Program[],
+  search: string
+): Program[] {
+  if (!search.trim()) return programs;
+
+  const keyword = search.toLowerCase();
+
+  return programs.filter((program) => {
+    return (
+      program.name.toLowerCase().includes(keyword) ||
+      program.category.toLowerCase().includes(keyword) ||
+      program.manager.toLowerCase().includes(keyword) ||
+      program.location.toLowerCase().includes(keyword)
+    );
+  });
+}
+
+/**
+ * Apply filters
+ */
+export function filterPrograms(
+  programs: Program[],
+  filters: ProgramFilters
+): Program[] {
+  return programs.filter((program) => {
+    const statusMatch =
+      !filters.status ||
+      filters.status === "All" ||
+      program.status === filters.status;
+
+    const categoryMatch =
+      !filters.category ||
+      filters.category === "All" ||
+      program.category === filters.category;
+
+    const priorityMatch =
+      !filters.priority ||
+      filters.priority === "All" ||
+      program.priority === filters.priority;
+
+    return statusMatch && categoryMatch && priorityMatch;
+  });
+}
+
+/**
+ * Search + Filter together
+ */
+export function getVisiblePrograms(
+  programs: Program[],
+  filters: ProgramFilters
+): Program[] {
+  const searched = searchPrograms(programs, filters.search);
+
+  return filterPrograms(searched, filters);
+}
+
+/**
+ * Dashboard statistics
+ */
+export function calculateStatistics(
+  programs: Program[]
+): ProgramStatistics {
+  return {
+    active: programs.filter((p) => p.status === "Active").length,
+
+    completed: programs.filter((p) => p.status === "Completed").length,
+
+    inProgress: programs.filter(
+      (p) => p.progress > 0 && p.progress < 100
+    ).length,
+
+    attention: programs.filter(
+      (p) => p.priority === "Critical"
+    ).length,
+
+    totalBudget: programs.reduce(
+      (sum, p) => sum + p.budget,
+      0
+    ),
+
+    totalSpent: programs.reduce(
+      (sum, p) => sum + p.spent,
+      0
+    ),
+
+    totalBeneficiaries: programs.reduce(
+      (sum, p) => sum + p.beneficiaries,
+      0
+    ),
+  };
+}
+
+/**
+ * Currency
+ */
+export function formatCurrency(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+/**
+ * Percentage
+ */
+export function formatPercent(value: number): string {
+  return `${value}%`;
+}
+
+/**
+ * Today's date
+ */
+export function today(): string {
+  return new Date().toISOString().split("T")[0];
+}
+
+/**
+ * Generate ID
+ */
+export function generateProgramId(): string {
+  return `PG-${Date.now()}`;
+}
+
+/**
+ * Progress color
+ */
+export function progressColor(progress: number): string {
+  if (progress < 30)
+    return "from-red-500 to-orange-400";
+
+  if (progress < 60)
+    return "from-yellow-400 to-amber-300";
+
+  if (progress < 90)
+    return "from-cyan-400 to-teal-400";
+
+  return "from-emerald-400 to-green-500";
+}
+
+/**
+ * Status badge color
+ */
+export function statusColor(status: string): string {
+  switch (status) {
+    case "Completed":
+      return "bg-green-500/20 text-green-400";
+
+    case "Active":
+      return "bg-cyan-500/20 text-cyan-400";
+
+    case "Planning":
+      return "bg-yellow-500/20 text-yellow-400";
+
+    case "On Hold":
+      return "bg-red-500/20 text-red-400";
+
+    default:
+      return "bg-neutral-500/20 text-neutral-300";
+  }
+}
+
+/**
+ * Priority badge color
+ */
+export function priorityColor(priority: string): string {
+  switch (priority) {
+    case "Critical":
+      return "text-red-400";
+
+    case "High":
+      return "text-orange-400";
+
+    case "Medium":
+      return "text-yellow-400";
+
+    default:
+      return "text-green-400";
+  }
+}

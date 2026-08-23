@@ -1,0 +1,321 @@
+"use client";
+
+import Link from "next/link";
+import { Home } from "lucide-react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+
+import HopeBridgeSidebar from "../components/HopeBridgeSidebar";
+import {
+  createDocument,
+  deleteDocument,
+  getDocuments,
+  updateDocument,
+} from "../../../services/firestore";
+import { logActivity } from "../../../services/activity";
+import ActivityTimeline from "./components/ActivityTimeline";
+import CreateProgramModal from "./components/CreateProgramModal";
+import DeleteProgramModal from "./components/DeleteProgramModal";
+import EditProgramModal from "./components/EditProgramModal";
+import ProgramChart from "./components/ProgramChart";
+import ProgramFilters from "./components/ProgramFilters";
+import ProgramHeader from "./components/ProgramHeader";
+import ProgramImpactOverview from "./components/ProgramImpactOverview";
+import ProgramInsights from "./components/ProgramInsights";
+import ProgramSearch from "./components/ProgramSearch";
+import ProgramStats from "./components/ProgramStats";
+import ProgramTable from "./components/ProgramTable";
+import ProgramTemplatesModal from "./components/ProgramTemplatesModal";
+import ViewProgramModal from "./components/ViewProgramModal";
+import { ProgramTemplate } from "./data";
+import "./programs.css";
+import { Program, ProgramFilters as ProgramFiltersType } from "./types";
+import { calculateStatistics, getVisiblePrograms } from "./utils";
+import { useModuleCreateAction } from "@/hooks/useModuleCreateAction";
+
+const INITIAL_FILTERS: ProgramFiltersType = {
+  search: "",
+  status: "All",
+  category: "All",
+  priority: "All",
+};
+
+export default function ProgramsPage() {
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filters, setFilters] = useState<ProgramFiltersType>(INITIAL_FILTERS);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
+  const [createPrefill, setCreatePrefill] = useState<{
+    name: string;
+    category: string;
+    description: string;
+    priority: Program["priority"];
+    budget: string;
+    location: string;
+  } | null>(null);
+  const [viewProgram, setViewProgram] = useState<Program | null>(null);
+  const [editProgram, setEditProgram] = useState<Program | null>(null);
+  const [deleteProgram, setDeleteProgram] = useState<Program | null>(null);
+
+  useEffect(() => {
+    async function loadPrograms() {
+      setIsLoading(true);
+      try {
+        const firestorePrograms = (await getDocuments("programs")) as Program[];
+        setPrograms(firestorePrograms);
+      } catch (error) {
+        console.error("Unable to load programs.", error);
+        setPrograms([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadPrograms();
+  }, []);
+
+  const visiblePrograms = useMemo(() => {
+    return getVisiblePrograms(programs, filters);
+  }, [programs, filters]);
+
+  const statistics = useMemo(() => {
+    return calculateStatistics(programs);
+  }, [programs]);
+
+  function handleSearchChange(value: string) {
+    setFilters((current) => ({
+      ...current,
+      search: value,
+    }));
+  }
+
+  async function handleCreate(program: Program) {
+    try {
+      const { id: _id, ...data } = program;
+      const firestoreId = await createDocument("programs", data);
+      const saved = { ...program, id: firestoreId };
+      setPrograms((current) => [saved, ...current]);
+      await logActivity({
+        module: "programs",
+        action: "created",
+        entityType: "program",
+        entityId: firestoreId,
+        entityName: program.name,
+        description: `Program "${program.name}" created`,
+      });
+    } catch (error) {
+      console.error("Unable to create program.", error);
+      alert("Unable to create program. Please try again.");
+    }
+  }
+
+  async function handleSave(program: Program) {
+    try {
+      await updateDocument("programs", program.id, program);
+      setPrograms((current) =>
+        current.map((existingProgram) =>
+          existingProgram.id === program.id ? program : existingProgram,
+        ),
+      );
+      await logActivity({
+        module: "programs",
+        action: "updated",
+        entityType: "program",
+        entityId: program.id,
+        entityName: program.name,
+        description: `Program "${program.name}" updated`,
+      });
+      setEditProgram(null);
+    } catch (error) {
+      console.error("Unable to save program.", error);
+      alert("Unable to save program. Please try again.");
+    }
+  }
+
+  async function handleDelete(programId: string) {
+    const program = programs.find((p) => p.id === programId);
+    try {
+      await deleteDocument("programs", programId);
+      setPrograms((current) => current.filter((p) => p.id !== programId));
+      if (program) {
+        await logActivity({
+          module: "programs",
+          action: "deleted",
+          entityType: "program",
+          entityId: programId,
+          entityName: program.name,
+          description: `Program "${program.name}" deleted`,
+        });
+      }
+      setDeleteProgram(null);
+    } catch (error) {
+      console.error("Unable to delete program.", error);
+      alert("Unable to delete program. Please try again.");
+    }
+  }
+
+  function handleTemplateSelect(template: ProgramTemplate) {
+    setCreatePrefill({
+      name: template.name,
+      category: template.category,
+      description: template.description,
+      priority: template.priority,
+      budget: template.budget.toString(),
+      location: template.location,
+    });
+    setIsCreateOpen(true);
+  }
+
+  function handleCreateClose() {
+    setIsCreateOpen(false);
+    setCreatePrefill(null);
+  }
+
+  useModuleCreateAction(
+    useCallback(() => {
+      setCreatePrefill(null);
+      setIsCreateOpen(true);
+    }, []),
+  );
+
+  return (
+    <div className="hb-app pn-page">
+      <HopeBridgeSidebar activePath="/dashboard/programs" />
+
+      <main className="hb-module-main">
+        <div className="mx-auto max-w-[1600px]">
+          <nav className="pn-breadcrumb">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]"
+            >
+              <Home size={14} className="text-[#0d5f44]" />
+              HopeBridge Foundation
+            </Link>
+            <span className="text-[#c2cbc6]">/</span>
+            <strong>Programs</strong>
+          </nav>
+
+          <ProgramHeader
+            onCreate={() => {
+              setCreatePrefill(null);
+              setIsCreateOpen(true);
+            }}
+            onTemplates={() => setIsTemplatesOpen(true)}
+          />
+
+          <ProgramStats statistics={statistics} />
+
+          <div className="mt-8 grid items-start gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.85fr)]">
+            <ProgramChart programs={programs} />
+            <ProgramInsights programs={programs} />
+          </div>
+
+          <ProgramImpactOverview programs={programs} />
+
+          <section className="pn-panel mt-8 p-6 sm:p-8">
+            <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+              <div>
+                <p className="pn-kicker">PORTFOLIO WORKSPACE</p>
+                <h2 className="pn-section-title mt-2">Explore Programs</h2>
+                <p className="mt-2 text-sm text-[#607269]">
+                  Search and refine the program portfolio.
+                </p>
+              </div>
+
+              <div className="w-full xl:max-w-xl">
+                <ProgramSearch
+                  value={filters.search}
+                  onChange={handleSearchChange}
+                />
+              </div>
+            </div>
+          </section>
+
+          <ProgramFilters filters={filters} onChange={setFilters} />
+
+          <ProgramTable
+            programs={visiblePrograms}
+            onView={setViewProgram}
+            onEdit={setEditProgram}
+            onDelete={setDeleteProgram}
+          />
+
+          <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
+            <section className="pn-panel-emerald p-8 text-white">
+              <p className="text-[10px] font-extrabold tracking-[0.16em] text-[#ead8b1]">
+                PORTFOLIO SUMMARY
+              </p>
+
+              <h2 className="pn-section-title mt-3 text-white">
+                Creating measurable community impact
+              </h2>
+
+              <p className="mt-4 max-w-3xl text-sm leading-7 text-white/72">
+                HopeBridge programs combine responsible budgeting, clear
+                ownership, measurable outcomes, and continuous performance
+                monitoring to improve the communities they serve.
+              </p>
+
+              <div className="mt-8 grid gap-4 sm:grid-cols-3">
+                <SummaryItem label="Total Programs" value={programs.length.toString()} />
+                <SummaryItem
+                  label="Total Beneficiaries"
+                  value={statistics.totalBeneficiaries.toLocaleString()}
+                />
+                <SummaryItem
+                  label="Critical Priorities"
+                  value={statistics.attention.toString()}
+                />
+              </div>
+            </section>
+
+            <ActivityTimeline />
+          </div>
+        </div>
+
+        <CreateProgramModal
+          isOpen={isCreateOpen}
+          onClose={handleCreateClose}
+          onCreate={handleCreate}
+          prefill={createPrefill}
+        />
+
+        <ProgramTemplatesModal
+          isOpen={isTemplatesOpen}
+          onClose={() => setIsTemplatesOpen(false)}
+          onSelect={handleTemplateSelect}
+        />
+
+        <ViewProgramModal
+          isOpen={viewProgram !== null}
+          program={viewProgram}
+          onClose={() => setViewProgram(null)}
+        />
+
+        <EditProgramModal
+          isOpen={editProgram !== null}
+          program={editProgram}
+          onClose={() => setEditProgram(null)}
+          onSave={handleSave}
+        />
+
+        <DeleteProgramModal
+          isOpen={deleteProgram !== null}
+          program={deleteProgram}
+          onClose={() => setDeleteProgram(null)}
+          onConfirm={handleDelete}
+        />
+      </main>
+    </div>
+  );
+}
+
+function SummaryItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+      <p className="text-xs uppercase tracking-wider text-white/55">{label}</p>
+      <p className="mt-2 font-serif text-2xl font-bold text-[#f3e5ab]">{value}</p>
+    </div>
+  );
+}

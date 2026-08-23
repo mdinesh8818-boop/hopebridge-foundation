@@ -1,0 +1,804 @@
+/* Volunteer Operations — dark cinematic emerald / gold */
+
+.vl-page {
+  --vl-forest: #011612;
+  --vl-emerald-deep: #022c22;
+  --vl-emerald: #0d5f44;
+  --vl-ivory: #fdfcf8;
+  --vl-champagne: #ead8b1;
+  --vl-gold: #d4af37;
+  --vl-gold-light: #f3e5ab;
+  --vl-text: #112e24;
+  --vl-muted: #5f7268;
+}
+
+/* Cinematic hero — full-bleed volunteer community photograph */
+.vl-hero {
+  position: relative;
+  margin-top: 18px;
+  min-height: 320px;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid rgba(212, 175, 55, 0.38);
+  box-shadow:
+    0 28px 64px rgba(1, 22, 18, 0.55),
+    inset 0 1px rgba(255, 255, 255, 0.05);
+  background: #003b2f;
+}
+
+.vl-hero-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: url("/hopebridge/volunteers/hero-volunteer-community.png");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center 34%;
+}
+
+.vl-hero-emblem-wrap {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  z-index: 2;
+  width: 102px;
+  height: 102px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.vl-hero-emblem {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0.93;
+  filter: drop-shadow(0 0 14px rgba(255, 232, 156, 0.36));
+  animation: vl-emblem-glow 8s ease-in-out infinite;
+}
+
+.vl-hero-readability {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    102deg,
+    rgba(0, 59, 47, 0.9) 0%,
+    rgba(0, 59, 47, 0.76) 24%,
+    rgba(0, 76, 58, 0.48) 40%,
+    rgba(0, 96, 69, 0.14) 54%,
+    transparent 72%
+  );
+}
+
+.vl-hero-content {
+  position: relative;
+  z-index: 3;
+  padding: 32px 28px 36px;
+  box-sizing: border-box;
+  max-width: 560px;
+}
+
+@media (min-width: 1280px) {
+  .vl-hero-content {
+    padding: 88px 36px 40px;
+  }
+}
+
+.vl-hero-copy {
+  max-width: 560px;
+}
+
+.vl-hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 15px;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 175, 55, 0.42);
+  background: rgba(0, 59, 47, 0.72);
+  backdrop-filter: blur(6px);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #fffaf0;
+}
+
+.vl-hero-title {
+  margin-top: 18px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2.2rem, 4vw, 3.35rem);
+  font-weight: 700;
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.vl-hero-title-gold {
+  display: block;
+  background: linear-gradient(
+    135deg,
+    #fffaf0 0%,
+    #ffe89c 18%,
+    #f1ce55 42%,
+    #d4a928 62%,
+    #f1ce55 82%,
+    #ffe89c 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 10px rgba(212, 169, 40, 0.35));
+}
+
+.vl-hero-desc {
+  margin-top: 14px;
+  max-width: 520px;
+  font-size: 14px;
+  line-height: 1.72;
+  color: rgba(255, 250, 240, 0.88);
+}
+
+.vl-hero-actions {
+  position: absolute;
+  top: 28px;
+  right: 32px;
+  z-index: 5;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  max-width: calc(100% - 64px);
+  box-sizing: border-box;
+}
+
+.vl-hero-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 400px;
+  height: 58px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  background: rgba(0, 59, 47, 0.58);
+  backdrop-filter: blur(10px);
+  box-sizing: border-box;
+  flex: 0 1 400px;
+  min-width: 0;
+  max-width: min(400px, calc(100% - 216px));
+  transition:
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    background 0.22s ease;
+}
+
+.vl-hero-search:focus-within {
+  border-color: rgba(241, 206, 85, 0.55);
+  background: rgba(0, 59, 47, 0.68);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.14);
+}
+
+.vl-hero-search svg {
+  color: #f1ce55;
+  flex-shrink: 0;
+}
+
+.vl-hero-search input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  color: #fffaf0;
+}
+
+.vl-hero-search input::placeholder {
+  color: rgba(255, 250, 240, 0.55);
+}
+
+.vl-hero-actions .vl-gold-btn {
+  width: 200px;
+  height: 58px;
+  flex: 0 0 200px;
+  padding: 0 20px;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+.vl-hero-actions .vl-gold-btn svg {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.vl-gold-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 22px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 232, 156, 0.75);
+  background: linear-gradient(
+    148deg,
+    #ffe89c 0%,
+    #f1ce55 24%,
+    #d4a928 52%,
+    #f1ce55 78%,
+    #ffe89c 100%
+  );
+  color: #003b2f;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.82),
+    0 4px 0 rgba(184, 148, 31, 0.32),
+    0 10px 28px rgba(212, 169, 40, 0.38),
+    0 0 24px rgba(241, 206, 85, 0.18);
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.vl-gold-btn > * {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.vl-gold-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 65%
+  );
+  transform: translateX(-120%);
+  transition: transform 0.45s ease;
+}
+
+.vl-gold-btn:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.82),
+    0 6px 0 rgba(184, 148, 31, 0.32),
+    0 16px 36px rgba(212, 169, 40, 0.48),
+    0 0 32px rgba(241, 206, 85, 0.28);
+}
+
+.vl-gold-btn:hover::after {
+  transform: translateX(120%);
+}
+
+/* KPI cards */
+.vl-kpi-card {
+  border-radius: 18px;
+  border: 1px solid rgba(212, 175, 55, 0.18);
+  background: linear-gradient(
+    168deg,
+    #fffef9 0%,
+    #fffaf0 48%,
+    #fdfcf8 100%
+  );
+  padding: 22px 20px;
+  box-shadow:
+    0 10px 26px rgba(44, 53, 46, 0.06),
+    0 1px 0 rgba(255, 255, 255, 0.95) inset;
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+}
+
+.vl-kpi-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(212, 175, 55, 0.38);
+  box-shadow:
+    0 18px 38px rgba(0, 59, 47, 0.1),
+    0 0 0 1px rgba(212, 175, 55, 0.08),
+    0 0 24px rgba(212, 175, 55, 0.1);
+}
+
+.vl-kpi-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  background: linear-gradient(145deg, rgba(13, 95, 68, 0.08), rgba(243, 229, 171, 0.18));
+  color: var(--vl-emerald-deep);
+}
+
+/* Performance panel */
+.vl-performance-panel {
+  border-radius: 20px;
+  border: 1px solid rgba(212, 175, 55, 0.16);
+  background: linear-gradient(168deg, #fffef9 0%, #fffaf0 100%);
+  padding: 24px 28px;
+  box-shadow: 0 10px 26px rgba(44, 53, 46, 0.05);
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.vl-performance-panel:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 34px rgba(0, 59, 47, 0.08);
+}
+
+.vl-period-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  background: rgba(253, 252, 248, 0.95);
+  color: var(--vl-emerald);
+  font-size: 13px;
+  font-weight: 600;
+  transition: border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.vl-period-btn:hover {
+  border-color: rgba(212, 175, 55, 0.45);
+  box-shadow: 0 4px 14px rgba(212, 175, 55, 0.12);
+}
+
+.vl-metric-row {
+  cursor: default;
+  padding: 4px 0;
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+
+.vl-metric-row:hover {
+  background: rgba(234, 216, 177, 0.12);
+}
+
+.vl-progress-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8e0d0;
+  box-shadow: inset 0 1px 2px rgba(44, 53, 46, 0.08);
+}
+
+.vl-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #011612, #0d5f44 55%, #d4af37);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.25);
+  transition: width 0.45s ease;
+  position: relative;
+}
+
+.vl-progress-fill::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  transform: translate(50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, #f3e5ab, #d4af37);
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.6);
+}
+
+.vl-metric-tooltip {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--vl-muted);
+}
+
+/* AI intelligence panel */
+.vl-ai-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 0%, rgba(0, 81, 61, 0.22) 0%, transparent 60%),
+    linear-gradient(168deg, #002f25 0%, #071d17 55%, #011612 100%);
+  padding: 24px 28px;
+  box-shadow:
+    0 22px 52px rgba(7, 29, 23, 0.42),
+    inset 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.vl-ai-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image:
+    linear-gradient(rgba(234, 216, 177, 0.5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(234, 216, 177, 0.5) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.vl-ai-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6ee7b7;
+  box-shadow: 0 0 8px rgba(110, 231, 183, 0.8);
+  animation: vl-status-pulse 2.4s ease-in-out infinite;
+}
+
+.vl-ai-inner {
+  position: relative;
+  z-index: 1;
+  margin-top: 20px;
+  border-radius: 14px;
+  border: 1px solid rgba(212, 175, 55, 0.16);
+  background: rgba(4, 12, 10, 0.65);
+  padding: 16px 18px;
+}
+
+.vl-ai-link {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding: 13px 20px;
+  border-radius: 14px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  background: linear-gradient(145deg, rgba(13, 95, 68, 0.35), rgba(7, 29, 23, 0.85));
+  color: #f3e5ab;
+  font-size: 14px;
+  font-weight: 600;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.vl-ai-link:hover {
+  transform: translateY(-2px);
+  border-color: rgba(243, 229, 171, 0.55);
+  box-shadow: 0 8px 24px rgba(212, 175, 55, 0.18);
+}
+
+/* Recent activity timeline */
+.vl-activity-panel {
+  border-radius: 20px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  background: linear-gradient(168deg, #002f25 0%, #071d17 100%);
+  padding: 22px 24px;
+  box-shadow: 0 16px 40px rgba(7, 29, 23, 0.28);
+}
+
+.vl-timeline {
+  position: relative;
+  margin-top: 18px;
+  padding-left: 28px;
+}
+
+.vl-timeline::before {
+  content: "";
+  position: absolute;
+  left: 9px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.5), rgba(13, 95, 68, 0.35));
+}
+
+.vl-timeline-item {
+  position: relative;
+  padding: 10px 0 10px 8px;
+}
+
+.vl-timeline-node {
+  position: absolute;
+  left: -28px;
+  top: 14px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #d4af37;
+  background: #071d17;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
+}
+
+/* Volunteer table */
+.vl-table-panel {
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid rgba(228, 218, 198, 0.85);
+  background: linear-gradient(168deg, #fffef9 0%, #fdfcf8 100%);
+  box-shadow: 0 10px 26px rgba(44, 53, 46, 0.05);
+}
+
+.vl-table-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px;
+  border-bottom: 1px solid rgba(234, 216, 177, 0.45);
+}
+
+.vl-secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(13, 95, 68, 0.22);
+  background: #fff;
+  color: var(--vl-emerald);
+  font-size: 13px;
+  font-weight: 600;
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.vl-secondary-btn:hover {
+  transform: translateY(-2px);
+  border-color: rgba(212, 175, 55, 0.45);
+  box-shadow: 0 6px 18px rgba(44, 53, 46, 0.07);
+}
+
+.vl-table thead {
+  background: #faf6ee;
+  border-bottom: 1px solid rgba(234, 216, 177, 0.45);
+}
+
+.vl-table th {
+  padding: 14px 20px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--vl-muted);
+}
+
+.vl-table tbody tr {
+  border-bottom: 1px solid rgba(234, 216, 177, 0.35);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.vl-table tbody tr:nth-child(even) {
+  background: rgba(253, 252, 248, 0.65);
+}
+
+.vl-table tbody tr:hover {
+  background: rgba(234, 216, 177, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.12);
+}
+
+.vl-table td {
+  padding: 14px 20px;
+  font-size: 14px;
+  color: var(--vl-text);
+}
+
+.vl-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid #fecdd3;
+  background: #fff1f2;
+  color: #be123c;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.vl-delete-btn:hover {
+  background: #ffe4e6;
+  transform: translateY(-1px);
+}
+
+.vl-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  background: rgba(243, 229, 171, 0.22);
+  color: #8b6005;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.vl-edit-btn:hover {
+  background: rgba(243, 229, 171, 0.38);
+  transform: translateY(-1px);
+}
+
+.vl-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(13, 95, 68, 0.22);
+  background: rgba(13, 95, 68, 0.08);
+  color: var(--vl-emerald);
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.vl-view-btn:hover {
+  background: rgba(13, 95, 68, 0.14);
+  transform: translateY(-1px);
+}
+
+/* Modals */
+.vl-overlay {
+  background: rgba(0, 34, 26, 0.52);
+  backdrop-filter: blur(4px);
+}
+
+.vl-modal-dark-header {
+  border-radius: 14px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  background: linear-gradient(168deg, #002f25, #071d17);
+  padding: 16px 18px;
+  color: #f7f3e8;
+}
+
+.vl-input {
+  border: 1px solid rgba(228, 218, 198, 0.9);
+  background: #fdfcf8;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.vl-input:focus {
+  border-color: rgba(212, 175, 55, 0.45);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+  outline: none;
+}
+
+.vl-filter-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 40;
+  width: min(300px, 92vw);
+  border-radius: 16px;
+  border: 1px solid rgba(228, 218, 198, 0.9);
+  background: #fff;
+  padding: 18px;
+  box-shadow: 0 20px 48px rgba(34, 53, 45, 0.14);
+}
+
+.vl-action-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  min-width: 170px;
+  border-radius: 12px;
+  border: 1px solid rgba(228, 218, 198, 0.9);
+  background: #fff;
+  padding: 6px;
+  box-shadow: 0 16px 40px rgba(34, 53, 45, 0.14);
+}
+
+.vl-action-menu button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  color: var(--vl-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.vl-action-menu button:hover {
+  background: rgba(234, 216, 177, 0.2);
+}
+
+.vl-action-menu button.danger {
+  color: #be123c;
+}
+
+@keyframes vl-emblem-glow {
+  0%, 100% {
+    opacity: 0.88;
+    filter: drop-shadow(0 0 12px rgba(255, 232, 156, 0.34));
+  }
+  50% {
+    opacity: 0.96;
+    filter: drop-shadow(0 0 20px rgba(255, 232, 156, 0.58));
+  }
+}
+
+@keyframes vl-glow-pulse {
+  0%, 100% { opacity: 0.75; transform: translate(10%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(10%, -50%) scale(1.04); }
+}
+
+@keyframes vl-arc-pulse {
+  0%, 100% { stroke-opacity: 0.35; }
+  50% { stroke-opacity: 0.65; }
+}
+
+@keyframes vl-node-pulse {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+@keyframes vl-status-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+@media (max-width: 1024px) {
+  .vl-hero-scene {
+    background-position: center 32%;
+  }
+
+  .vl-hero-emblem-wrap {
+    top: 18px;
+    width: 90px;
+    height: 90px;
+  }
+
+  .vl-hero-actions {
+    top: 24px;
+    right: 24px;
+    max-width: calc(100% - 48px);
+  }
+
+  .vl-hero-search {
+    width: min(340px, calc(100% - 216px));
+    max-width: min(340px, calc(100% - 216px));
+  }
+
+  .vl-hero-actions .vl-gold-btn {
+    width: 190px;
+    flex: 0 0 190px;
+  }
+
+  .vl-hero-content {
+    padding-top: 80px;
+  }
+}
+
+@media (max-width: 720px) {
+  .vl-hero-actions {
+    top: 20px;
+    right: 16px;
+    left: 16px;
+    max-width: calc(100% - 32px);
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .vl-hero-search {
+    width: 100%;
+    max-width: 100%;
+    flex: 1 1 auto;
+  }
+
+  .vl-hero-actions .vl-gold-btn {
+    width: 100%;
+    flex: 0 0 auto;
+  }
+
+  .vl-hero-content {
+    padding: 148px 20px 32px;
+  }
+}

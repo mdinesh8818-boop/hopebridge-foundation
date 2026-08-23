@@ -1,0 +1,344 @@
+---
+alwaysApply: true
+---
+
+"use client";
+
+import { useState } from "react";
+import {
+  BarChart3,
+  BrainCircuit,
+  CalendarDays,
+  ChevronDown,
+  CircleDollarSign,
+  ClipboardCheck,
+  FolderKanban,
+  Gauge,
+  HandHeart,
+  HeartHandshake,
+  LayoutDashboard,
+  Menu,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  Users,
+  UsersRound,
+  X,
+} from "lucide-react";
+
+type NavigationItem = {
+  label: string;
+  icon: React.ElementType;
+};
+
+type NavigationSection = {
+  title: string;
+  items: NavigationItem[];
+};
+
+const navigationSections: NavigationSection[] = [
+  {
+    title: "Foundation",
+    items: [
+      {
+        label: "Mission & Vision",
+        icon: Target,
+      },
+      {
+        label: "Campaigns",
+        icon: HandHeart,
+      },
+      {
+        label: "Programs",
+        icon: FolderKanban,
+      },
+    ],
+  },
+  {
+    title: "Operations",
+    items: [
+      {
+        label: "Donors",
+        icon: CircleDollarSign,
+      },
+      {
+        label: "Volunteers",
+        icon: UsersRound,
+      },
+      {
+        label: "Beneficiaries",
+        icon: HeartHandshake,
+      },
+      {
+        label: "Teams",
+        icon: Users,
+      },
+    ],
+  },
+  {
+    title: "Intelligence",
+    items: [
+      {
+        label: "Impact Analytics",
+        icon: BarChart3,
+      },
+      {
+        label: "AI Assistant",
+        icon: BrainCircuit,
+      },
+      {
+        label: "Reports",
+        icon: ClipboardCheck,
+      },
+      {
+        label: "Calendar",
+        icon: CalendarDays,
+      },
+    ],
+  },
+  {
+    title: "Administration",
+    items: [
+      {
+        label: "Organization Setup",
+        icon: ShieldCheck,
+      },
+      {
+        label: "Settings",
+        icon: Settings,
+      },
+    ],
+  },
+];
+
+export default function Sidebar() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [activeItem, setActiveItem] = useState("Dashboard");
+
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    Foundation: true,
+    Operations: true,
+    Intelligence: true,
+    Administration: false,
+  });
+
+  function toggleSection(sectionTitle: string) {
+    setOpenSections((currentSections) => ({
+      ...currentSections,
+      [sectionTitle]: !currentSections[sectionTitle],
+    }));
+  }
+
+  function selectItem(itemLabel: string) {
+    setActiveItem(itemLabel);
+    setMobileOpen(false);
+  }
+
+  const sidebarContent = (
+    <aside className="flex h-full w-72 flex-col border-r border-amber-400/10 bg-zinc-950/95 text-white shadow-2xl backdrop-blur-2xl">
+      {/* Brand */}
+      <div className="border-b border-white/10 px-5 py-6">
+        <div className="flex items-center gap-3">
+          <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-400/30 bg-gradient-to-br from-amber-300 via-amber-400 to-orange-500 text-lg font-black text-zinc-950 shadow-[0_0_30px_rgba(251,191,36,0.18)]">
+            H
+
+            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-zinc-950 bg-emerald-400">
+              <Sparkles size={9} className="text-zinc-950" />
+            </span>
+          </div>
+
+          <div className="min-w-0">
+            <h2 className="truncate text-lg font-bold tracking-wide text-white">
+              HopeBridge
+            </h2>
+
+            <p className="truncate text-xs text-zinc-500">
+              Foundation Intelligence
+            </p>
+          </div>
+
+          <button
+            type="button"
+            aria-label="Close navigation"
+            onClick={() => setMobileOpen(false)}
+            className="ml-auto rounded-lg p-2 text-zinc-500 transition hover:bg-white/5 hover:text-white lg:hidden"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-amber-400/15 bg-gradient-to-r from-amber-400/10 to-transparent p-3">
+          <div className="flex items-center gap-2 text-xs font-medium text-amber-300">
+            <Gauge size={15} />
+            Foundation performance
+          </div>
+
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+            <div className="h-full w-[78%] rounded-full bg-gradient-to-r from-amber-400 to-emerald-400" />
+          </div>
+
+          <div className="mt-2 flex items-center justify-between text-[11px]">
+            <span className="text-zinc-500">Overall impact score</span>
+            <span className="font-semibold text-amber-300">78%</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div className="flex-1 overflow-y-auto px-4 py-5">
+        <nav className="space-y-2">
+          <button
+            type="button"
+            onClick={() => selectItem("Dashboard")}
+            className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm font-medium transition-all duration-200 ${
+              activeItem === "Dashboard"
+                ? "border-amber-400/30 bg-amber-400/10 text-amber-300 shadow-[0_0_24px_rgba(251,191,36,0.08)]"
+                : "border-transparent text-zinc-400 hover:border-white/10 hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            <LayoutDashboard size={18} />
+            <span>Dashboard</span>
+
+            {activeItem === "Dashboard" && (
+              <span className="ml-auto h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.8)]" />
+            )}
+          </button>
+
+          <div className="my-4 h-px bg-white/5" />
+
+          {navigationSections.map((section) => {
+            const isOpen = openSections[section.title];
+
+            return (
+              <div key={section.title} className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.title)}
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600 transition hover:bg-white/[0.03] hover:text-zinc-400"
+                >
+                  <span>{section.title}</span>
+
+                  <ChevronDown
+                    size={14}
+                    className={`transition-transform duration-200 ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                <div
+                  className={`grid overflow-hidden transition-all duration-300 ${
+                    isOpen
+                      ? "grid-rows-[1fr] opacity-100"
+                      : "grid-rows-[0fr] opacity-0"
+                  }`}
+                >
+                  <div className="min-h-0 space-y-1">
+                    {section.items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeItem === item.label;
+
+                      return (
+                        <button
+                          key={item.label}
+                          type="button"
+                          onClick={() => selectItem(item.label)}
+                          className={`group flex w-full items-center gap-3 rounded-xl border px-4 py-2.5 text-left text-sm transition-all duration-200 ${
+                            isActive
+                              ? "border-amber-400/25 bg-amber-400/10 text-amber-300"
+                              : "border-transparent text-zinc-400 hover:translate-x-1 hover:border-white/5 hover:bg-white/[0.04] hover:text-white"
+                          }`}
+                        >
+                          <Icon
+                            size={17}
+                            className={
+                              isActive
+                                ? "text-amber-300"
+                                : "text-zinc-600 transition group-hover:text-amber-300"
+                            }
+                          />
+
+                          <span>{item.label}</span>
+
+                          {isActive && (
+                            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-amber-400" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Footer */}
+      <div className="border-t border-white/10 p-4">
+        <div className="rounded-2xl border border-emerald-400/15 bg-emerald-400/[0.06] p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-400/10">
+              <BrainCircuit size={18} className="text-emerald-400" />
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-white">
+                HopeBridge AI
+              </p>
+
+              <p className="text-xs text-zinc-500">
+                Strategic assistant online
+              </p>
+            </div>
+
+            <span className="ml-auto h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.7)]" />
+          </div>
+        </div>
+
+        <p className="mt-4 text-center text-[10px] text-zinc-700">
+          HopeBridge Foundation Platform · v1.0
+        </p>
+      </div>
+    </aside>
+  );
+
+  return (
+    <>
+      {/* Mobile menu button */}
+      <button
+        type="button"
+        aria-label="Open navigation"
+        onClick={() => setMobileOpen(true)}
+        className="fixed left-4 top-4 z-40 flex h-11 w-11 items-center justify-center rounded-xl border border-amber-400/20 bg-zinc-950/90 text-amber-300 shadow-xl backdrop-blur-xl lg:hidden"
+      >
+        <Menu size={21} />
+      </button>
+
+      {/* Desktop sidebar */}
+      <div className="sticky top-0 hidden h-screen shrink-0 lg:block">
+        {sidebarContent}
+      </div>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation overlay"
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden"
+        />
+      )}
+
+      {/* Mobile sidebar */}
+      <div
+        className={`fixed inset-y-0 left-0 z-50 transition-transform duration-300 lg:hidden ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {sidebarContent}
+      </div>
+    </>
+  );
+}

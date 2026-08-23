@@ -1,0 +1,368 @@
+import Sidebar from "./components/Sidebar";
+import {
+  Activity,
+  ArrowUpRight,
+  Bell,
+  BrainCircuit,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  FolderKanban,
+  Search,
+  Sparkles,
+  Target,
+  TrendingUp,
+} from "lucide-react";
+
+const statistics = [
+  {
+    title: "Strategy Plans",
+    value: "128",
+    change: "+12%",
+    description: "from last month",
+    icon: Target,
+    accent: "text-emerald-400",
+  },
+  {
+    title: "Active Projects",
+    value: "42",
+    change: "18 running",
+    description: "across 6 departments",
+    icon: FolderKanban,
+    accent: "text-blue-400",
+  },
+  {
+    title: "Healthy KPIs",
+    value: "356",
+    change: "91%",
+    description: "performing on target",
+    icon: TrendingUp,
+    accent: "text-purple-400",
+  },
+  {
+    title: "AI Insights",
+    value: "24",
+    change: "7 new",
+    description: "recommendations today",
+    icon: BrainCircuit,
+    accent: "text-amber-400",
+  },
+];
+
+const strategyProgress = [
+  { name: "Digital Transformation", progress: 82 },
+  { name: "Customer Experience", progress: 68 },
+  { name: "Operational Excellence", progress: 74 },
+  { name: "Workforce Development", progress: 56 },
+];
+
+const recentActivities = [
+  {
+    title: "Q3 growth strategy approved",
+    detail: "Approved by Executive Leadership",
+    time: "18 minutes ago",
+  },
+  {
+    title: "Customer retention KPI updated",
+    detail: "Target increased from 86% to 90%",
+    time: "1 hour ago",
+  },
+  {
+    title: "New project added",
+    detail: "AI-enabled patient experience program",
+    time: "3 hours ago",
+  },
+];
+
+const deadlines = [
+  {
+    title: "Quarterly strategy review",
+    date: "July 25",
+    status: "Due soon",
+  },
+  {
+    title: "KPI performance report",
+    date: "July 29",
+    status: "In progress",
+  },
+  {
+    title: "Executive roadmap approval",
+    date: "August 2",
+    status: "Scheduled",
+  },
+];
+
+export default function DashboardPage() {
+  return (
+    <div className="flex min-h-screen bg-zinc-950 text-white">
+      <Sidebar />
+
+      <main className="min-w-0 flex-1 bg-gradient-to-br from-emerald-950 via-zinc-950 to-blue-950">
+        <div className="mx-auto max-w-[1600px] p-6 lg:p-10">
+          <header className="mb-8 flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <p className="mb-2 text-sm font-medium text-emerald-400">
+                Executive overview
+              </p>
+
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                Strategy Intelligence Platform
+              </h1>
+
+              <p className="mt-2 text-zinc-400">
+                Monitor strategy, projects, KPIs, goals, and AI-powered insights.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-xl">
+                <Search size={18} className="text-zinc-500" />
+
+                <input
+                  type="text"
+                  placeholder="Search dashboard..."
+                  className="w-full bg-transparent text-sm text-white outline-none placeholder:text-zinc-500 sm:w-52"
+                />
+              </div>
+
+              <button className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-zinc-300 transition hover:border-emerald-400/40 hover:text-white">
+                <Bell size={19} />
+                <span className="absolute right-3 top-3 h-2 w-2 rounded-full bg-emerald-400" />
+              </button>
+
+              <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/20 font-semibold text-emerald-300">
+                  D
+                </div>
+
+                <div className="pr-2">
+                  <p className="text-sm font-medium">Dinesh</p>
+                  <p className="text-xs text-zinc-500">Strategy Analyst</p>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <section className="mb-8 flex flex-wrap gap-3">
+            <button className="flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400">
+              <Sparkles size={17} />
+              New Strategy
+            </button>
+
+            <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium transition hover:border-emerald-400/40 hover:bg-white/10">
+              <Target size={17} />
+              Add KPI
+            </button>
+
+            <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium transition hover:border-emerald-400/40 hover:bg-white/10">
+              <ArrowUpRight size={17} />
+              Export Report
+            </button>
+          </section>
+
+          <section className="mb-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            {statistics.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <article
+                  key={item.title}
+                  className="group rounded-3xl border border-white/10 bg-white/[0.06] p-6 shadow-2xl backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-emerald-400/30"
+                >
+                  <div className="mb-5 flex items-start justify-between">
+                    <div>
+                      <p className="text-sm text-zinc-400">{item.title}</p>
+                      <p className="mt-2 text-4xl font-bold">{item.value}</p>
+                    </div>
+
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                      <Icon size={21} className={item.accent} />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className={`font-medium ${item.accent}`}>
+                      {item.change}
+                    </span>
+                    <span className="text-zinc-500">{item.description}</span>
+                  </div>
+                </article>
+              );
+            })}
+          </section>
+
+          <section className="grid gap-6 xl:grid-cols-[1.45fr_1fr]">
+            <div className="space-y-6">
+              <article className="rounded-3xl border border-white/10 bg-white/[0.05] p-6 backdrop-blur-xl">
+                <div className="mb-6 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-zinc-500">
+                      Overall organizational performance
+                    </p>
+                    <h2 className="mt-1 text-xl font-semibold">
+                      Strategy Progress
+                    </h2>
+                  </div>
+
+                  <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
+                    <TrendingUp size={16} />
+                    8.4% growth
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {strategyProgress.map((strategy) => (
+                    <div key={strategy.name}>
+                      <div className="mb-2 flex items-center justify-between text-sm">
+                        <span className="font-medium text-zinc-200">
+                          {strategy.name}
+                        </span>
+                        <span className="text-zinc-400">
+                          {strategy.progress}%
+                        </span>
+                      </div>
+
+                      <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-400"
+                          style={{ width: `${strategy.progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              <article className="rounded-3xl border border-white/10 bg-white/[0.05] p-6 backdrop-blur-xl">
+                <div className="mb-6 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-zinc-500">
+                      Latest updates across your workspace
+                    </p>
+                    <h2 className="mt-1 text-xl font-semibold">
+                      Recent Activity
+                    </h2>
+                  </div>
+
+                  <Activity size={21} className="text-blue-400" />
+                </div>
+
+                <div className="space-y-3">
+                  {recentActivities.map((activity) => (
+                    <div
+                      key={activity.title}
+                      className="flex gap-4 rounded-2xl border border-white/5 bg-black/20 p-4"
+                    >
+                      <div className="mt-1">
+                        <CheckCircle2
+                          size={19}
+                          className="text-emerald-400"
+                        />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-zinc-100">
+                          {activity.title}
+                        </p>
+                        <p className="mt-1 text-sm text-zinc-500">
+                          {activity.detail}
+                        </p>
+                      </div>
+
+                      <p className="shrink-0 text-xs text-zinc-600">
+                        {activity.time}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            </div>
+
+            <div className="space-y-6">
+              <article className="rounded-3xl border border-emerald-400/20 bg-gradient-to-br from-emerald-500/10 to-cyan-500/5 p-6 backdrop-blur-xl">
+                <div className="mb-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-emerald-300">AI assistant</p>
+                    <h2 className="mt-1 text-xl font-semibold">
+                      Strategic Intelligence
+                    </h2>
+                  </div>
+
+                  <div className="rounded-xl bg-emerald-500/15 p-3">
+                    <BrainCircuit size={23} className="text-emerald-400" />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-sm font-medium text-white">
+                      Project delivery risk detected
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-400">
+                      Three projects are likely to miss their next milestone
+                      because resource capacity is below target.
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-sm font-medium text-white">
+                      KPI improvement opportunity
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-400">
+                      Customer retention could improve by prioritizing two
+                      underperforming initiatives.
+                    </p>
+                  </div>
+                </div>
+
+                <button className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400">
+                  View all AI insights
+                  <ArrowUpRight size={16} />
+                </button>
+              </article>
+
+              <article className="rounded-3xl border border-white/10 bg-white/[0.05] p-6 backdrop-blur-xl">
+                <div className="mb-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-zinc-500">Next scheduled items</p>
+                    <h2 className="mt-1 text-xl font-semibold">
+                      Upcoming Deadlines
+                    </h2>
+                  </div>
+
+                  <CalendarDays size={21} className="text-purple-400" />
+                </div>
+
+                <div className="space-y-3">
+                  {deadlines.map((deadline) => (
+                    <div
+                      key={deadline.title}
+                      className="flex items-center gap-4 rounded-2xl border border-white/5 bg-black/20 p-4"
+                    >
+                      <div className="rounded-xl bg-white/5 p-2.5">
+                        <Clock3 size={18} className="text-zinc-400" />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {deadline.title}
+                        </p>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          {deadline.date}
+                        </p>
+                      </div>
+
+                      <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-zinc-400">
+                        {deadline.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  );
+}
