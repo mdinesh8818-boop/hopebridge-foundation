@@ -130,11 +130,27 @@ export function normalizeDonorRecord(
       : String(record.campaign ?? "");
   const status =
     typeof record.status === "string" ? record.status : String(record.status ?? "");
-  const amountNum = Number(record.amountNum);
-  const safeAmount = Number.isFinite(amountNum)
-    ? amountNum
-    : Number(String(record.amount ?? "").replace(/[^0-9.]/g, "")) || 0;
-  const date = formatDonorDateDisplay(record.date);
+  const rawAmountCandidates = [
+    record.amountNum,
+    record.totalDonated,
+    record.lastGift,
+    record.amount,
+  ];
+  let safeAmount = 0;
+  for (const candidate of rawAmountCandidates) {
+    if (candidate == null || candidate === "") continue;
+    const parsed =
+      typeof candidate === "number"
+        ? candidate
+        : Number(String(candidate).replace(/[^0-9.]/g, ""));
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      safeAmount = parsed;
+      break;
+    }
+  }
+  const date = formatDonorDateDisplay(
+    record.date ?? record.createdAt ?? record.updatedAt,
+  );
   const initials =
     typeof record.initials === "string" && record.initials.trim()
       ? record.initials
