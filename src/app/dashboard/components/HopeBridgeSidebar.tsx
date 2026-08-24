@@ -3,6 +3,7 @@
 import type { ElementType } from "react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useAuth } from "@/providers/AuthProvider";
 import {
   BarChart3,
   BrainCircuit,
@@ -71,11 +72,18 @@ type HopeBridgeSidebarProps = {
 
 export default function HopeBridgeSidebar({ activePath }: HopeBridgeSidebarProps) {
   const router = useRouter();
+  const { logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   function navigate(href: string) {
     setMobileOpen(false);
     router.push(href);
+  }
+
+  async function handleSignOut() {
+    setMobileOpen(false);
+    await logout();
+    router.push("/auth/login");
   }
 
   const sidebarInner = (
@@ -150,7 +158,12 @@ export default function HopeBridgeSidebar({ activePath }: HopeBridgeSidebarProps
             <strong>Dinesh M.</strong>
             <small>Administrator</small>
           </div>
-          <button type="button" className="hb-user-logout" aria-label="Sign out">
+          <button
+            type="button"
+            className="hb-user-logout"
+            aria-label="Sign out"
+            onClick={handleSignOut}
+          >
             <LogOut size={15} />
           </button>
         </div>
