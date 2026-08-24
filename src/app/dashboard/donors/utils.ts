@@ -60,18 +60,125 @@ export function formatCurrencyFull(value: number): string {
 }
 
 export function getInitials(name: string): string {
-  return name
+  return (name || "")
     .split(" ")
     .map((part) => part[0])
+    .filter(Boolean)
     .join("")
     .slice(0, 2)
     .toUpperCase();
 }
 
+export function parseDonorDate(value: unknown): Date | null {
+  if (value == null || value === "") return null;
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (typeof value === "object") {
+    const maybeTimestamp = value as { toDate?: () => Date; seconds?: number };
+    if (typeof maybeTimestamp.toDate === "function") {
+      const date = maybeTimestamp.toDate();
+      return date instanceof Date && !Number.isNaN(date.getTime()) ? date : null;
+    }
+    if (typeof maybeTimestamp.seconds === "number") {
+      return new Date(maybeTimestamp.seconds * 1000);
+    }
+  }
+
+  if (typeof value === "number") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      const date = new Date(`${trimmed.slice(0, 10)}T12:00:00`);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+    const date = new Date(trimmed);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  return null;
+}
+
+export function formatDonorDateDisplay(value: unknown): string {
+  const date = parseDonorDate(value);
+  if (!date) {
+    return typeof value === "string" ? value : "";
+  }
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+export function normalizeDonorRecord(
+  record: Record<string, unknown> & { id: string },
+): DonorRecord {
+  const name = typeof record.name === "string" ? record.name : String(record.name ?? "");
+  const email =
+    typeof record.email === "string" ? record.email : String(record.email ?? "");
+  const campaign =
+    typeof record.campaign === "string"
+      ? record.campaign
+      : String(record.campaign ?? "");
+  const status =
+    typeof record.status === "string" ? record.status : String(record.status ?? "");
+  const amountNum = Number(record.amountNum);
+  const safeAmount = Number.isFinite(amountNum)
+    ? amountNum
+    : Number(String(record.amount ?? "").replace(/[^0-9.]/g, "")) || 0;
+  const date = formatDonorDateDisplay(record.date);
+  const initials =
+    typeof record.initials === "string" && record.initials.trim()
+      ? record.initials
+      : getInitials(name);
+
+  return {
+    id: record.id,
+    name,
+    email,
+    amount: formatCurrencyFull(safeAmount),
+    amountNum: safeAmount,
+    campaign,
+    date,
+    status,
+    initials,
+  };
+}
+
+export function matchesDonorDateRange(dateValue: string, range: string): boolean {
+  if (range === "All") return true;
+  const date = parseDonorDate(dateValue);
+  if (!date) return false;
+
+  const now = new Date();
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+
+  if (range === "Last 7 days") {
+    start.setDate(start.getDate() - 6);
+    return date >= start && date <= now;
+  }
+
+  if (range === "Last 30 days") {
+    start.setDate(start.getDate() - 29);
+    return date >= start && date <= now;
+  }
+
+  return true;
+}
+
 export function computeDonorKpis(donors: DonorRecord[]): DonorKpi[] {
-  const totalRaised = donors.reduce((sum, d) => sum + d.amountNum, 0);
+  const totalRaised = donors.reduce((sum, d) => sum + (Number(d.amountNum) || 0), 0);
   const activeDonors = donors.filter(
-    (d) => !d.status.toLowerCase().includes("lapsed"),
+    (d) => !(d.status || "").toLowerCase().includes("lapsed"),
   ).length;
   const averageGift =
     donors.length > 0 ? Math.round(totalRaised / donors.length) : 0;
@@ -137,11 +244,11 @@ export function computeMonthlyDonations(
   const buckets = new Map<string, { raised: number; contributions: number }>();
 
   for (const donor of donors) {
-    const parsed = new Date(donor.date);
-    if (Number.isNaN(parsed.getTime())) continue;
+    const parsed = parseDonorDate(donor.date);
+    if (!parsed) continue;
     const key = monthNames[parsed.getMonth()];
     const existing = buckets.get(key) ?? { raised: 0, contributions: 0 };
-    existing.raised += donor.amountNum;
+    existing.raised += Number(donor.amountNum) || 0;
     existing.contributions += 1;
     buckets.set(key, existing);
   }
@@ -173,15 +280,18 @@ export function computeCampaignPerformance(
   if (campaigns.length === 0 && donors.length === 0) return [];
 
   const campaignNames = new Set([
-    ...campaigns.map((c) => c.name),
-    ...donors.map((d) => d.campaign),
+    ...campaigns.map((c) => c.name).filter(Boolean),
+    ...donors.map((d) => d.campaign).filter(Boolean),
   ]);
 
   return [...campaignNames]
     .filter(Boolean)
     .map((name) => {
       const campaignDonors = donors.filter((d) => d.campaign === name);
-      const raisedNum = campaignDonors.reduce((s, d) => s + d.amountNum, 0);
+      const raisedNum = campaignDonors.reduce(
+        (s, d) => s + (Number(d.amountNum) || 0),
+        0,
+      );
       const firestoreCampaign = campaigns.find((c) => c.name === name);
       const targetNum = Number(firestoreCampaign?.goal) || raisedNum || 0;
       const percentage =
@@ -203,10 +313,12 @@ export function computeCampaignPerformance(
 }
 
 export function computeDonorSegments(donors: DonorRecord[]): DonorSegment[] {
-  const total = donors.reduce((s, d) => s + d.amountNum, 0);
+  const total = donors.reduce((s, d) => s + (Number(d.amountNum) || 0), 0);
   if (total === 0) return [];
 
-  const major = donors.filter((d) => d.status.toLowerCase().includes("major"));
+  const major = donors.filter((d) =>
+    (d.status || "").toLowerCase().includes("major"),
+  );
   const recurring = donors.filter((d) => d.status === "Recurring");
   const oneTime = donors.filter((d) => d.status === "New donor");
 
@@ -215,7 +327,7 @@ export function computeDonorSegments(donors: DonorRecord[]): DonorSegment[] {
     name: string,
     list: DonorRecord[],
   ): DonorSegment {
-    const amount = list.reduce((s, d) => s + d.amountNum, 0);
+    const amount = list.reduce((s, d) => s + (Number(d.amountNum) || 0), 0);
     return {
       key,
       name,
@@ -245,8 +357,8 @@ export function computeAiInsight(donors: DonorRecord[]): {
     };
   }
 
-  const lapsedCandidates = donors.filter(
-    (d) => d.status.toLowerCase().includes("lapsed"),
+  const lapsedCandidates = donors.filter((d) =>
+    (d.status || "").toLowerCase().includes("lapsed"),
   ).length;
 
   if (lapsedCandidates > 0) {
@@ -259,7 +371,7 @@ export function computeAiInsight(donors: DonorRecord[]): {
   }
 
   const major = donors.filter((d) =>
-    d.status.toLowerCase().includes("major"),
+    (d.status || "").toLowerCase().includes("major"),
   ).length;
   if (major > 0) {
     return {

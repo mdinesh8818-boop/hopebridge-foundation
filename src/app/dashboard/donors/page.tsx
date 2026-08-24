@@ -39,12 +39,17 @@ import HopeBridgeSidebar from "../components/HopeBridgeSidebar";
 import {
   createDocument,
   deleteDocument,
-  getDocuments,
+  subscribeDocuments,
   updateDocument,
 } from "../../../services/firestore";
 import { logActivity } from "../../../services/activity";
 import { useModuleCreateAction } from "@/hooks/useModuleCreateAction";
-import { recordDonation } from "../../../services/donations";
+import { useAuth } from "@/providers/AuthProvider";
+import {
+  deleteDonationsForDonor,
+  recordDonation,
+  syncDonorGift,
+} from "../../../services/donations";
 import {
   computeAiInsight,
   computeCampaignPerformance,
@@ -53,6 +58,8 @@ import {
   computeMonthlyDonations,
   formatCurrencyFull,
   getInitials,
+  matchesDonorDateRange,
+  normalizeDonorRecord,
   type DonorRecord,
 } from "./utils";
 import "./donors.css";
@@ -87,7 +94,7 @@ function formatCurrency(value: number) {
 
 function matchesSegment(donor: Donor, segment: SegmentKey) {
   if (segment === "all") return true;
-  if (segment === "major") return donor.status.toLowerCase().includes("major");
+  if (segment === "major") return (donor.status || "").toLowerCase().includes("major");
   if (segment === "recurring") return donor.status === "Recurring";
   if (segment === "one-time") return donor.status === "New donor";
   return true;
@@ -102,9 +109,31 @@ function matchesGiftRange(amount: number, range: string) {
 }
 
 function getStatusClass(status: string) {
-  if (status.toLowerCase().includes("major")) return "dn-status-pill dn-status-major";
+  if ((status || "").toLowerCase().includes("major")) return "dn-status-pill dn-status-major";
   if (status === "Recurring") return "dn-status-pill dn-status-recurring";
   return "dn-status-pill dn-status-new";
+}
+
+function toCampaignWriteShape(record: Record<string, unknown> & { id: string }) {
+  return {
+    id: record.id,
+    name: typeof record.name === "string" ? record.name : String(record.name ?? ""),
+    goal: Number(record.goal) || 0,
+    raised: Number(record.raised) || 0,
+  };
+}
+
+function toDonorWriteData(donor: Omit<Donor, "id">) {
+  return {
+    name: donor.name,
+    email: donor.email,
+    amount: donor.amount,
+    amountNum: donor.amountNum,
+    campaign: donor.campaign,
+    date: donor.date,
+    status: donor.status,
+    initials: donor.initials,
+  };
 }
 
 function DonationTooltip({
@@ -137,11 +166,13 @@ function DonationTooltip({
 }
 
 export default function DonorsPage() {
+  const { user } = useAuth();
   const [donors, setDonors] = useState<Donor[]>([]);
   const [campaignRecords, setCampaignRecords] = useState<
     { id: string; name: string; goal?: number; raised?: number }[]
   >([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<DonorFilters>(INITIAL_FILTERS);
   const [activeSegment, setActiveSegment] = useState<SegmentKey>("all");
@@ -171,28 +202,48 @@ export default function DonorsPage() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    async function loadDonors() {
-      setIsLoading(true);
-      try {
-        const [firestoreDonors, firestoreCampaigns] = await Promise.all([
-          getDocuments("donors") as Promise<Donor[]>,
-          getDocuments("campaigns") as Promise<
-            { id: string; name: string; goal?: number; raised?: number }[]
-          >,
-        ]);
-        setDonors(firestoreDonors);
-        setCampaignRecords(firestoreCampaigns);
-      } catch (error) {
-        console.error("Unable to load donors.", error);
-        setDonors([]);
-        setCampaignRecords([]);
-      } finally {
-        setIsLoading(false);
-      }
+    if (!user) return;
+
+    let donorsReady = false;
+    let campaignsReady = false;
+
+    function markReady(source: "donors" | "campaigns") {
+      if (source === "donors") donorsReady = true;
+      if (source === "campaigns") campaignsReady = true;
+      if (donorsReady && campaignsReady) setIsLoading(false);
     }
 
-    loadDonors();
-  }, []);
+    const unsubscribeDonors = subscribeDocuments(
+      "donors",
+      (docs) => {
+        setDonors(docs.map((doc) => normalizeDonorRecord(doc)));
+        markReady("donors");
+      },
+      (error) => {
+        console.error("Unable to load donors.", error);
+        setDonors([]);
+        markReady("donors");
+      },
+    );
+
+    const unsubscribeCampaigns = subscribeDocuments(
+      "campaigns",
+      (docs) => {
+        setCampaignRecords(docs.map((doc) => toCampaignWriteShape(doc)));
+        markReady("campaigns");
+      },
+      (error) => {
+        console.error("Unable to load campaigns for donors.", error);
+        setCampaignRecords([]);
+        markReady("campaigns");
+      },
+    );
+
+    return () => {
+      unsubscribeDonors();
+      unsubscribeCampaigns();
+    };
+  }, [user]);
 
   const campaignOptions = useMemo(() => {
     const names = campaignRecords.map((c) => c.name).filter(Boolean);
@@ -235,9 +286,9 @@ export default function DonorsPage() {
     return donors.filter((donor) => {
       const matchesSearch =
         !query ||
-        donor.name.toLowerCase().includes(query) ||
-        donor.email.toLowerCase().includes(query) ||
-        donor.campaign.toLowerCase().includes(query);
+        (donor.name || "").toLowerCase().includes(query) ||
+        (donor.email || "").toLowerCase().includes(query) ||
+        (donor.campaign || "").toLowerCase().includes(query);
 
       const matchesStatus =
         filters.status === "All" || donor.status === filters.status;
@@ -248,17 +299,13 @@ export default function DonorsPage() {
       const matchesType =
         filters.donorType === "All" ||
         (filters.donorType === "Major" &&
-          donor.status.toLowerCase().includes("major")) ||
+          (donor.status || "").toLowerCase().includes("major")) ||
         (filters.donorType === "Recurring" && donor.status === "Recurring") ||
         (filters.donorType === "One-Time" && donor.status === "New donor");
 
       const matchesGift = matchesGiftRange(donor.amountNum, filters.giftRange);
 
-      const matchesDate =
-        filters.dateRange === "All" ||
-        (filters.dateRange === "Last 7 days" &&
-          donor.date.includes("July 2")) ||
-        (filters.dateRange === "Last 30 days" && donor.date.includes("July"));
+      const matchesDate = matchesDonorDateRange(donor.date, filters.dateRange);
 
       return (
         matchesSearch &&
@@ -327,6 +374,7 @@ export default function DonorsPage() {
 
   async function deleteDonorRecord(donor: Donor) {
     try {
+      await deleteDonationsForDonor(donor.id);
       await deleteDocument("donors", donor.id);
       setDonors((current) => current.filter((item) => item.id !== donor.id));
       await logActivity({
@@ -352,6 +400,11 @@ export default function DonorsPage() {
       return;
     }
 
+    if (!form.email.trim()) {
+      alert("Please enter a donor email.");
+      return;
+    }
+
     const donorPayload: Omit<Donor, "id"> = {
       name: form.name.trim(),
       email: form.email.trim(),
@@ -363,10 +416,20 @@ export default function DonorsPage() {
       initials: getInitials(form.name),
     };
 
+    const linkedCampaign = campaignRecords.find((c) => c.name === form.campaign);
+    const giftType = form.status === "Recurring" ? "Recurring" : "One-Time";
+
+    setSaving(true);
     try {
       if (modalMode === "add") {
-        const firestoreId = await createDocument("donors", donorPayload);
-        setDonors((current) => [{ ...donorPayload, id: firestoreId }, ...current]);
+        const firestoreId = await createDocument(
+          "donors",
+          toDonorWriteData(donorPayload),
+        );
+        setDonors((current) => [
+          { ...donorPayload, id: firestoreId },
+          ...current.filter((donor) => donor.id !== firestoreId),
+        ]);
         await logActivity({
           module: "donors",
           action: "created",
@@ -377,9 +440,6 @@ export default function DonorsPage() {
         });
 
         if (amountNum > 0) {
-          const linkedCampaign = campaignRecords.find(
-            (c) => c.name === form.campaign,
-          );
           await recordDonation({
             donorId: firestoreId,
             donorName: donorPayload.name,
@@ -387,13 +447,17 @@ export default function DonorsPage() {
             campaignId: linkedCampaign?.id,
             campaignName: form.campaign,
             date: form.date,
-            giftType: form.status === "Recurring" ? "Recurring" : "One-Time",
+            giftType,
           });
         }
       }
 
       if (modalMode === "edit" && selectedDonor) {
-        await updateDocument("donors", selectedDonor.id, donorPayload);
+        await updateDocument(
+          "donors",
+          selectedDonor.id,
+          toDonorWriteData(donorPayload),
+        );
         setDonors((current) =>
           current.map((donor) =>
             donor.id === selectedDonor.id
@@ -401,6 +465,15 @@ export default function DonorsPage() {
               : donor,
           ),
         );
+        await syncDonorGift({
+          donorId: selectedDonor.id,
+          donorName: donorPayload.name,
+          amount: amountNum,
+          campaignId: linkedCampaign?.id,
+          campaignName: form.campaign,
+          date: form.date,
+          giftType,
+        });
         await logActivity({
           module: "donors",
           action: "updated",
@@ -415,6 +488,8 @@ export default function DonorsPage() {
     } catch (error) {
       console.error("Unable to save donor.", error);
       alert("Unable to save donor. Please try again.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -432,7 +507,11 @@ export default function DonorsPage() {
     ];
 
     const csv = rows
-      .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","))
+      .map((row) =>
+        row
+          .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
+          .join(","),
+      )
       .join("\n");
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -455,7 +534,7 @@ export default function DonorsPage() {
 
   function openReengagement() {
     const lapsed = donors.filter((d) =>
-      d.status.toLowerCase().includes("lapsed"),
+      (d.status || "").toLowerCase().includes("lapsed"),
     ).length;
     setEmailForm({
       subject: "We miss you — rejoin our mission today",
@@ -1118,9 +1197,13 @@ export default function DonorsPage() {
                 type="button"
                 className="dn-gold-btn"
                 onClick={saveDonor}
-                disabled={!form.name.trim() || !form.email.trim()}
+                disabled={saving || !form.name.trim() || !form.email.trim()}
               >
-                {modalMode === "add" ? "Create Donor" : "Save Changes"}
+                {saving
+                  ? "Saving..."
+                  : modalMode === "add"
+                    ? "Create Donor"
+                    : "Save Changes"}
               </button>
             </div>
           </div>
