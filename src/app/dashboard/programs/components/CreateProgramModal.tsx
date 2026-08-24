@@ -23,7 +23,7 @@ import {
 interface CreateProgramModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreate: (program: Program) => void;
+  onCreate: (program: Program) => void | Promise<void>;
   prefill?: Partial<ProgramFormState> | null;
 }
 
@@ -66,21 +66,12 @@ export default function CreateProgramModal({
   prefill = null,
 }: CreateProgramModalProps) {
   const [form, setForm] =
-    useState<ProgramFormState>(initialForm);
+    useState<ProgramFormState>(
+      prefill ? { ...initialForm, ...prefill } : initialForm,
+    );
 
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    if (prefill) {
-      setForm({ ...initialForm, ...prefill });
-    } else {
-      setForm(initialForm);
-    }
-
-    setError("");
-  }, [isOpen, prefill]);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -122,7 +113,7 @@ export default function CreateProgramModal({
     onClose();
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (
@@ -168,10 +159,17 @@ export default function CreateProgramModal({
       updatedAt: now,
     };
 
-    onCreate(newProgram);
-    setForm(initialForm);
-    setError("");
-    onClose();
+    setSaving(true);
+    try {
+      await onCreate(newProgram);
+      setForm(initialForm);
+      setError("");
+      onClose();
+    } catch {
+      // Parent surfaces the failure; keep the modal open so the record is not lost.
+    } finally {
+      setSaving(false);
+    }
   }
 
   const inputClassName =
@@ -422,14 +420,15 @@ export default function CreateProgramModal({
             <button
               type="button"
               onClick={resetAndClose}
+              disabled={saving}
               className="h-12 rounded-xl border border-[#e4dac6] bg-[#fffdfa] px-6 font-semibold text-[#334b41] hover:bg-[#f4fbf7]"
             >
               Cancel
             </button>
 
-            <button type="submit" className="pn-gold-btn h-12 px-7">
+            <button type="submit" disabled={saving} className="pn-gold-btn h-12 px-7">
               <Plus size={19} />
-              Create Program
+              {saving ? "Saving..." : "Create Program"}
             </button>
           </div>
         </form>

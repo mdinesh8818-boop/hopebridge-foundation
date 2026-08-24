@@ -8,10 +8,11 @@ import HopeBridgeSidebar from "../components/HopeBridgeSidebar";
 import {
   createDocument,
   deleteDocument,
-  getDocuments,
+  subscribeDocuments,
   updateDocument,
 } from "../../../services/firestore";
 import { logActivity } from "../../../services/activity";
+import { useAuth } from "@/providers/AuthProvider";
 import ActivityTimeline from "./components/ActivityTimeline";
 import CreateProgramModal from "./components/CreateProgramModal";
 import DeleteProgramModal from "./components/DeleteProgramModal";
@@ -39,9 +40,78 @@ const INITIAL_FILTERS: ProgramFiltersType = {
   priority: "All",
 };
 
+function toText(value: unknown): string {
+  return typeof value === "string" ? value : value == null ? "" : String(value);
+}
+
+function toNumber(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function toDateString(value: unknown): string {
+  if (!value) return "";
+  if (typeof value === "string") {
+    return /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : value;
+  }
+  if (typeof value === "object") {
+    const maybeTimestamp = value as { toDate?: () => Date; seconds?: number };
+    if (typeof maybeTimestamp.toDate === "function") {
+      const date = maybeTimestamp.toDate();
+      return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+    }
+    if (typeof maybeTimestamp.seconds === "number") {
+      return new Date(maybeTimestamp.seconds * 1000).toISOString().slice(0, 10);
+    }
+  }
+  return "";
+}
+
+function normalizeProgram(record: Record<string, unknown> & { id: string }): Program {
+  const status = toText(record.status) as Program["status"];
+  const priority = toText(record.priority) as Program["priority"];
+
+  return {
+    id: record.id,
+    name: toText(record.name),
+    category: toText(record.category),
+    description: toText(record.description),
+    manager: toText(record.manager),
+    beneficiaries: toNumber(record.beneficiaries),
+    budget: toNumber(record.budget),
+    spent: toNumber(record.spent),
+    progress: Math.min(Math.max(toNumber(record.progress), 0), 100),
+    startDate: toDateString(record.startDate),
+    endDate: toDateString(record.endDate),
+    status: status || "Planning",
+    priority: priority || "Medium",
+    location: toText(record.location),
+    createdAt: toDateString(record.createdAt),
+    updatedAt: toDateString(record.updatedAt),
+  };
+}
+
+function toProgramWriteData(program: Program) {
+  return {
+    name: program.name,
+    category: program.category,
+    description: program.description,
+    manager: program.manager,
+    beneficiaries: program.beneficiaries,
+    budget: program.budget,
+    spent: program.spent,
+    progress: program.progress,
+    startDate: program.startDate,
+    endDate: program.endDate,
+    status: program.status,
+    priority: program.priority,
+    location: program.location,
+  };
+}
+
 export default function ProgramsPage() {
+  const { user } = useAuth();
   const [programs, setPrograms] = useState<Program[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState<ProgramFiltersType>(INITIAL_FILTERS);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
@@ -58,21 +128,21 @@ export default function ProgramsPage() {
   const [deleteProgram, setDeleteProgram] = useState<Program | null>(null);
 
   useEffect(() => {
-    async function loadPrograms() {
-      setIsLoading(true);
-      try {
-        const firestorePrograms = (await getDocuments("programs")) as Program[];
-        setPrograms(firestorePrograms);
-      } catch (error) {
+    if (!user) return;
+
+    const unsubscribe = subscribeDocuments(
+      "programs",
+      (docs) => {
+        setPrograms(docs.map((doc) => normalizeProgram(doc)));
+      },
+      (error) => {
         console.error("Unable to load programs.", error);
         setPrograms([]);
-      } finally {
-        setIsLoading(false);
-      }
-    }
+      },
+    );
 
-    loadPrograms();
-  }, []);
+    return unsubscribe;
+  }, [user]);
 
   const visiblePrograms = useMemo(() => {
     return getVisiblePrograms(programs, filters);
@@ -91,10 +161,12 @@ export default function ProgramsPage() {
 
   async function handleCreate(program: Program) {
     try {
-      const { id: _id, ...data } = program;
-      const firestoreId = await createDocument("programs", data);
+      const firestoreId = await createDocument("programs", toProgramWriteData(program));
       const saved = { ...program, id: firestoreId };
-      setPrograms((current) => [saved, ...current]);
+      setPrograms((current) => [
+        saved,
+        ...current.filter((existing) => existing.id !== firestoreId),
+      ]);
       await logActivity({
         module: "programs",
         action: "created",
@@ -106,12 +178,13 @@ export default function ProgramsPage() {
     } catch (error) {
       console.error("Unable to create program.", error);
       alert("Unable to create program. Please try again.");
+      throw error;
     }
   }
 
   async function handleSave(program: Program) {
     try {
-      await updateDocument("programs", program.id, program);
+      await updateDocument("programs", program.id, toProgramWriteData(program));
       setPrograms((current) =>
         current.map((existingProgram) =>
           existingProgram.id === program.id ? program : existingProgram,
@@ -129,6 +202,7 @@ export default function ProgramsPage() {
     } catch (error) {
       console.error("Unable to save program.", error);
       alert("Unable to save program. Please try again.");
+      throw error;
     }
   }
 
@@ -151,6 +225,7 @@ export default function ProgramsPage() {
     } catch (error) {
       console.error("Unable to delete program.", error);
       alert("Unable to delete program. Please try again.");
+      throw error;
     }
   }
 
@@ -275,6 +350,7 @@ export default function ProgramsPage() {
         </div>
 
         <CreateProgramModal
+          key={isCreateOpen ? `create-${createPrefill?.name ?? "new"}` : "create-closed"}
           isOpen={isCreateOpen}
           onClose={handleCreateClose}
           onCreate={handleCreate}
@@ -294,6 +370,7 @@ export default function ProgramsPage() {
         />
 
         <EditProgramModal
+          key={editProgram?.id ?? "edit-closed"}
           isOpen={editProgram !== null}
           program={editProgram}
           onClose={() => setEditProgram(null)}
