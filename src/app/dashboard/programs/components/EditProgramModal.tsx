@@ -21,7 +21,7 @@ interface EditProgramModalProps {
   isOpen: boolean;
   program: Program | null;
   onClose: () => void;
-  onSave: (program: Program) => void;
+  onSave: (program: Program) => void | Promise<void>;
 }
 
 interface ProgramFormState {
@@ -64,15 +64,11 @@ export default function EditProgramModal({
   onClose,
   onSave,
 }: EditProgramModalProps) {
-  const [form, setForm] = useState<ProgramFormState | null>(null);
+  const [form, setForm] = useState<ProgramFormState | null>(
+    program ? createFormState(program) : null,
+  );
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (isOpen && program) {
-      setForm(createFormState(program));
-      setError("");
-    }
-  }, [isOpen, program]);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -112,7 +108,7 @@ export default function EditProgramModal({
     setError("");
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
   
     const currentForm = form;
@@ -161,9 +157,16 @@ export default function EditProgramModal({
       location: currentForm.location.trim(),
       updatedAt: today(),
     };
-  
-    onSave(updatedProgram);
-    onClose();
+
+    setSaving(true);
+    try {
+      await onSave(updatedProgram);
+      onClose();
+    } catch {
+      // Parent surfaces the failure; keep the modal open.
+    } finally {
+      setSaving(false);
+    }
   }
 
   const inputClassName =
@@ -400,14 +403,15 @@ export default function EditProgramModal({
             <button
               type="button"
               onClick={onClose}
+              disabled={saving}
               className="h-12 rounded-xl border border-[#e4dac6] bg-[#fffdfa] px-6 font-semibold text-[#334b41] hover:bg-[#f4fbf7]"
             >
               Cancel
             </button>
 
-            <button type="submit" className="pn-gold-btn flex h-12 items-center justify-center gap-2 px-7">
+            <button type="submit" disabled={saving} className="pn-gold-btn flex h-12 items-center justify-center gap-2 px-7">
               <Pencil size={18} />
-              Save Changes
+              {saving ? "Saving..." : "Save Changes"}
             </button>
           </div>
         </form>

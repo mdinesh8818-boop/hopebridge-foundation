@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { AlertTriangle, Trash2, X } from "lucide-react";
 
 import { Program } from "../types";
@@ -8,7 +9,7 @@ interface DeleteProgramModalProps {
   isOpen: boolean;
   program: Program | null;
   onClose: () => void;
-  onConfirm: (programId: string) => void;
+  onConfirm: (programId: string) => void | Promise<void>;
 }
 
 export default function DeleteProgramModal({
@@ -17,12 +18,21 @@ export default function DeleteProgramModal({
   onClose,
   onConfirm,
 }: DeleteProgramModalProps) {
+  const [saving, setSaving] = useState(false);
+
   if (!isOpen || !program) return null;
 
-  function handleDelete() {
-    if (!program) return;
-    onConfirm(program.id);
-    onClose();
+  async function handleDelete() {
+    if (!program || saving) return;
+    setSaving(true);
+    try {
+      await onConfirm(program.id);
+      onClose();
+    } catch {
+      // Parent surfaces the failure; keep the modal open.
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -69,6 +79,7 @@ export default function DeleteProgramModal({
           <button
             type="button"
             onClick={onClose}
+            disabled={saving}
             className="h-12 rounded-xl border border-[#e4dac6] bg-[#fffdfa] px-6 font-semibold text-[#334b41] hover:bg-[#f4fbf7]"
           >
             Cancel
@@ -76,10 +87,11 @@ export default function DeleteProgramModal({
           <button
             type="button"
             onClick={handleDelete}
+            disabled={saving}
             className="flex h-12 items-center justify-center gap-2 rounded-xl border border-[#fecdd3] bg-[#be123c] px-6 font-bold text-white hover:bg-[#9f1239]"
           >
             <Trash2 size={18} />
-            Delete Program
+            {saving ? "Deleting..." : "Delete Program"}
           </button>
         </div>
       </section>

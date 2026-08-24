@@ -13,10 +13,10 @@ export function searchPrograms(
 
   return programs.filter((program) => {
     return (
-      program.name.toLowerCase().includes(keyword) ||
-      program.category.toLowerCase().includes(keyword) ||
-      program.manager.toLowerCase().includes(keyword) ||
-      program.location.toLowerCase().includes(keyword)
+      (program.name ?? "").toLowerCase().includes(keyword) ||
+      (program.category ?? "").toLowerCase().includes(keyword) ||
+      (program.manager ?? "").toLowerCase().includes(keyword) ||
+      (program.location ?? "").toLowerCase().includes(keyword)
     );
   });
 }
@@ -80,17 +80,17 @@ export function calculateStatistics(
     ).length,
 
     totalBudget: programs.reduce(
-      (sum, p) => sum + p.budget,
+      (sum, p) => sum + (Number(p.budget) || 0),
       0
     ),
 
     totalSpent: programs.reduce(
-      (sum, p) => sum + p.spent,
+      (sum, p) => sum + (Number(p.spent) || 0),
       0
     ),
 
     totalBeneficiaries: programs.reduce(
-      (sum, p) => sum + p.beneficiaries,
+      (sum, p) => sum + (Number(p.beneficiaries) || 0),
       0
     ),
   };

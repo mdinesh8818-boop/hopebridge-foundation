@@ -26,12 +26,13 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 
 import {
   createDocument,
-  getDocuments,
   updateDocument,
   deleteDocument,
+  subscribeDocuments,
 } from "../../../services/firestore";
 import { logActivity } from "../../../services/activity";
 import { useModuleCreateAction } from "@/hooks/useModuleCreateAction";
+import { useAuth } from "@/providers/AuthProvider";
 
 type CampaignStatus =
   | "Active"
@@ -147,10 +148,71 @@ function calculateProgress(campaign: Campaign) {
   );
 }
 
-function generateId() {
-  return `campaign-${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
+function toText(value: unknown): string {
+  return typeof value === "string" ? value : value == null ? "" : String(value);
+}
+
+function toNumber(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function toDateString(value: unknown): string {
+  if (!value) return "";
+  if (typeof value === "string") {
+    return /^\d{4}-\d{2}-\d{2}/.test(value) ? value.slice(0, 10) : value;
+  }
+  if (typeof value === "object") {
+    const maybeTimestamp = value as { toDate?: () => Date; seconds?: number };
+    if (typeof maybeTimestamp.toDate === "function") {
+      const date = maybeTimestamp.toDate();
+      return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+    }
+    if (typeof maybeTimestamp.seconds === "number") {
+      return new Date(maybeTimestamp.seconds * 1000).toISOString().slice(0, 10);
+    }
+  }
+  return "";
+}
+
+function isCampaignStatus(value: string): value is CampaignStatus {
+  return statuses.includes(value as CampaignStatus);
+}
+
+function normalizeCampaign(record: Record<string, unknown> & { id: string }): Campaign {
+  const statusValue = toText(record.status);
+  return {
+    id: record.id,
+    name: toText(record.name),
+    category: toText(record.category),
+    goal: toNumber(record.goal),
+    raised: toNumber(record.raised),
+    startDate: toDateString(record.startDate),
+    endDate: toDateString(record.endDate),
+    status: isCampaignStatus(statusValue) ? statusValue : "Draft",
+    description: toText(record.description),
+    owner: toText(record.owner),
+    channel: toText(record.channel),
+  };
+}
+
+function toCampaignWriteData(campaign: Omit<Campaign, "id">) {
+  return {
+    name: campaign.name,
+    category: campaign.category,
+    goal: campaign.goal,
+    raised: campaign.raised,
+    startDate: campaign.startDate,
+    endDate: campaign.endDate,
+    status: campaign.status,
+    description: campaign.description,
+    owner: campaign.owner,
+    channel: campaign.channel,
+  };
+}
+
+function matchesText(value: string, query: string) {
+  return value.toLowerCase().includes(query);
 }
 
 function getStatusClasses(status: CampaignStatus) {
@@ -176,6 +238,7 @@ function getStatusClasses(status: CampaignStatus) {
 }
 
 export default function CampaignsPage() {
+  const { user } = useAuth();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -201,24 +264,21 @@ export default function CampaignsPage() {
     useState<CampaignFormData>(emptyForm);
 
   useEffect(() => {
-    async function loadCampaigns() {
-      try {
-        const firestoreCampaigns =
-          (await getDocuments("campaigns")) as Campaign[];
+    if (!user) return;
 
-        setCampaigns(firestoreCampaigns);
-      } catch (error) {
-        console.error(
-          "Unable to load campaigns from Firestore.",
-          error
-        );
-
+    const unsubscribe = subscribeDocuments(
+      "campaigns",
+      (docs) => {
+        setCampaigns(docs.map((doc) => normalizeCampaign(doc)));
+      },
+      (error) => {
+        console.error("Unable to load campaigns from Firestore.", error);
         setCampaigns([]);
-      }
-    }
+      },
+    );
 
-    loadCampaigns();
-  }, []);
+    return unsubscribe;
+  }, [user]);
 
   const filteredCampaigns = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -226,12 +286,12 @@ export default function CampaignsPage() {
     return campaigns.filter((campaign) => {
       const matchesSearch =
         normalizedQuery === "" ||
-        campaign.name.toLowerCase().includes(normalizedQuery) ||
-        campaign.category.toLowerCase().includes(normalizedQuery) ||
-        campaign.description.toLowerCase().includes(normalizedQuery) ||
-        campaign.owner.toLowerCase().includes(normalizedQuery) ||
-        campaign.channel.toLowerCase().includes(normalizedQuery) ||
-        campaign.status.toLowerCase().includes(normalizedQuery);
+        matchesText(campaign.name, normalizedQuery) ||
+        matchesText(campaign.category, normalizedQuery) ||
+        matchesText(campaign.description, normalizedQuery) ||
+        matchesText(campaign.owner, normalizedQuery) ||
+        matchesText(campaign.channel, normalizedQuery) ||
+        matchesText(campaign.status, normalizedQuery);
 
       const matchesStatus =
         statusFilter === "All" || campaign.status === statusFilter;
@@ -408,8 +468,7 @@ export default function CampaignsPage() {
       return;
     }
 
-    const campaignData: Campaign = {
-      id: editingCampaignId ?? generateId(),
+    const campaignData: Omit<Campaign, "id"> = {
       name,
       category,
       goal,
@@ -424,12 +483,12 @@ export default function CampaignsPage() {
 
     try {
       if (editingCampaignId) {
-        await updateDocument("campaigns", editingCampaignId, campaignData);
+        await updateDocument("campaigns", editingCampaignId, toCampaignWriteData(campaignData));
     
         setCampaigns((currentCampaigns) =>
           currentCampaigns.map((campaign) =>
             campaign.id === editingCampaignId
-              ? campaignData
+              ? { ...campaignData, id: editingCampaignId }
               : campaign
           )
         );
@@ -443,7 +502,7 @@ export default function CampaignsPage() {
           description: `Campaign "${name}" updated`,
         });
       } else {
-        const firestoreId = await createDocument("campaigns", campaignData);
+        const firestoreId = await createDocument("campaigns", toCampaignWriteData(campaignData));
     
         const newCampaign: Campaign = {
           ...campaignData,
@@ -452,7 +511,7 @@ export default function CampaignsPage() {
     
         setCampaigns((currentCampaigns) => [
           newCampaign,
-          ...currentCampaigns,
+          ...currentCampaigns.filter((campaign) => campaign.id !== firestoreId),
         ]);
 
         await logActivity({
@@ -470,8 +529,6 @@ export default function CampaignsPage() {
       console.error("Unable to save campaign to Firestore.", error);
       alert("Unable to save campaign. Please try again.");
     }
-
-    closeCampaignForm();
   }
 
   async function confirmDeleteCampaign() {
