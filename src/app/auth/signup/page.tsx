@@ -6,30 +6,42 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getAuthErrorMessage, getSafeDashboardPath } from "@/lib/auth";
 import { useAuth } from "@/providers/AuthProvider";
 
-export default function LoginPage() {
+export default function SignupPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login } = useAuth();
+  const { signup } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const nextPath = getSafeDashboardPath(searchParams.get("next"));
-  const signupHref =
+  const loginHref =
     nextPath === "/dashboard"
-      ? "/auth/signup"
-      : `/auth/signup?next=${encodeURIComponent(nextPath)}`;
+      ? "/auth/login"
+      : `/auth/login?next=${encodeURIComponent(nextPath)}`;
 
-  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+  async function handleSignup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setError("");
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await login(email, password);
+      await signup(email, password);
       router.push(nextPath);
     } catch (err: unknown) {
       setError(getAuthErrorMessage(err));
@@ -45,18 +57,18 @@ export default function LoginPage() {
           <h1 className="text-4xl font-bold text-white">HopeBridge</h1>
 
           <p className="mt-2 text-gray-400">
-            Sign in to your nonprofit workspace
+            Create your nonprofit workspace account
           </p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-5">
+        <form onSubmit={handleSignup} className="space-y-5">
           <div>
-            <label className="block text-sm text-gray-300 mb-2" htmlFor="login-email">
+            <label className="block text-sm text-gray-300 mb-2" htmlFor="signup-email">
               Email
             </label>
 
             <input
-              id="login-email"
+              id="signup-email"
               type="email"
               autoComplete="email"
               value={email}
@@ -68,17 +80,36 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm text-gray-300 mb-2" htmlFor="login-password">
+            <label className="block text-sm text-gray-300 mb-2" htmlFor="signup-password">
               Password
             </label>
 
             <input
-              id="login-password"
+              id="signup-password"
               type="password"
-              autoComplete="current-password"
+              autoComplete="new-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="••••••••"
+              minLength={6}
+              required
+              className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:border-emerald-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-300 mb-2" htmlFor="signup-confirm-password">
+              Confirm password
+            </label>
+
+            <input
+              id="signup-confirm-password"
+              type="password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              placeholder="••••••••"
+              minLength={6}
               required
               className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:border-emerald-500"
             />
@@ -95,14 +126,14 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full rounded-xl bg-emerald-500 py-3 font-semibold text-black transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? "Signing In..." : "Sign In"}
+            {loading ? "Creating Account..." : "Create Account"}
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-gray-400">
-          Need an account?{" "}
-          <Link href={signupHref} className="font-medium text-emerald-400 hover:text-emerald-300">
-            Create one
+          Already have an account?{" "}
+          <Link href={loginHref} className="font-medium text-emerald-400 hover:text-emerald-300">
+            Sign in
           </Link>
         </p>
       </div>

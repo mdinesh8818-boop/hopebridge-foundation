@@ -1,58 +1,90 @@
 "use client";
 
 import {
-    onAuthStateChanged,
-    signOut,
-    User
-  } from "firebase/auth";
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  type User,
+} from "firebase/auth";
 import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useState,
-  ReactNode
+  type ReactNode,
 } from "react";
 import { auth } from "../app/lib/firebase";
+import { clearAuthCookie, setAuthCookie } from "../lib/auth";
 
 type AuthContextType = {
-    user: User | null;
-    loading: boolean;
-    logout: () => Promise<void>;
-  };
+  user: User | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<User>;
+  signup: (email: string, password: string) => Promise<User>;
+  logout: () => Promise<void>;
+};
 
-  const AuthContext = createContext<AuthContextType>({
-    user: null,
-    loading: true,
-    logout: async () => {},
-  });
+const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const logout = async () => {
-    await signOut(auth);
-  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
+      if (firebaseUser) {
+        setAuthCookie();
+      } else {
+        clearAuthCookie();
+      }
       setLoading(false);
     });
 
     return unsubscribe;
   }, []);
 
-  return (
-    <AuthContext.Provider value={{ user, loading, logout }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo<AuthContextType>(
+    () => ({
+      user,
+      loading,
+      login: async (email: string, password: string) => {
+        const credential = await signInWithEmailAndPassword(
+          auth,
+          email.trim(),
+          password,
+        );
+        setAuthCookie();
+        return credential.user;
+      },
+      signup: async (email: string, password: string) => {
+        const credential = await createUserWithEmailAndPassword(
+          auth,
+          email.trim(),
+          password,
+        );
+        setAuthCookie();
+        return credential.user;
+      },
+      logout: async () => {
+        await signOut(auth);
+        clearAuthCookie();
+      },
+    }),
+    [user, loading],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+
+  return context;
 }
