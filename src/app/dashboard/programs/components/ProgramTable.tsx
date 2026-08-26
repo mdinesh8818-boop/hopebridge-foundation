@@ -15,19 +15,24 @@ import { formatCurrency, priorityColor, statusColor } from "../utils";
 
 interface ProgramTableProps {
   programs: Program[];
+  totalPrograms?: number;
   onView: (program: Program) => void;
   onEdit: (program: Program) => void;
   onDelete: (program: Program) => void;
+  onCreate?: () => void;
 }
 
 export default function ProgramTable({
   programs,
+  totalPrograms,
   onView,
   onEdit,
   onDelete,
+  onCreate,
 }: ProgramTableProps) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const portfolioEmpty = (totalPrograms ?? programs.length) === 0;
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
@@ -49,11 +54,19 @@ export default function ProgramTable({
         <div className="pn-icon-emerald mx-auto">
           <FolderOpen size={28} />
         </div>
-        <h2 className="pn-section-title mt-5">No programs found</h2>
+        <h2 className="pn-section-title mt-5">
+          {portfolioEmpty ? "No programs yet" : "No programs found"}
+        </h2>
         <p className="mx-auto mt-2 max-w-md text-sm text-[#607269]">
-          No programs match the current search or filter settings. Adjust the
-          filters or create a new program.
+          {portfolioEmpty
+            ? "Your program portfolio is empty. Create the first program to populate analytics, impact reporting, and this table."
+            : "No programs match the current search or filter settings. Adjust the filters or create a new program."}
         </p>
+        {onCreate && (
+          <button type="button" className="pn-empty-state-cta mt-6" onClick={onCreate}>
+            Create Program
+          </button>
+        )}
       </section>
     );
   }
