@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { DEPARTMENTS, ROLES } from "../data";
 import type { CreateTeamForm, Team, TeamMember } from "../types";
@@ -52,13 +52,6 @@ export default function CreateTeamModal({
         },
   );
   const [memberSearch, setMemberSearch] = useState("");
-
-  useEffect(() => {
-    if (team) {
-      setForm(teamToForm(team));
-      setStep(0);
-    }
-  }, [team]);
 
   const filteredMembers = useMemo(() => {
     const q = memberSearch.trim().toLowerCase();
