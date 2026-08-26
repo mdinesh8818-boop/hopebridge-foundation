@@ -1359,3 +1359,96 @@
     0 10px 28px rgba(44, 53, 46, 0.12),
     0 0 0 1px rgba(255, 255, 255, 0.8) inset;
 }
+
+.pn-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 180px;
+  padding: 28px 20px;
+  border-radius: 14px;
+  border: 1px dashed rgba(197, 184, 156, 0.9);
+  background: linear-gradient(180deg, rgba(255, 254, 249, 0.9), rgba(247, 243, 232, 0.45));
+}
+
+.pn-empty-state.is-compact {
+  min-height: 140px;
+  padding: 20px 16px;
+}
+
+.pn-empty-state.is-emerald {
+  border-color: rgba(212, 175, 55, 0.28);
+  background: linear-gradient(
+    180deg,
+    rgba(7, 29, 23, 0.35),
+    rgba(2, 47, 37, 0.55)
+  );
+}
+
+.pn-empty-state-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(13, 95, 68, 0.18);
+  background: rgba(13, 95, 68, 0.08);
+  color: #0d5f44;
+}
+
+.pn-empty-state.is-emerald .pn-empty-state-icon {
+  border-color: rgba(212, 175, 55, 0.35);
+  background: rgba(212, 175, 55, 0.12);
+  color: #e4bf4f;
+}
+
+.pn-empty-state-title {
+  margin-top: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #18392e;
+}
+
+.pn-empty-state.is-emerald .pn-empty-state-title {
+  color: #f7f3e8;
+}
+
+.pn-empty-state-copy {
+  margin-top: 8px;
+  max-width: 34rem;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #607269;
+}
+
+.pn-empty-state.is-emerald .pn-empty-state-copy {
+  color: rgba(247, 243, 232, 0.68);
+}
+
+.pn-empty-state-cta {
+  margin-top: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(212, 175, 55, 0.55);
+  background: linear-gradient(180deg, #f1ce55, #d4af37);
+  color: #1f2d24;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 10px 16px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pn-empty-state-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(212, 175, 55, 0.28);
+}
+
+.pn-empty-state.is-emerald .pn-empty-state-cta {
+  color: #071d17;
+}

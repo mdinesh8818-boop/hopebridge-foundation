@@ -122,19 +122,21 @@ export default function GeographicReachMap({
         </g>
 
         <g fill="url(#pnMapActive)" stroke="#0d5f44" strokeWidth="1" strokeOpacity="0.35">
-          {WORLD_ACTIVE_REGIONS.map((region) => (
-            <path key={region.id} d={region.d} />
-          ))}
+          {countryMarkers.length > 0 &&
+            WORLD_ACTIVE_REGIONS.map((region) => (
+              <path key={region.id} d={region.d} />
+            ))}
         </g>
 
         <g fill="none" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.35">
-          {WORLD_CONNECTION_ARCS.map((arc, index) => (
-            <path
-              key={`arc-${index}`}
-              d={arcPath(arc.x1, arc.y1, arc.x2, arc.y2)}
-              strokeDasharray="4 3"
-            />
-          ))}
+          {countryMarkers.length > 0 &&
+            WORLD_CONNECTION_ARCS.map((arc, index) => (
+              <path
+                key={`arc-${index}`}
+                d={arcPath(arc.x1, arc.y1, arc.x2, arc.y2)}
+                strokeDasharray="4 3"
+              />
+            ))}
         </g>
 
         {countryMarkers.map((location) => {
