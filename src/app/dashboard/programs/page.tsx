@@ -282,11 +282,23 @@ export default function ProgramsPage() {
           <ProgramStats statistics={statistics} />
 
           <div className="mt-8 grid items-start gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.85fr)]">
-            <ProgramChart programs={programs} />
+            <ProgramChart
+              programs={programs}
+              onCreateProgram={() => {
+                setCreatePrefill(null);
+                setIsCreateOpen(true);
+              }}
+            />
             <ProgramInsights programs={programs} />
           </div>
 
-          <ProgramImpactOverview programs={programs} />
+          <ProgramImpactOverview
+            programs={programs}
+            onCreateProgram={() => {
+              setCreatePrefill(null);
+              setIsCreateOpen(true);
+            }}
+          />
 
           <section className="pn-panel mt-8 p-6 sm:p-8">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
@@ -311,9 +323,14 @@ export default function ProgramsPage() {
 
           <ProgramTable
             programs={visiblePrograms}
+            totalPrograms={programs.length}
             onView={setViewProgram}
             onEdit={setEditProgram}
             onDelete={setDeleteProgram}
+            onCreate={() => {
+              setCreatePrefill(null);
+              setIsCreateOpen(true);
+            }}
           />
 
           <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
@@ -323,13 +340,15 @@ export default function ProgramsPage() {
               </p>
 
               <h2 className="pn-section-title mt-3 text-white">
-                Creating measurable community impact
+                {programs.length === 0
+                  ? "Build your first measurable program portfolio"
+                  : "Creating measurable community impact"}
               </h2>
 
               <p className="mt-4 max-w-3xl text-sm leading-7 text-white/72">
-                HopeBridge programs combine responsible budgeting, clear
-                ownership, measurable outcomes, and continuous performance
-                monitoring to improve the communities they serve.
+                {programs.length === 0
+                  ? "Once programs are created, this summary will show portfolio totals, beneficiary reach, and critical priorities from live HopeBridge records."
+                  : "HopeBridge programs combine responsible budgeting, clear ownership, measurable outcomes, and continuous performance monitoring to improve the communities they serve."}
               </p>
 
               <div className="mt-8 grid gap-4 sm:grid-cols-3">
@@ -343,6 +362,19 @@ export default function ProgramsPage() {
                   value={statistics.attention.toString()}
                 />
               </div>
+
+              {programs.length === 0 && (
+                <button
+                  type="button"
+                  className="pn-empty-state-cta mt-8"
+                  onClick={() => {
+                    setCreatePrefill(null);
+                    setIsCreateOpen(true);
+                  }}
+                >
+                  Create Program
+                </button>
+              )}
             </section>
 
             <ActivityTimeline />

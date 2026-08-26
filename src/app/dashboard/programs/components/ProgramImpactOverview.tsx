@@ -3,9 +3,12 @@
 import { useMemo, useState, type ReactNode } from "react";
 import {
   Baby,
+  BarChart3,
   ChevronDown,
+  Globe2,
   HeartHandshake,
   MapPin,
+  Sparkles,
   TrendingUp,
   Users,
   UsersRound,
@@ -29,6 +32,7 @@ import ImpactStoriesModal, {
   ImpactStoryDetailModal,
   StoryCard,
 } from "./ImpactStoriesModal";
+import ProgramEmptyState from "./ProgramEmptyState";
 
 const MONTH_LABELS: Record<string, string> = {
   Jan: "January",
@@ -93,7 +97,13 @@ function DonutTooltip({
   );
 }
 
-export default function ProgramImpactOverview({ programs }: { programs: Program[] }) {
+export default function ProgramImpactOverview({
+  programs,
+  onCreateProgram,
+}: {
+  programs: Program[];
+  onCreateProgram?: () => void;
+}) {
   const [period, setPeriod] = useState<ImpactPeriodId>("12m");
   const [periodOpen, setPeriodOpen] = useState(false);
   const [storiesOpen, setStoriesOpen] = useState(false);
@@ -109,6 +119,17 @@ export default function ProgramImpactOverview({ programs }: { programs: Program[
   const periodLabel =
     IMPACT_PERIOD_OPTIONS.find((option) => option.id === period)?.label ??
     "Last 12 Months";
+
+  const hasPrograms = programs.length > 0;
+  const hasBeneficiaryTrend = snapshot.beneficiaryTrend.length > 0;
+  const hasProgramImpact = snapshot.programImpact.length > 0;
+  const hasDistribution = snapshot.distribution.length > 0;
+  const hasGeography = snapshot.geography.length > 0;
+  const hasStories = snapshot.stories.length > 0;
+  const hasEfficiencySignal =
+    hasPrograms &&
+    (snapshot.efficiency.programsTotal > 0 ||
+      snapshot.kpis.totalBeneficiaries > 0);
 
   const donutData = snapshot.distribution.map((slice) => ({
     name: slice.category,
@@ -169,199 +190,281 @@ export default function ProgramImpactOverview({ programs }: { programs: Program[
           icon={<Users size={20} />}
           label="TOTAL BENEFICIARIES"
           value={snapshot.kpis.totalBeneficiaries.toLocaleString()}
-          sub={`↑ ${snapshot.kpis.beneficiaryGrowth}% vs last period`}
-          subAccent
+          sub={
+            hasPrograms
+              ? `↑ ${snapshot.kpis.beneficiaryGrowth}% vs last period`
+              : "Create programs to begin impact tracking"
+          }
+          subAccent={hasPrograms}
         />
         <ImpactKPICard
           icon={<Baby size={20} />}
           label="CHILDREN REACHED"
           value={snapshot.kpis.childrenReached.toLocaleString()}
-          sub={`${snapshot.kpis.childrenPercent}% of total`}
+          sub={
+            hasPrograms
+              ? `${snapshot.kpis.childrenPercent}% of total`
+              : "No beneficiary demographics yet"
+          }
         />
         <ImpactKPICard
           icon={<UsersRound size={20} />}
           label="WOMEN IMPACTED"
           value={snapshot.kpis.womenImpacted.toLocaleString()}
-          sub={`${snapshot.kpis.womenPercent}% of total`}
+          sub={
+            hasPrograms
+              ? `${snapshot.kpis.womenPercent}% of total`
+              : "No beneficiary demographics yet"
+          }
         />
         <ImpactKPICard
           icon={<HeartHandshake size={20} />}
           label="FAMILIES SUPPORTED"
           value={snapshot.kpis.familiesSupported.toLocaleString()}
-          sub={`${snapshot.kpis.familiesPercent}% of total`}
+          sub={
+            hasPrograms
+              ? `${snapshot.kpis.familiesPercent}% of total`
+              : "No beneficiary demographics yet"
+          }
         />
       </div>
 
       <div className="pn-impact-analytics-grid mt-6">
         <article className="pn-impact-panel pn-impact-panel-wide">
           <h3 className="pn-impact-panel-title">Beneficiaries Over Time</h3>
-          <div className="mt-4 h-[260px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={snapshot.beneficiaryTrend} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="pnImpactAreaFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#0d5f44" stopOpacity={0.35} />
-                    <stop offset="55%" stopColor="#d4af37" stopOpacity={0.12} />
-                    <stop offset="100%" stopColor="#f7f3e8" stopOpacity={0.02} />
-                  </linearGradient>
-                </defs>
-                <XAxis
-                  dataKey="month"
-                  tick={{ fill: "#607269", fontSize: 11 }}
-                  axisLine={{ stroke: "#e4dac6" }}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: "#607269", fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(value) => `${Math.round(Number(value) / 1000)}K`}
-                />
-                <Tooltip content={<TrendTooltip />} />
-                <Area
-                  type="monotone"
-                  dataKey="beneficiaries"
-                  stroke="#0d5f44"
-                  strokeWidth={2.5}
-                  fill="url(#pnImpactAreaFill)"
-                  dot={{ r: 4, fill: "#d4af37", stroke: "#0d5f44", strokeWidth: 2 }}
-                  activeDot={{ r: 6, fill: "#d4af37", stroke: "#112e24", strokeWidth: 2 }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          {hasBeneficiaryTrend ? (
+            <div className="mt-4 h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={snapshot.beneficiaryTrend} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="pnImpactAreaFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#0d5f44" stopOpacity={0.35} />
+                      <stop offset="55%" stopColor="#d4af37" stopOpacity={0.12} />
+                      <stop offset="100%" stopColor="#f7f3e8" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fill: "#607269", fontSize: 11 }}
+                    axisLine={{ stroke: "#e4dac6" }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fill: "#607269", fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(value) => `${Math.round(Number(value) / 1000)}K`}
+                  />
+                  <Tooltip content={<TrendTooltip />} />
+                  <Area
+                    type="monotone"
+                    dataKey="beneficiaries"
+                    stroke="#0d5f44"
+                    strokeWidth={2.5}
+                    fill="url(#pnImpactAreaFill)"
+                    dot={{ r: 4, fill: "#d4af37", stroke: "#0d5f44", strokeWidth: 2 }}
+                    activeDot={{ r: 6, fill: "#d4af37", stroke: "#112e24", strokeWidth: 2 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="mt-4">
+              <ProgramEmptyState
+                icon={TrendingUp}
+                title="No beneficiary trend data yet"
+                description="This chart fills in once programs record beneficiary reach over time. Create a program and add beneficiaries to start the trend."
+                onCreate={onCreateProgram}
+                compact
+              />
+            </div>
+          )}
         </article>
 
         <article className="pn-impact-panel">
           <h3 className="pn-impact-panel-title">Impact by Program</h3>
-          <ul className="mt-5 space-y-4">
-            {snapshot.programImpact.map((program) => (
-              <li
-                key={program.name}
-                onMouseEnter={() => setHoveredProgram(program.name)}
-                onMouseLeave={() => setHoveredProgram(null)}
-              >
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="truncate font-medium text-[#334b41]">{program.name}</span>
-                  <span className="shrink-0 font-semibold text-[#0d5f44]">
-                    {program.impactPercent}%
-                  </span>
-                </div>
-                <div className="pn-impact-bar-track mt-2">
-                  <div
-                    className="pn-impact-bar-fill"
-                    style={{ width: `${program.impactPercent}%` }}
-                  />
-                </div>
-                {hoveredProgram === program.name && (
-                  <p className="mt-1.5 text-xs text-[#607269]">
-                    {program.beneficiaries.toLocaleString()} beneficiaries reached
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
+          {hasProgramImpact ? (
+            <ul className="mt-5 space-y-4">
+              {snapshot.programImpact.map((program) => (
+                <li
+                  key={program.name}
+                  onMouseEnter={() => setHoveredProgram(program.name)}
+                  onMouseLeave={() => setHoveredProgram(null)}
+                >
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="truncate font-medium text-[#334b41]">{program.name}</span>
+                    <span className="shrink-0 font-semibold text-[#0d5f44]">
+                      {program.impactPercent}%
+                    </span>
+                  </div>
+                  <div className="pn-impact-bar-track mt-2">
+                    <div
+                      className="pn-impact-bar-fill"
+                      style={{ width: `${program.impactPercent}%` }}
+                    />
+                  </div>
+                  {hoveredProgram === program.name && (
+                    <p className="mt-1.5 text-xs text-[#607269]">
+                      {program.beneficiaries.toLocaleString()} beneficiaries reached
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="mt-4">
+              <ProgramEmptyState
+                icon={BarChart3}
+                title="No program impact breakdown yet"
+                description="Impact share by program appears after you create programs with beneficiary counts."
+                onCreate={onCreateProgram}
+                compact
+              />
+            </div>
+          )}
         </article>
       </div>
 
       <div className="pn-impact-bottom-grid mt-6">
         <article className="pn-impact-panel">
           <h3 className="pn-impact-panel-title">Impact Distribution</h3>
-          <div className="mt-2 h-[220px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={donutData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={52}
-                  outerRadius={78}
-                  paddingAngle={2}
-                  stroke="#fff"
-                  strokeWidth={2}
-                >
-                  {donutData.map((entry, index) => (
-                    <Cell
-                      key={entry.name}
-                      fill={entry.color}
-                      opacity={
-                        activeDonutIndex === null || activeDonutIndex === index
-                          ? 1
-                          : 0.42
-                      }
-                      stroke={activeDonutIndex === index ? "#d4af37" : "#fff"}
-                      strokeWidth={activeDonutIndex === index ? 3 : 2}
-                      onMouseEnter={() => setActiveDonutIndex(index)}
-                      onMouseLeave={() => setActiveDonutIndex(null)}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip content={<DonutTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <ul className="mt-1 space-y-1.5">
-            {snapshot.distribution.map((slice) => (
-              <li key={slice.category} className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-2 text-[#607269]">
-                  <span
-                    className="inline-block h-2.5 w-2.5 rounded-full"
-                    style={{ background: slice.color }}
-                  />
-                  {slice.category}
-                </span>
-                <span className="font-semibold text-[#112e24]">{slice.percent}%</span>
-              </li>
-            ))}
-          </ul>
+          {hasDistribution ? (
+            <>
+              <div className="mt-2 h-[220px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={donutData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={52}
+                      outerRadius={78}
+                      paddingAngle={2}
+                      stroke="#fff"
+                      strokeWidth={2}
+                    >
+                      {donutData.map((entry, index) => (
+                        <Cell
+                          key={entry.name}
+                          fill={entry.color}
+                          opacity={
+                            activeDonutIndex === null || activeDonutIndex === index
+                              ? 1
+                              : 0.42
+                          }
+                          stroke={activeDonutIndex === index ? "#d4af37" : "#fff"}
+                          strokeWidth={activeDonutIndex === index ? 3 : 2}
+                          onMouseEnter={() => setActiveDonutIndex(index)}
+                          onMouseLeave={() => setActiveDonutIndex(null)}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<DonutTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <ul className="mt-1 space-y-1.5">
+                {snapshot.distribution.map((slice) => (
+                  <li key={slice.category} className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-2 text-[#607269]">
+                      <span
+                        className="inline-block h-2.5 w-2.5 rounded-full"
+                        style={{ background: slice.color }}
+                      />
+                      {slice.category}
+                    </span>
+                    <span className="font-semibold text-[#112e24]">{slice.percent}%</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <div className="mt-4">
+              <ProgramEmptyState
+                icon={BarChart3}
+                title="No impact distribution yet"
+                description="Category distribution appears when programs report beneficiaries across initiatives."
+                onCreate={onCreateProgram}
+                compact
+              />
+            </div>
+          )}
         </article>
 
         <article className="pn-impact-panel">
           <h3 className="pn-impact-panel-title">Geographic Reach</h3>
-          <div className="mt-3">
-            <GeographicReachMap
-              locations={snapshot.geography}
-              hoveredId={hoveredLocationId}
-              onHover={(location) => setHoveredLocationId(location?.id ?? null)}
-            />
-          </div>
+          {hasGeography ? (
+            <>
+              <div className="mt-3">
+                <GeographicReachMap
+                  locations={snapshot.geography}
+                  hoveredId={hoveredLocationId}
+                  onHover={(location) => setHoveredLocationId(location?.id ?? null)}
+                />
+              </div>
 
-          <div className="pn-impact-geo-stats">
-            <div>
-              <p className="pn-impact-geo-value">{snapshot.geographicSummary.countries}</p>
-              <p className="pn-impact-geo-label">Countries</p>
+              <div className="pn-impact-geo-stats">
+                <div>
+                  <p className="pn-impact-geo-value">{snapshot.geographicSummary.countries}</p>
+                  <p className="pn-impact-geo-label">Countries</p>
+                </div>
+                <div>
+                  <p className="pn-impact-geo-value">{snapshot.geographicSummary.regions}</p>
+                  <p className="pn-impact-geo-label">Regions</p>
+                </div>
+                <div>
+                  <p className="pn-impact-geo-value">{snapshot.geographicSummary.communities}</p>
+                  <p className="pn-impact-geo-label">Communities</p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="mt-4">
+              <ProgramEmptyState
+                icon={Globe2}
+                title="No geographic reach yet"
+                description="Map markers and regional totals appear once programs include location and community reach data."
+                onCreate={onCreateProgram}
+                compact
+              />
             </div>
-            <div>
-              <p className="pn-impact-geo-value">{snapshot.geographicSummary.regions}</p>
-              <p className="pn-impact-geo-label">Regions</p>
-            </div>
-            <div>
-              <p className="pn-impact-geo-value">{snapshot.geographicSummary.communities}</p>
-              <p className="pn-impact-geo-label">Communities</p>
-            </div>
-          </div>
+          )}
         </article>
 
         <article className="pn-impact-panel">
           <h3 className="pn-impact-panel-title">Impact Stories</h3>
-          <ul className="mt-4 space-y-3">
-            {snapshot.stories.slice(0, 2).map((story) => (
-              <StoryCard
-                key={story.id}
-                story={story}
-                onClick={() => setSelectedStory(story)}
+          {hasStories ? (
+            <>
+              <ul className="mt-4 space-y-3">
+                {snapshot.stories.slice(0, 2).map((story) => (
+                  <StoryCard
+                    key={story.id}
+                    story={story}
+                    onClick={() => setSelectedStory(story)}
+                  />
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={() => setStoriesOpen(true)}
+                className="pn-impact-stories-btn mt-4"
+              >
+                View All Stories →
+              </button>
+            </>
+          ) : (
+            <div className="mt-4">
+              <ProgramEmptyState
+                icon={Sparkles}
+                title="No impact stories yet"
+                description="Stories appear as program outcomes are recorded. Create a program and document results to build this feed."
+                onCreate={onCreateProgram}
+                compact
               />
-            ))}
-          </ul>
-          <button
-            type="button"
-            onClick={() => setStoriesOpen(true)}
-            className="pn-impact-stories-btn mt-4"
-          >
-            View All Stories →
-          </button>
+            </div>
+          )}
         </article>
       </div>
 
@@ -370,29 +473,41 @@ export default function ProgramImpactOverview({ programs }: { programs: Program[
           <TrendingUp size={16} className="text-[#d4af37]" />
           <h3 className="pn-impact-efficiency-title">Impact Efficiency</h3>
         </div>
-        <div className="pn-impact-efficiency-grid">
-          <EfficiencyItem
-            label="Cost per Beneficiary"
-            value={`$${snapshot.efficiency.costPerBeneficiary.toFixed(2)}`}
-          />
-          <EfficiencyItem
-            label="Programs Improving"
-            value={`${snapshot.efficiency.programsImproving} of ${snapshot.efficiency.programsTotal}`}
-          />
-          <EfficiencyItem
-            label="Highest Impact Program"
-            value={snapshot.efficiency.highestImpactProgram}
-          />
-          <EfficiencyItem
-            label="Fastest Growing Reach"
-            value={`${snapshot.efficiency.fastestGrowingProgram} +${snapshot.efficiency.fastestGrowthPercent}%`}
-          />
-          <EfficiencyItem
-            label="Communities Reached"
-            value={snapshot.efficiency.communitiesReached.toString()}
-            icon={<MapPin size={14} />}
-          />
-        </div>
+        {hasEfficiencySignal ? (
+          <div className="pn-impact-efficiency-grid">
+            <EfficiencyItem
+              label="Cost per Beneficiary"
+              value={`$${snapshot.efficiency.costPerBeneficiary.toFixed(2)}`}
+            />
+            <EfficiencyItem
+              label="Programs Improving"
+              value={`${snapshot.efficiency.programsImproving} of ${snapshot.efficiency.programsTotal}`}
+            />
+            <EfficiencyItem
+              label="Highest Impact Program"
+              value={snapshot.efficiency.highestImpactProgram}
+            />
+            <EfficiencyItem
+              label="Fastest Growing Reach"
+              value={`${snapshot.efficiency.fastestGrowingProgram} +${snapshot.efficiency.fastestGrowthPercent}%`}
+            />
+            <EfficiencyItem
+              label="Communities Reached"
+              value={snapshot.efficiency.communitiesReached.toString()}
+              icon={<MapPin size={14} />}
+            />
+          </div>
+        ) : (
+          <div className="mt-4">
+            <ProgramEmptyState
+              icon={TrendingUp}
+              title="No efficiency metrics yet"
+              description="Cost, growth, and community efficiency metrics calculate from live program budgets and beneficiary totals."
+              onCreate={onCreateProgram}
+              compact
+            />
+          </div>
+        )}
       </article>
 
       <ImpactStoriesModal
