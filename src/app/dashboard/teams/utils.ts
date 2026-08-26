@@ -6,7 +6,13 @@ import type {
   Team,
   TeamActivityEvent,
   TeamAssignment,
+  TeamDiscussion,
+  TeamMeeting,
   TeamMember,
+  TeamStatus,
+  AssignmentPriority,
+  AssignmentStatus,
+  MemberAvailability,
 } from "./types";
 
 export function normalizeToDate(value: DateInput | null | undefined): Date | null {
@@ -220,4 +226,182 @@ export function updateTeamsCapacity(teams: Team[], members: TeamMember[]): Team[
     ...t,
     capacity: recalculateTeamCapacity(t, members),
   }));
+}
+
+function coerceString(value: unknown, fallback = ""): string {
+  if (typeof value === "string") return value;
+  if (value == null) return fallback;
+  return String(value);
+}
+
+function coerceStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => coerceString(item)).filter(Boolean);
+}
+
+function coerceNumber(value: unknown, fallback = 0): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function coerceTeamStatus(value: unknown): TeamStatus {
+  const status = coerceString(value, "Active");
+  if (status === "Planning" || status === "On Hold") return status;
+  return "Active";
+}
+
+function coerceAssignmentStatus(value: unknown): AssignmentStatus {
+  const status = coerceString(value, "To Do");
+  const allowed: AssignmentStatus[] = ["To Do", "In Progress", "In Review", "Completed"];
+  return allowed.includes(status as AssignmentStatus) ? (status as AssignmentStatus) : "To Do";
+}
+
+function coerceAssignmentPriority(value: unknown): AssignmentPriority {
+  const priority = coerceString(value, "Medium");
+  const allowed: AssignmentPriority[] = ["Low", "Medium", "High", "Critical"];
+  return allowed.includes(priority as AssignmentPriority)
+    ? (priority as AssignmentPriority)
+    : "Medium";
+}
+
+function coerceAvailability(value: unknown): MemberAvailability {
+  const availability = coerceString(value, "Available");
+  const allowed: MemberAvailability[] = [
+    "Available",
+    "Focused",
+    "In Meeting",
+    "Remote",
+    "On Leave",
+  ];
+  return allowed.includes(availability as MemberAvailability)
+    ? (availability as MemberAvailability)
+    : "Available";
+}
+
+export function normalizeTeamRecord(record: Record<string, unknown> & { id: string }): Team {
+  const memberIds = coerceStringArray(record.memberIds);
+  return {
+    id: record.id,
+    name: coerceString(record.name),
+    department: coerceString(record.department),
+    description: coerceString(record.description),
+    leadId: coerceString(record.leadId),
+    leadName: coerceString(record.leadName),
+    secondaryLeadId: coerceString(record.secondaryLeadId) || undefined,
+    secondaryLeadName: coerceString(record.secondaryLeadName) || undefined,
+    memberIds,
+    status: coerceTeamStatus(record.status),
+    capacity: coerceNumber(record.capacity),
+    defaultPermission: coerceString(record.defaultPermission, "Team Lead"),
+    nextDeadline: coerceString(record.nextDeadline) || undefined,
+  };
+}
+
+export function normalizeTeamMemberRecord(
+  record: Record<string, unknown> & { id: string },
+): TeamMember {
+  return {
+    id: record.id,
+    name: coerceString(record.name),
+    email: coerceString(record.email),
+    phone: coerceString(record.phone) || undefined,
+    role: coerceString(record.role),
+    department: coerceString(record.department),
+    teamIds: coerceStringArray(record.teamIds),
+    assignmentCount: coerceNumber(record.assignmentCount),
+    workload: coerceNumber(record.workload),
+    availability: coerceAvailability(record.availability),
+  };
+}
+
+export function normalizeTeamAssignmentRecord(
+  record: Record<string, unknown> & { id: string },
+): TeamAssignment {
+  return {
+    id: record.id,
+    title: coerceString(record.title),
+    ownerId: coerceString(record.ownerId),
+    ownerName: coerceString(record.ownerName),
+    teamId: coerceString(record.teamId),
+    teamName: coerceString(record.teamName),
+    priority: coerceAssignmentPriority(record.priority),
+    dueDate: coerceString(record.dueDate),
+    status: coerceAssignmentStatus(record.status),
+  };
+}
+
+export function normalizeTeamDiscussionRecord(
+  record: Record<string, unknown> & { id: string },
+): TeamDiscussion {
+  const rawMessages = Array.isArray(record.messages) ? record.messages : [];
+  return {
+    id: record.id,
+    title: coerceString(record.title),
+    teamId: coerceString(record.teamId),
+    teamName: coerceString(record.teamName),
+    participantIds: coerceStringArray(record.participantIds),
+    lastMessage: coerceString(record.lastMessage),
+    lastActivityAt: coerceString(record.lastActivityAt),
+    unreadCount: coerceNumber(record.unreadCount),
+    resolved: Boolean(record.resolved),
+    messages: rawMessages.map((message, index) => {
+      const msg = (message ?? {}) as Record<string, unknown>;
+      return {
+        id: coerceString(msg.id, `msg-${index}`),
+        authorId: coerceString(msg.authorId),
+        authorName: coerceString(msg.authorName),
+        body: coerceString(msg.body),
+        createdAt: coerceString(msg.createdAt),
+      };
+    }),
+  };
+}
+
+export function normalizeTeamMeetingRecord(
+  record: Record<string, unknown> & { id: string },
+): TeamMeeting {
+  return {
+    id: record.id,
+    title: coerceString(record.title),
+    teamId: coerceString(record.teamId),
+    teamName: coerceString(record.teamName),
+    date: coerceString(record.date),
+    time: coerceString(record.time),
+    attendeeIds: coerceStringArray(record.attendeeIds),
+    agenda: coerceString(record.agenda),
+    notes: coerceString(record.notes) || undefined,
+    actionItems: Array.isArray(record.actionItems)
+      ? record.actionItems.map((item) => coerceString(item)).filter(Boolean)
+      : undefined,
+    completed: Boolean(record.completed),
+  };
+}
+
+export function normalizeTeamActivityRecord(
+  record: Record<string, unknown> & { id: string },
+): TeamActivityEvent {
+  return {
+    id: record.id,
+    type: coerceString(record.type, "team_update"),
+    detail: coerceString(record.detail),
+    teamId: coerceString(record.teamId) || undefined,
+    createdAt: (record.createdAt as DateInput) ?? new Date().toISOString(),
+  };
+}
+
+export function toTeamWriteData(data: Omit<Team, "id" | "capacity"> & { capacity?: number }) {
+  return {
+    name: data.name.trim(),
+    department: data.department,
+    description: data.description.trim(),
+    leadId: data.leadId,
+    leadName: data.leadName,
+    secondaryLeadId: data.secondaryLeadId ?? "",
+    secondaryLeadName: data.secondaryLeadName ?? "",
+    memberIds: data.memberIds,
+    status: data.status,
+    capacity: data.capacity ?? 0,
+    defaultPermission: data.defaultPermission,
+    nextDeadline: data.nextDeadline ?? "",
+  };
 }

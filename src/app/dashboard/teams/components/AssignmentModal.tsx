@@ -17,6 +17,7 @@ type Props = {
   defaultTeamId?: string;
   onClose: () => void;
   onSave: (data: Omit<TeamAssignment, "id"> & { id?: string }) => void;
+  onDelete?: (id: string) => void;
 };
 
 const STATUSES: AssignmentStatus[] = ["To Do", "In Progress", "In Review", "Completed"];
@@ -29,6 +30,7 @@ export default function AssignmentModal({
   defaultTeamId,
   onClose,
   onSave,
+  onDelete,
 }: Props) {
   const [title, setTitle] = useState(assignment?.title ?? "");
   const [teamId, setTeamId] = useState(assignment?.teamId ?? defaultTeamId ?? teams[0]?.id ?? "");
@@ -144,6 +146,19 @@ export default function AssignmentModal({
           </label>
         </div>
         <div className="flex justify-end gap-3 border-t border-[#e4dac6] px-6 py-4">
+          {assignment && onDelete && (
+            <button
+              type="button"
+              className="tm-secondary-btn mr-auto text-[#be123c]"
+              onClick={() => {
+                if (window.confirm(`Delete assignment "${assignment.title}"?`)) {
+                  onDelete(assignment.id);
+                }
+              }}
+            >
+              Delete
+            </button>
+          )}
           <button type="button" className="tm-secondary-btn" onClick={onClose}>Cancel</button>
           <button type="submit" className="tm-gold-btn">Save Assignment</button>
         </div>

@@ -33,11 +33,12 @@ import HopeBridgeSidebar from "../components/HopeBridgeSidebar";
 import {
   createDocument,
   deleteDocument,
-  getDocuments,
+  subscribeDocuments,
   updateDocument,
 } from "../../../services/firestore";
 import { logActivity } from "../../../services/activity";
 import { useModuleCreateAction } from "@/hooks/useModuleCreateAction";
+import { useAuth } from "@/providers/AuthProvider";
 import BeneficiaryFormModal from "./components/BeneficiaryFormModal";
 import BeneficiaryProfileDrawer from "./components/BeneficiaryProfileDrawer";
 import CommunityReachMap from "./components/CommunityReachMap";
@@ -63,7 +64,10 @@ import {
   getFollowUpClass,
   getInitials,
   getStatusClass,
+  normalizeActivityEvent,
+  normalizeBeneficiaryRecord,
   sortActivity,
+  toBeneficiaryWriteData,
 } from "./utils";
 import "./beneficiaries.css";
 
@@ -100,8 +104,10 @@ const PIE_COLORS = ["#0d5f44", "#d4af37", "#022c22", "#6ee7b7", "#c9a227", "#34d
 type KpiFocus = "all" | "served" | "new" | "followup";
 
 export default function BeneficiariesPage() {
+  const { user } = useAuth();
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
+  const [saving, setSaving] = useState(false);
   const [filters, setFilters] = useState<BeneficiaryFilters>(INITIAL_FILTERS);
   const [draftFilters, setDraftFilters] = useState<BeneficiaryFilters>(INITIAL_FILTERS);
   const [isLoading, setIsLoading] = useState(true);
@@ -121,30 +127,49 @@ export default function BeneficiariesPage() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    async function loadData() {
-      setIsLoading(true);
-      setLoadError(null);
+    if (!user) return;
 
-      try {
-        const [firestoreBeneficiaries, firestoreActivity] = await Promise.all([
-          getDocuments("beneficiaries") as Promise<Beneficiary[]>,
-          getDocuments("beneficiaryActivity") as Promise<ActivityEvent[]>,
-        ]);
+    let beneficiariesReady = false;
+    let activityReady = false;
 
-        setBeneficiaries(firestoreBeneficiaries);
-        setActivity(sortActivity(firestoreActivity));
-      } catch (error) {
+    function markReady(source: "beneficiaries" | "activity") {
+      if (source === "beneficiaries") beneficiariesReady = true;
+      if (source === "activity") activityReady = true;
+      if (beneficiariesReady && activityReady) setIsLoading(false);
+    }
+
+    const unsubscribeBeneficiaries = subscribeDocuments(
+      "beneficiaries",
+      (docs) => {
+        setBeneficiaries(docs.map((doc) => normalizeBeneficiaryRecord(doc)));
+        markReady("beneficiaries");
+      },
+      (error) => {
         console.error("Unable to load beneficiaries.", error);
         setLoadError("Unable to load beneficiary records.");
         setBeneficiaries([]);
-        setActivity([]);
-      } finally {
-        setIsLoading(false);
-      }
-    }
+        markReady("beneficiaries");
+      },
+    );
 
-    loadData();
-  }, []);
+    const unsubscribeActivity = subscribeDocuments(
+      "beneficiaryActivity",
+      (docs) => {
+        setActivity(sortActivity(docs.map((doc) => normalizeActivityEvent(doc))));
+        markReady("activity");
+      },
+      (error) => {
+        console.error("Unable to load beneficiary activity.", error);
+        setActivity([]);
+        markReady("activity");
+      },
+    );
+
+    return () => {
+      unsubscribeBeneficiaries();
+      unsubscribeActivity();
+    };
+  }, [user]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -274,8 +299,7 @@ export default function BeneficiariesPage() {
       return;
     }
 
-    const data: Beneficiary = {
-      id: editingId ?? `ben-${Date.now()}`,
+    const data: Omit<Beneficiary, "id"> = {
       name,
       beneficiaryId: formData.beneficiaryId.trim(),
       location: formData.location.trim(),
@@ -293,36 +317,34 @@ export default function BeneficiariesPage() {
       notes: formData.notes.trim(),
     };
 
+    const writeData = toBeneficiaryWriteData(data);
+
+    setSaving(true);
     try {
       if (editingId) {
-        await updateDocument("beneficiaries", editingId, data);
-        setBeneficiaries((current) =>
-          current.map((b) => (b.id === editingId ? data : b)),
-        );
+        await updateDocument("beneficiaries", editingId, writeData);
         await appendActivity({
-          beneficiaryId: data.id,
+          beneficiaryId: editingId,
           beneficiaryName: data.name,
           type: "Status Updated",
           detail: `Beneficiary profile updated for ${data.program}.`,
           createdAt: new Date().toISOString(),
         });
       } else {
-        const firestoreId = await createDocument("beneficiaries", data);
-        const saved = { ...data, id: firestoreId };
-        setBeneficiaries((current) => [saved, ...current]);
+        const firestoreId = await createDocument("beneficiaries", writeData);
         await logActivity({
           module: "beneficiaries",
           action: "created",
           entityType: "beneficiary",
           entityId: firestoreId,
-          entityName: saved.name,
-          description: `Beneficiary "${saved.name}" enrolled in ${saved.program}.`,
+          entityName: data.name,
+          description: `Beneficiary "${data.name}" enrolled in ${data.program}.`,
         });
         await appendActivity({
-          beneficiaryId: saved.id,
-          beneficiaryName: saved.name,
+          beneficiaryId: firestoreId,
+          beneficiaryName: data.name,
           type: "Beneficiary Enrolled",
-          detail: `Enrolled in ${saved.program} — ${saved.supportType}.`,
+          detail: `Enrolled in ${data.program} — ${data.supportType}.`,
           createdAt: new Date().toISOString(),
         });
       }
@@ -330,7 +352,7 @@ export default function BeneficiariesPage() {
       if (andAddAnother) {
         setFormData({
           ...EMPTY_FORM,
-          beneficiaryId: generateBeneficiaryId([...beneficiaries, data]),
+          beneficiaryId: generateBeneficiaryId(beneficiaries),
           enrollmentDate: new Date().toISOString().slice(0, 10),
         });
         setEditingId(null);
@@ -342,14 +364,21 @@ export default function BeneficiariesPage() {
     } catch (error) {
       console.error("Save failed", error);
       alert("Unable to save beneficiary. Please try again.");
+    } finally {
+      setSaving(false);
     }
   }
 
   async function confirmDelete() {
     if (!deleteTarget) return;
     try {
+      const relatedActivity = activity.filter(
+        (event) => event.beneficiaryId === deleteTarget.id,
+      );
+      await Promise.all(
+        relatedActivity.map((event) => deleteDocument("beneficiaryActivity", event.id)),
+      );
       await deleteDocument("beneficiaries", deleteTarget.id);
-      setBeneficiaries((current) => current.filter((b) => b.id !== deleteTarget.id));
       await logActivity({
         module: "beneficiaries",
         action: "deleted",
@@ -890,6 +919,7 @@ export default function BeneficiariesPage() {
         onClose={() => { setIsFormOpen(false); setEditingId(null); setFormData(EMPTY_FORM); }}
         onSave={() => saveBeneficiary(false)}
         onSaveAndAddAnother={() => saveBeneficiary(true)}
+        saving={saving}
         onChange={updateFormField}
       />
 

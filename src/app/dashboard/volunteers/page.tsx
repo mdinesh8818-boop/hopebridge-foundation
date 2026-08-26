@@ -26,7 +26,7 @@ import HopeBridgeSidebar from "../components/HopeBridgeSidebar";
 import {
   createDocument,
   deleteDocument,
-  getDocuments,
+  subscribeDocuments,
   updateDocument,
 } from "../../../services/firestore";
 import {
@@ -36,25 +36,16 @@ import {
 } from "../../../services/activity";
 import type { ActivityRecord } from "../../../types/activity";
 import { useModuleCreateAction } from "@/hooks/useModuleCreateAction";
+import { useAuth } from "@/providers/AuthProvider";
+import {
+  normalizeVolunteerRecord,
+  toVolunteerWriteData,
+  type VolunteerRecord,
+  type VolunteerStatus,
+} from "./utils";
 import "./volunteers.css";
 
-type VolunteerStatus =
-  | "Active"
-  | "Completed"
-  | "In Progress"
-  | "Needs Attention";
-
-type Volunteer = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  initiative: string;
-  availability: string;
-  hours: number;
-  status: VolunteerStatus;
-  lastActivity: string;
-};
+type Volunteer = VolunteerRecord;
 
 type VolunteerFormData = {
   name: string;
@@ -152,7 +143,9 @@ function getInitials(name: string) {
 }
 
 export default function VolunteersPage() {
+  const { user } = useAuth();
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
+  const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<VolunteerStatus | "All">("All");
   const [initiativeFilter, setInitiativeFilter] = useState("All");
@@ -176,20 +169,25 @@ export default function VolunteersPage() {
   }
 
   useEffect(() => {
-    async function loadVolunteers() {
-      try {
-        const firestoreVolunteers = (await getDocuments("volunteers")) as Volunteer[];
-        setVolunteers(firestoreVolunteers);
-        await refreshActivities();
-      } catch (error) {
+    if (!user) return;
+
+    const unsubscribe = subscribeDocuments(
+      "volunteers",
+      (docs) => {
+        setVolunteers(docs.map((doc) => normalizeVolunteerRecord(doc)));
+      },
+      (error) => {
         console.error("Unable to load volunteers from Firestore.", error);
         setVolunteers([]);
-        setModuleActivities([]);
-      }
-    }
+      },
+    );
 
-    loadVolunteers();
-  }, []);
+    getActivities({ module: "volunteers", limit: 5 })
+      .then(setModuleActivities)
+      .catch(() => setModuleActivities([]));
+
+    return () => unsubscribe();
+  }, [user]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -211,12 +209,12 @@ export default function VolunteersPage() {
     return volunteers.filter((volunteer) => {
       const matchesSearch =
         query === "" ||
-        volunteer.name.toLowerCase().includes(query) ||
-        volunteer.email.toLowerCase().includes(query) ||
-        volunteer.role.toLowerCase().includes(query) ||
-        volunteer.initiative.toLowerCase().includes(query) ||
-        volunteer.availability.toLowerCase().includes(query) ||
-        volunteer.status.toLowerCase().includes(query);
+        (volunteer.name || "").toLowerCase().includes(query) ||
+        (volunteer.email || "").toLowerCase().includes(query) ||
+        (volunteer.role || "").toLowerCase().includes(query) ||
+        (volunteer.initiative || "").toLowerCase().includes(query) ||
+        (volunteer.availability || "").toLowerCase().includes(query) ||
+        (volunteer.status || "").toLowerCase().includes(query);
 
       const matchesStatus =
         statusFilter === "All" || volunteer.status === statusFilter;
@@ -432,8 +430,7 @@ export default function VolunteersPage() {
       return;
     }
 
-    const volunteerData: Volunteer = {
-      id: editingVolunteerId ?? `volunteer-${Date.now()}`,
+    const volunteerPayload = toVolunteerWriteData({
       name,
       email,
       role,
@@ -442,14 +439,12 @@ export default function VolunteersPage() {
       hours,
       status: formData.status,
       lastActivity: formData.lastActivity,
-    };
+    });
 
+    setSaving(true);
     try {
       if (editingVolunteerId) {
-        await updateDocument("volunteers", editingVolunteerId, volunteerData);
-        setVolunteers((current) =>
-          current.map((v) => (v.id === editingVolunteerId ? volunteerData : v)),
-        );
+        await updateDocument("volunteers", editingVolunteerId, volunteerPayload);
         await logActivity({
           module: "volunteers",
           action: "updated",
@@ -459,11 +454,7 @@ export default function VolunteersPage() {
           description: `Volunteer "${name}" updated`,
         });
       } else {
-        const firestoreId = await createDocument("volunteers", volunteerData);
-        setVolunteers((current) => [
-          { ...volunteerData, id: firestoreId },
-          ...current,
-        ]);
+        const firestoreId = await createDocument("volunteers", volunteerPayload);
         await logActivity({
           module: "volunteers",
           action: "created",
@@ -479,6 +470,8 @@ export default function VolunteersPage() {
     } catch (error) {
       console.error("Unable to save volunteer.", error);
       alert("Unable to save volunteer. Please try again.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -487,9 +480,6 @@ export default function VolunteersPage() {
 
     try {
       await deleteDocument("volunteers", volunteerToDelete.id);
-      setVolunteers((current) =>
-        current.filter((v) => v.id !== volunteerToDelete.id),
-      );
       await logActivity({
         module: "volunteers",
         action: "deleted",
@@ -1131,8 +1121,8 @@ export default function VolunteersPage() {
               <button type="button" className="vl-secondary-btn" onClick={closeForm}>
                 Cancel
               </button>
-              <button type="button" className="vl-gold-btn" onClick={saveVolunteer}>
-                {editingVolunteerId ? "Save Changes" : "Create Volunteer"}
+              <button type="button" className="vl-gold-btn" onClick={saveVolunteer} disabled={saving}>
+                {saving ? "Saving..." : editingVolunteerId ? "Save Changes" : "Add Volunteer"}
               </button>
             </div>
           </div>

@@ -18,10 +18,12 @@ import {
 import HopeBridgeSidebar from "../components/HopeBridgeSidebar";
 import {
   createDocument,
-  getDocuments,
+  deleteDocument,
+  subscribeDocuments,
   updateDocument,
 } from "../../../services/firestore";
 import { logActivity } from "../../../services/activity";
+import { useAuth } from "@/providers/AuthProvider";
 import AssignmentModal from "./components/AssignmentModal";
 import CreateTeamModal from "./components/CreateTeamModal";
 import DiscussionDrawer from "./components/DiscussionDrawer";
@@ -56,8 +58,15 @@ import {
   getCapacityClass,
   getInitials,
   getTeamAssignmentCount,
+  normalizeTeamActivityRecord,
+  normalizeTeamAssignmentRecord,
+  normalizeTeamDiscussionRecord,
+  normalizeTeamMeetingRecord,
+  normalizeTeamMemberRecord,
+  normalizeTeamRecord,
   searchTeams,
   sortActivity,
+  toTeamWriteData,
   updateMembersWorkload,
   updateTeamsCapacity,
 } from "./utils";
@@ -83,6 +92,7 @@ const WORKSPACE_TABS: { id: WorkspaceTab; label: string }[] = [
 ];
 
 export default function TeamsPage() {
+  const { user } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [assignments, setAssignments] = useState<TeamAssignment[]>([]);
@@ -92,6 +102,7 @@ export default function TeamsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("overview");
   const [kpiFocus, setKpiFocus] = useState<KpiFocus>("teams");
@@ -101,6 +112,7 @@ export default function TeamsPage() {
   const [searchFocus, setSearchFocus] = useState(false);
 
   const [isCreateTeamOpen, setIsCreateTeamOpen] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [selectedDiscussion, setSelectedDiscussion] = useState<TeamDiscussion | null>(null);
@@ -121,65 +133,140 @@ export default function TeamsPage() {
   const directorySearchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    async function loadData() {
-      setIsLoading(true);
-      setLoadError(null);
-      try {
-        const [t, m, a, d, mt, act] = await Promise.all([
-          getDocuments("teams") as Promise<Team[]>,
-          getDocuments("teamMembers") as Promise<TeamMember[]>,
-          getDocuments("teamAssignments") as Promise<TeamAssignment[]>,
-          getDocuments("teamDiscussions") as Promise<TeamDiscussion[]>,
-          getDocuments("teamMeetings") as Promise<TeamMeeting[]>,
-          getDocuments("teamActivity") as Promise<TeamActivityEvent[]>,
-        ]);
+    if (!user) return;
 
-        setTeams(updateTeamsCapacity(t, updateMembersWorkload(m, a)));
-        setMembers(updateMembersWorkload(m, a));
-        setAssignments(a);
-        setDiscussions(d);
-        setMeetings(mt);
-        setActivity(sortActivity(act));
-      } catch (err) {
-        console.error(err);
+    const ready = {
+      teams: false,
+      members: false,
+      assignments: false,
+      discussions: false,
+      meetings: false,
+      activity: false,
+    };
+
+    function markReady(key: keyof typeof ready) {
+      ready[key] = true;
+      if (Object.values(ready).every(Boolean)) setIsLoading(false);
+    }
+
+    const unsubscribeTeams = subscribeDocuments(
+      "teams",
+      (docs) => {
+        setTeams(docs.map((doc) => normalizeTeamRecord(doc)));
+        markReady("teams");
+      },
+      (error) => {
+        console.error(error);
         setLoadError("Unable to load team data.");
         setTeams([]);
-          setMembers([]);
-          setAssignments([]);
-          setDiscussions([]);
-          setMeetings([]);
-          setActivity([]);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    loadData();
-  }, []);
+        markReady("teams");
+      },
+    );
+
+    const unsubscribeMembers = subscribeDocuments(
+      "teamMembers",
+      (docs) => {
+        setMembers(docs.map((doc) => normalizeTeamMemberRecord(doc)));
+        markReady("members");
+      },
+      () => {
+        setMembers([]);
+        markReady("members");
+      },
+    );
+
+    const unsubscribeAssignments = subscribeDocuments(
+      "teamAssignments",
+      (docs) => {
+        setAssignments(docs.map((doc) => normalizeTeamAssignmentRecord(doc)));
+        markReady("assignments");
+      },
+      () => {
+        setAssignments([]);
+        markReady("assignments");
+      },
+    );
+
+    const unsubscribeDiscussions = subscribeDocuments(
+      "teamDiscussions",
+      (docs) => {
+        setDiscussions(docs.map((doc) => normalizeTeamDiscussionRecord(doc)));
+        markReady("discussions");
+      },
+      () => {
+        setDiscussions([]);
+        markReady("discussions");
+      },
+    );
+
+    const unsubscribeMeetings = subscribeDocuments(
+      "teamMeetings",
+      (docs) => {
+        setMeetings(docs.map((doc) => normalizeTeamMeetingRecord(doc)));
+        markReady("meetings");
+      },
+      () => {
+        setMeetings([]);
+        markReady("meetings");
+      },
+    );
+
+    const unsubscribeActivity = subscribeDocuments(
+      "teamActivity",
+      (docs) => {
+        setActivity(sortActivity(docs.map((doc) => normalizeTeamActivityRecord(doc))));
+        markReady("activity");
+      },
+      () => {
+        setActivity([]);
+        markReady("activity");
+      },
+    );
+
+    return () => {
+      unsubscribeTeams();
+      unsubscribeMembers();
+      unsubscribeAssignments();
+      unsubscribeDiscussions();
+      unsubscribeMeetings();
+      unsubscribeActivity();
+    };
+  }, [user]);
+
+  const membersWithWorkload = useMemo(
+    () => updateMembersWorkload(members, assignments),
+    [members, assignments],
+  );
+
+  const teamsWithCapacity = useMemo(
+    () => updateTeamsCapacity(teams, membersWithWorkload),
+    [teams, membersWithWorkload],
+  );
 
   useModuleCreateAction(useCallback(() => setIsCreateTeamOpen(true), []));
 
   const kpis = useMemo(
-    () => calculateKpis(teams, members, assignments),
-    [teams, members, assignments],
+    () => calculateKpis(teamsWithCapacity, membersWithWorkload, assignments),
+    [teamsWithCapacity, membersWithWorkload, assignments],
   );
 
   const filteredTeams = useMemo(() => {
-    let list = searchTeams(teams, members, heroSearch);
+    const list = searchTeams(teamsWithCapacity, membersWithWorkload, heroSearch);
     if (kpiFocus === "teams") return list.filter((t) => t.status === "Active");
     if (kpiFocus === "workload") return list.filter((t) => t.capacity >= 85);
     return list;
-  }, [teams, members, heroSearch, kpiFocus]);
+  }, [teamsWithCapacity, membersWithWorkload, heroSearch, kpiFocus]);
 
   const filteredMembers = useMemo(
-    () => filterMembers(members, directoryFilters),
-    [members, directoryFilters],
+    () => filterMembers(membersWithWorkload, directoryFilters),
+    [membersWithWorkload, directoryFilters],
   );
 
   const visibleActivity = showAllActivity ? activity : activity.slice(0, 5);
-  const outreachTeam = teams.find((t) => t.name === "Community Outreach") ?? teams[0];
+  const outreachTeam = teamsWithCapacity.find((t) => t.name === "Community Outreach") ?? teamsWithCapacity[0];
   const rebalanceSuggestions = useMemo(
-    () => (outreachTeam ? buildRebalanceSuggestions(outreachTeam, members, assignments) : []),
-    [outreachTeam, members, assignments],
+    () => (outreachTeam ? buildRebalanceSuggestions(outreachTeam, membersWithWorkload, assignments) : []),
+    [outreachTeam, membersWithWorkload, assignments],
   );
 
   const scrollToWorkspace = useCallback(() => {
@@ -194,10 +281,9 @@ export default function TeamsPage() {
       createdAt: new Date().toISOString(),
     };
     try {
-      const id = await createDocument("teamActivity", event);
-      setActivity((cur) => sortActivity([{ ...event, id }, ...cur]));
-    } catch {
-      setActivity((cur) => sortActivity([{ ...event, id: `act-${Date.now()}` }, ...cur]));
+      await createDocument("teamActivity", event);
+    } catch (error) {
+      console.error("Unable to record team activity.", error);
     }
   }, []);
 
@@ -206,10 +292,27 @@ export default function TeamsPage() {
     setTimeout(() => setSuccessMessage(null), 3200);
   };
 
+  async function syncMemberTeamIds(teamId: string, memberIds: string[]) {
+    const memberIdSet = new Set(memberIds);
+    await Promise.all(
+      membersWithWorkload.map(async (member) => {
+        const shouldInclude = memberIdSet.has(member.id);
+        const hasTeam = member.teamIds.includes(teamId);
+        if (shouldInclude === hasTeam) return;
+
+        const teamIds = shouldInclude
+          ? Array.from(new Set([...member.teamIds, teamId]))
+          : member.teamIds.filter((id) => id !== teamId);
+
+        await updateDocument("teamMembers", member.id, { teamIds });
+      }),
+    );
+  }
+
   async function handleCreateTeam(form: CreateTeamForm) {
-    const lead = members.find((m) => m.id === form.leadId);
+    const lead = membersWithWorkload.find((m) => m.id === form.leadId);
     const secondary = form.secondaryLeadId
-      ? members.find((m) => m.id === form.secondaryLeadId)
+      ? membersWithWorkload.find((m) => m.id === form.secondaryLeadId)
       : undefined;
     if (!lead) return;
 
@@ -220,8 +323,8 @@ export default function TeamsPage() {
       description: form.description.trim(),
       leadId: form.leadId,
       leadName: lead.name,
-      secondaryLeadId: secondary?.id,
-      secondaryLeadName: secondary?.name,
+      secondaryLeadId: secondary?.id ?? "",
+      secondaryLeadName: secondary?.name ?? "",
       memberIds,
       status: "Active" as const,
       capacity: 0,
@@ -229,35 +332,103 @@ export default function TeamsPage() {
       nextDeadline: "",
     };
 
+    setSaving(true);
     try {
-      const id = await createDocument("teams", data);
-      const saved: Team = { ...data, id };
-      const updatedMembers = members.map((m) =>
-        memberIds.includes(m.id)
-          ? { ...m, teamIds: Array.from(new Set([...m.teamIds, id])) }
-          : m,
-      );
-      for (const m of updatedMembers.filter((m) => memberIds.includes(m.id))) {
-        await updateDocument("teamMembers", m.id, { teamIds: m.teamIds });
-      }
-      setMembers(updatedMembers);
-      setTeams((cur) => updateTeamsCapacity([saved, ...cur], updatedMembers));
+      const id = await createDocument("teams", toTeamWriteData(data));
+      await syncMemberTeamIds(id, memberIds);
       setIsCreateTeamOpen(false);
       await logActivity({
         module: "teams",
         action: "created",
         entityType: "team",
         entityId: id,
-        entityName: saved.name,
-        description: `Team "${saved.name}" created.`,
+        entityName: data.name,
+        description: `Team "${data.name}" created.`,
       });
-      await appendActivity(`New team "${saved.name}" created`, id);
-      notify(`Team "${saved.name}" created successfully.`);
-    } catch {
-      const saved: Team = { ...data, id: `team-${Date.now()}` };
-      setTeams((cur) => [saved, ...cur]);
+      await appendActivity(`New team "${data.name}" created`, id);
+      notify(`Team "${data.name}" created successfully.`);
+    } catch (error) {
+      console.error("Unable to create team.", error);
+      alert("Unable to create team. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleUpdateTeam(teamId: string, form: CreateTeamForm) {
+    const existing = teamsWithCapacity.find((team) => team.id === teamId);
+    const lead = membersWithWorkload.find((m) => m.id === form.leadId);
+    const secondary = form.secondaryLeadId
+      ? membersWithWorkload.find((m) => m.id === form.secondaryLeadId)
+      : undefined;
+    if (!existing || !lead) return;
+
+    const memberIds = Array.from(new Set([form.leadId, ...form.memberIds]));
+    const data = {
+      name: form.name.trim(),
+      department: form.department,
+      description: form.description.trim(),
+      leadId: form.leadId,
+      leadName: lead.name,
+      secondaryLeadId: secondary?.id ?? "",
+      secondaryLeadName: secondary?.name ?? "",
+      memberIds,
+      status: existing.status,
+      capacity: existing.capacity,
+      defaultPermission: form.defaultPermission,
+      nextDeadline: existing.nextDeadline ?? "",
+    };
+
+    setSaving(true);
+    try {
+      await updateDocument("teams", teamId, toTeamWriteData(data));
+      await syncMemberTeamIds(teamId, memberIds);
+      setEditingTeam(null);
+      setSelectedTeam(null);
+      await logActivity({
+        module: "teams",
+        action: "updated",
+        entityType: "team",
+        entityId: teamId,
+        entityName: data.name,
+        description: `Team "${data.name}" updated.`,
+      });
+      await appendActivity(`Team "${data.name}" updated`, teamId);
+      notify(`Team "${data.name}" saved successfully.`);
+    } catch (error) {
+      console.error("Unable to update team.", error);
+      alert("Unable to update team. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteTeam(teamId: string) {
+    setSaving(true);
+    try {
+      const teamAssignments = assignments.filter((assignment) => assignment.teamId === teamId);
+      const teamDiscussions = discussions.filter((discussion) => discussion.teamId === teamId);
+      const teamMeetings = meetings.filter((meeting) => meeting.teamId === teamId);
+
+      await Promise.all([
+        ...teamAssignments.map((assignment) => deleteDocument("teamAssignments", assignment.id)),
+        ...teamDiscussions.map((discussion) => deleteDocument("teamDiscussions", discussion.id)),
+        ...teamMeetings.map((meeting) => deleteDocument("teamMeetings", meeting.id)),
+      ]);
+
+      await syncMemberTeamIds(teamId, []);
+      await deleteDocument("teams", teamId);
+
+      setEditingTeam(null);
+      setSelectedTeam(null);
       setIsCreateTeamOpen(false);
-      notify(`Team "${saved.name}" created locally.`);
+      await appendActivity(`Team removed from workspace`, teamId);
+      notify("Team deleted successfully.");
+    } catch (error) {
+      console.error("Unable to delete team.", error);
+      alert("Unable to delete team. Please try again.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -272,50 +443,76 @@ export default function TeamsPage() {
       dueDate: data.dueDate,
       status: data.status,
     };
+    setSaving(true);
     try {
       if (data.id) {
         await updateDocument("teamAssignments", data.id, payload);
-        setAssignments((cur) => {
-          const next = cur.map((a) => (a.id === data.id ? { ...a, ...payload } : a));
-          setMembers(updateMembersWorkload(members, next));
-          setTeams(updateTeamsCapacity(teams, updateMembersWorkload(members, next)));
-          return next;
-        });
         await appendActivity(`${data.teamName} updated assignment "${data.title}"`, data.teamId);
       } else {
         const id = await createDocument("teamAssignments", payload);
-        setAssignments((cur) => {
-          const next = [{ ...payload, id }, ...cur];
-          setMembers(updateMembersWorkload(members, next));
-          setTeams(updateTeamsCapacity(teams, updateMembersWorkload(members, next)));
-          return next;
-        });
         await appendActivity(`${data.teamName} assigned "${data.title}" to ${data.ownerName}`, data.teamId);
+        void id;
       }
       setAssignmentModal(null);
       notify("Assignment saved.");
-    } catch {
+    } catch (error) {
+      console.error("Unable to save assignment.", error);
+      alert("Unable to save assignment. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteAssignment(assignmentId: string) {
+    try {
+      await deleteDocument("teamAssignments", assignmentId);
       setAssignmentModal(null);
-      notify("Assignment saved locally.");
+      notify("Assignment deleted.");
+    } catch (error) {
+      console.error("Unable to delete assignment.", error);
+      alert("Unable to delete assignment. Please try again.");
     }
   }
 
   async function handleSaveMeeting(data: Omit<TeamMeeting, "id"> & { id?: string }) {
-    const payload = { ...data };
-    delete (payload as { id?: string }).id;
+    const payload = {
+      title: data.title,
+      teamId: data.teamId,
+      teamName: data.teamName,
+      date: data.date,
+      time: data.time,
+      attendeeIds: data.attendeeIds,
+      agenda: data.agenda,
+      notes: data.notes ?? "",
+      actionItems: data.actionItems ?? [],
+      completed: data.completed ?? false,
+    };
+    setSaving(true);
     try {
       if (data.id) {
         await updateDocument("teamMeetings", data.id, payload);
-        setMeetings((cur) => cur.map((m) => (m.id === data.id ? { ...m, ...payload } : m)));
       } else {
-        const id = await createDocument("teamMeetings", payload);
-        setMeetings((cur) => [{ ...payload, id }, ...cur]);
+        await createDocument("teamMeetings", payload);
         await appendActivity(`${data.teamName} scheduled ${data.title}`, data.teamId);
       }
       setMeetingModal(null);
       notify("Meeting saved.");
-    } catch {
+    } catch (error) {
+      console.error("Unable to save meeting.", error);
+      alert("Unable to save meeting. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteMeeting(meetingId: string) {
+    try {
+      await deleteDocument("teamMeetings", meetingId);
       setMeetingModal(null);
+      notify("Meeting deleted.");
+    } catch (error) {
+      console.error("Unable to delete meeting.", error);
+      alert("Unable to delete meeting. Please try again.");
     }
   }
 
@@ -343,25 +540,38 @@ export default function TeamsPage() {
         lastActivityAt: updated.lastActivityAt,
         unreadCount: 0,
       });
-    } catch { /* local fallback */ }
-    setDiscussions((cur) => cur.map((d) => (d.id === discussionId ? updated : d)));
-    setSelectedDiscussion(updated);
+      setSelectedDiscussion(updated);
+    } catch (error) {
+      console.error("Unable to reply to discussion.", error);
+      alert("Unable to save reply. Please try again.");
+    }
   }
 
   async function handleResolveDiscussion(discussionId: string) {
     try {
       await updateDocument("teamDiscussions", discussionId, { resolved: true });
-    } catch { /* local */ }
-    setDiscussions((cur) =>
-      cur.map((d) => (d.id === discussionId ? { ...d, resolved: true } : d)),
-    );
-    setSelectedDiscussion(null);
+      setSelectedDiscussion(null);
+    } catch (error) {
+      console.error("Unable to resolve discussion.", error);
+      alert("Unable to resolve discussion. Please try again.");
+    }
+  }
+
+  async function handleDeleteDiscussion(discussionId: string) {
+    try {
+      await deleteDocument("teamDiscussions", discussionId);
+      setSelectedDiscussion(null);
+      notify("Discussion deleted.");
+    } catch (error) {
+      console.error("Unable to delete discussion.", error);
+      alert("Unable to delete discussion. Please try again.");
+    }
   }
 
   async function handleRebalanceConfirm(s: ReturnType<typeof buildRebalanceSuggestions>[0]) {
     const assignment = assignments.find((a) => a.id === s.assignmentId);
     if (!assignment) return;
-    const newOwner = members.find((m) => m.id === s.suggestedOwnerId);
+    const newOwner = membersWithWorkload.find((m) => m.id === s.suggestedOwnerId);
     if (!newOwner) return;
     await handleSaveAssignment({
       ...assignment,
@@ -377,7 +587,7 @@ export default function TeamsPage() {
 
   async function handleCreateDiscussion(e: React.FormEvent) {
     e.preventDefault();
-    const team = teams.find((t) => t.id === newDiscussionTeamId);
+    const team = teamsWithCapacity.find((t) => t.id === newDiscussionTeamId);
     if (!team || !newDiscussionTitle.trim()) return;
     const now = new Date().toISOString();
     const payload = {
@@ -399,15 +609,15 @@ export default function TeamsPage() {
     };
     try {
       const id = await createDocument("teamDiscussions", payload);
-      const saved = { ...payload, id };
-      setDiscussions((cur) => [saved, ...cur]);
-      await appendActivity(`New discussion "${saved.title}" started in ${team.name}`, team.id);
-    } catch {
-      setDiscussions((cur) => [{ ...payload, id: `disc-${Date.now()}` }, ...cur]);
+      await appendActivity(`New discussion "${payload.title}" started in ${team.name}`, team.id);
+      void id;
+      setNewDiscussionOpen(false);
+      setNewDiscussionTitle("");
+      notify("Discussion created.");
+    } catch (error) {
+      console.error("Unable to create discussion.", error);
+      alert("Unable to create discussion. Please try again.");
     }
-    setNewDiscussionOpen(false);
-    setNewDiscussionTitle("");
-    notify("Discussion created.");
   }
 
   function focusSearch() {
@@ -587,7 +797,7 @@ export default function TeamsPage() {
                       <p className="text-[10px] font-extrabold tracking-[0.14em] text-[#f1ce55]">TEAM CAPACITY & WORKLOAD</p>
                       <h3 className="mt-2 font-serif text-lg font-bold">Workforce Balance</h3>
                       <div className="mt-4 space-y-4">
-                        {teams.slice(0, 4).map((team) => (
+                        {teamsWithCapacity.slice(0, 4).map((team) => (
                           <button
                             key={team.id}
                             type="button"
@@ -668,7 +878,7 @@ export default function TeamsPage() {
                     </select>
                     <select className="rounded-xl border border-[#e4dac6] px-3 py-2 text-sm" value={directoryFilters.team} onChange={(e) => setDirectoryFilters((f) => ({ ...f, team: e.target.value }))}>
                       <option value="All">All Teams</option>
-                      {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      {teamsWithCapacity.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                     </select>
                     <select className="rounded-xl border border-[#e4dac6] px-3 py-2 text-sm" value={directoryFilters.availability} onChange={(e) => setDirectoryFilters((f) => ({ ...f, availability: e.target.value }))}>
                       <option value="All">All Availability</option>
@@ -733,7 +943,7 @@ export default function TeamsPage() {
                   <div className="mb-4 flex justify-between">
                     <h2 className="font-serif text-xl font-bold text-[#18392e]">Team Discussions</h2>
                     <button type="button" className="tm-gold-btn text-sm" onClick={() => {
-                      setNewDiscussionTeamId(teams[0]?.id ?? "");
+                      setNewDiscussionTeamId(teamsWithCapacity[0]?.id ?? "");
                       setNewDiscussionOpen(true);
                     }}>
                       <MessageSquare size={16} /> New Discussion
@@ -772,8 +982,12 @@ export default function TeamsPage() {
                           <button type="button" className="tm-secondary-btn text-xs" onClick={() => setMeetingModal({ meeting: m })}>View Agenda</button>
                           <button type="button" className="tm-secondary-btn text-xs" onClick={() => setMeetingModal({ meeting: m })}>View Attendees</button>
                           <button type="button" className="tm-secondary-btn text-xs" onClick={async () => {
-                            await updateDocument("teamMeetings", m.id, { completed: true });
-                            setMeetings((cur) => cur.map((x) => x.id === m.id ? { ...x, completed: true } : x));
+                            try {
+                              await updateDocument("teamMeetings", m.id, { completed: true });
+                            } catch (error) {
+                              console.error("Unable to complete meeting.", error);
+                              alert("Unable to complete meeting. Please try again.");
+                            }
                           }}>Complete Meeting</button>
                         </div>
                       </div>
@@ -814,13 +1028,28 @@ export default function TeamsPage() {
       </main>
 
       {isCreateTeamOpen && (
-        <CreateTeamModal members={members} onClose={() => setIsCreateTeamOpen(false)} onCreate={handleCreateTeam} />
+        <CreateTeamModal
+          members={membersWithWorkload}
+          onClose={() => setIsCreateTeamOpen(false)}
+          onCreate={handleCreateTeam}
+        />
+      )}
+
+      {editingTeam && (
+        <CreateTeamModal
+          members={membersWithWorkload}
+          team={editingTeam}
+          onClose={() => setEditingTeam(null)}
+          onCreate={handleCreateTeam}
+          onUpdate={handleUpdateTeam}
+          onDelete={handleDeleteTeam}
+        />
       )}
 
       {selectedTeam && (
         <TeamDetailDrawer
           team={selectedTeam}
-          members={members}
+          members={membersWithWorkload}
           assignments={assignments}
           discussions={discussions}
           meetings={meetings}
@@ -829,7 +1058,10 @@ export default function TeamsPage() {
           onCreateAssignment={() => { setAssignmentModal({ teamId: selectedTeam.id }); setSelectedTeam(null); }}
           onScheduleMeeting={() => { setMeetingModal({ teamId: selectedTeam.id }); setSelectedTeam(null); }}
           onStartDiscussion={() => { setSelectedDiscussion(discussions.find((d) => d.teamId === selectedTeam.id) ?? discussions[0] ?? null); setSelectedTeam(null); }}
-          onEditTeam={() => notify("Team edit saved.")}
+          onEditTeam={() => {
+            setEditingTeam(selectedTeam);
+            setSelectedTeam(null);
+          }}
           onOpenMember={setSelectedMember}
           onOpenDiscussion={setSelectedDiscussion}
         />
@@ -839,7 +1071,7 @@ export default function TeamsPage() {
         <MemberProfileDrawer
           member={selectedMember}
           assignments={assignments}
-          teamNames={teams.filter((t) => selectedMember.teamIds.includes(t.id)).map((t) => t.name)}
+          teamNames={teamsWithCapacity.filter((t) => selectedMember.teamIds.includes(t.id)).map((t) => t.name)}
           onClose={() => setSelectedMember(null)}
         />
       )}
@@ -847,44 +1079,51 @@ export default function TeamsPage() {
       {selectedDiscussion && (
         <DiscussionDrawer
           discussion={selectedDiscussion}
-          members={members}
+          members={membersWithWorkload}
           onClose={() => setSelectedDiscussion(null)}
           onReply={handleReplyDiscussion}
           onResolve={handleResolveDiscussion}
+          onDelete={handleDeleteDiscussion}
         />
       )}
 
       {assignmentModal && (
         <AssignmentModal
-          teams={teams}
-          members={members}
+          teams={teamsWithCapacity}
+          members={membersWithWorkload}
           assignment={assignmentModal.assignment}
           defaultTeamId={assignmentModal.teamId}
           onClose={() => setAssignmentModal(null)}
           onSave={handleSaveAssignment}
+          onDelete={handleDeleteAssignment}
         />
       )}
 
       {meetingModal && (
         <MeetingModal
-          teams={teams}
-          members={members}
+          teams={teamsWithCapacity}
+          members={membersWithWorkload}
           meeting={meetingModal.meeting}
           defaultTeamId={meetingModal.teamId}
           onClose={() => setMeetingModal(null)}
           onSave={handleSaveMeeting}
           onComplete={async (id) => {
-            await updateDocument("teamMeetings", id, { completed: true });
-            setMeetings((cur) => cur.map((m) => (m.id === id ? { ...m, completed: true } : m)));
-            setMeetingModal(null);
+            try {
+              await updateDocument("teamMeetings", id, { completed: true });
+              setMeetingModal(null);
+            } catch (error) {
+              console.error("Unable to complete meeting.", error);
+              alert("Unable to complete meeting. Please try again.");
+            }
           }}
+          onDelete={handleDeleteMeeting}
         />
       )}
 
       {rebalanceTeam && (
         <RebalancePanel
           teamName={rebalanceTeam.name}
-          suggestions={buildRebalanceSuggestions(rebalanceTeam, members, assignments)}
+          suggestions={buildRebalanceSuggestions(rebalanceTeam, membersWithWorkload, assignments)}
           onClose={() => setRebalanceTeam(null)}
           onConfirm={handleRebalanceConfirm}
         />

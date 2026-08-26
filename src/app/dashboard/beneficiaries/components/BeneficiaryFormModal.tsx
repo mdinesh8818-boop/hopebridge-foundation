@@ -12,6 +12,7 @@ type BeneficiaryFormModalProps = {
   onClose: () => void;
   onSave: () => void;
   onSaveAndAddAnother?: () => void;
+  saving?: boolean;
   onChange: <K extends keyof BeneficiaryFormData>(
     field: K,
     value: BeneficiaryFormData[K],
@@ -46,6 +47,7 @@ export default function BeneficiaryFormModal({
   onClose,
   onSave,
   onSaveAndAddAnother,
+  saving = false,
   onChange,
 }: BeneficiaryFormModalProps) {
   if (!isOpen) return null;
@@ -286,12 +288,12 @@ export default function BeneficiaryFormModal({
             Cancel
           </button>
           {!isEditing && onSaveAndAddAnother && (
-            <button type="button" className="bf-secondary-btn" onClick={onSaveAndAddAnother}>
+            <button type="button" className="bf-secondary-btn" onClick={onSaveAndAddAnother} disabled={saving}>
               Save & Add Another
             </button>
           )}
-          <button type="button" className="bf-gold-btn" onClick={onSave}>
-            {isEditing ? "Save Changes" : "Save Beneficiary"}
+          <button type="button" className="bf-gold-btn" onClick={onSave} disabled={saving}>
+            {saving ? "Saving..." : isEditing ? "Save Changes" : "Save Beneficiary"}
           </button>
         </div>
       </div>
