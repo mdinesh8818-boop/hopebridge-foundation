@@ -1,6 +1,9 @@
 export const AUTH_COOKIE_NAME = "hopebridge_session";
+
+/** @deprecated Presence-only cookie value; sessions now store a verified Firebase ID token. */
 export const AUTH_COOKIE_VALUE = "1";
-const AUTH_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 14;
+
+const AUTH_COOKIE_MAX_AGE_SECONDS = 60 * 60;
 
 export function getSafeDashboardPath(next: string | null | undefined): string {
   if (!next) return "/dashboard";
@@ -22,11 +25,13 @@ export function getSafeDashboardPath(next: string | null | undefined): string {
   return value;
 }
 
+/**
+ * Client-side cookie helpers are retained only as a fallback clear for legacy
+ * presence cookies. Authoritative session cookies are httpOnly and set by
+ * `/api/auth/session` after Firebase ID token verification.
+ */
 export function setAuthCookie() {
-  if (typeof document === "undefined") return;
-
-  const secure = window.location.protocol === "https:" ? "; Secure" : "";
-  document.cookie = `${AUTH_COOKIE_NAME}=${AUTH_COOKIE_VALUE}; Path=/; Max-Age=${AUTH_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
+  // No-op: session is established via POST /api/auth/session (httpOnly JWT).
 }
 
 export function clearAuthCookie() {
@@ -34,6 +39,14 @@ export function clearAuthCookie() {
 
   const secure = window.location.protocol === "https:" ? "; Secure" : "";
   document.cookie = `${AUTH_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+}
+
+export function getSessionCookieMaxAgeSeconds(expiresAtMs?: number) {
+  if (expiresAtMs && Number.isFinite(expiresAtMs)) {
+    const seconds = Math.floor((expiresAtMs - Date.now()) / 1000);
+    if (seconds > 60) return seconds;
+  }
+  return AUTH_COOKIE_MAX_AGE_SECONDS;
 }
 
 export function getAuthErrorMessage(error: unknown): string {

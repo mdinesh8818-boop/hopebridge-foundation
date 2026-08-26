@@ -9,16 +9,30 @@ import type {
   StrategicGoalStatus,
   StrategicGoalSummary,
 } from "../types/missionVision";
+import {
+  DEFAULT_ORGANIZATION_ID,
+  isDefaultOrganization,
+} from "../lib/organization";
 import { logActivity } from "./activity";
 import {
   createDocument,
   deleteDocument,
+  getActiveOrganizationId,
   getDocuments,
   setDocument,
   updateDocument,
 } from "./firestore";
 
-const MISSION_VISION_DOC_ID = "foundation";
+/** Legacy fixed id for the default organization mission/vision document. */
+const LEGACY_MISSION_VISION_DOC_ID = "foundation";
+
+function resolveMissionVisionDocId(): string {
+  const organizationId = getActiveOrganizationId();
+  if (!organizationId || isDefaultOrganization(organizationId)) {
+    return LEGACY_MISSION_VISION_DOC_ID;
+  }
+  return organizationId;
+}
 const LEGACY_MISSION_KEY = "hopebridge-mission-vision";
 const LEGACY_GOALS_KEY = "hopebridge-strategic-goals";
 
@@ -26,13 +40,15 @@ const TEST_GOAL_TITLE_PATTERN = /^mission[_\s-]*vision$/i;
 const TEST_GOAL_DESCRIPTION_PATTERN = /^mission\s*vision$/i;
 const TEST_MISSION_TEXT_PATTERN = /^SOONer$/i;
 
-const EMPTY_MISSION_VISION: MissionVisionRecord = {
-  id: MISSION_VISION_DOC_ID,
-  missionStatement: "",
-  missionDescription: "",
-  visionStatement: "",
-  visionDescription: "",
-};
+function emptyMissionVision(id: string): MissionVisionRecord {
+  return {
+    id,
+    missionStatement: "",
+    missionDescription: "",
+    visionStatement: "",
+    visionDescription: "",
+  };
+}
 
 export function missionVisionToInput(
   record: Partial<MissionVisionRecord> & {
@@ -234,12 +250,17 @@ function clearLegacyStorage() {
 }
 
 async function loadMissionVisionRecord(): Promise<MissionVisionRecord> {
+  const docId = resolveMissionVisionDocId();
   const docs = (await getDocuments("missionVision")) as MissionVisionRecord[];
-  const existing = docs.find((doc) => doc.id === MISSION_VISION_DOC_ID);
+  const existing =
+    docs.find((entry) => entry.id === docId) ??
+    (isDefaultOrganization(getActiveOrganizationId() ?? DEFAULT_ORGANIZATION_ID)
+      ? docs.find((entry) => entry.id === LEGACY_MISSION_VISION_DOC_ID)
+      : undefined);
 
   if (existing) {
     const sanitized: MissionVisionRecord = {
-      id: MISSION_VISION_DOC_ID,
+      id: existing.id,
       missionStatement: sanitizeMissionVisionText(
         existing.missionStatement ?? (existing as { missionTitle?: string }).missionTitle,
       ),
@@ -267,10 +288,10 @@ async function loadMissionVisionRecord(): Promise<MissionVisionRecord> {
   if (legacy) {
     await saveMissionVision(legacy);
     clearLegacyStorage();
-    return { id: MISSION_VISION_DOC_ID, ...legacy };
+    return { id: docId, ...legacy };
   }
 
-  return EMPTY_MISSION_VISION;
+  return emptyMissionVision(docId);
 }
 
 async function loadCoreValues(): Promise<CoreValueRecord[]> {
@@ -357,12 +378,13 @@ export async function saveMissionVision(input: MissionVisionInput): Promise<void
     visionDescription: sanitizeMissionVisionText(input.visionDescription),
   };
 
-  await setDocument("missionVision", MISSION_VISION_DOC_ID, payload);
+  const docId = resolveMissionVisionDocId();
+  await setDocument("missionVision", docId, payload);
   await logActivity({
     module: "missionVision",
     action: "updated",
     entityType: "missionVision",
-    entityId: MISSION_VISION_DOC_ID,
+    entityId: docId,
     entityName: "Mission & Vision",
     description: "Mission and vision statements updated",
   });
