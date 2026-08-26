@@ -1,30 +1,64 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { DEPARTMENTS, ROLES } from "../data";
-import type { CreateTeamForm, TeamMember } from "../types";
+import type { CreateTeamForm, Team, TeamMember } from "../types";
 
 type Props = {
   members: TeamMember[];
+  team?: Team | null;
   onClose: () => void;
   onCreate: (form: CreateTeamForm) => void;
+  onUpdate?: (teamId: string, form: CreateTeamForm) => void;
+  onDelete?: (teamId: string) => void;
 };
 
 const STEPS = ["Team Details", "Leadership", "Members", "Permissions", "Review"];
 
-export default function CreateTeamModal({ members, onClose, onCreate }: Props) {
+function teamToForm(team: Team): CreateTeamForm {
+  return {
+    name: team.name,
+    department: team.department,
+    description: team.description,
+    leadId: team.leadId,
+    secondaryLeadId: team.secondaryLeadId ?? "",
+    memberIds: team.memberIds.filter((id) => id !== team.leadId),
+    defaultPermission: team.defaultPermission,
+  };
+}
+
+export default function CreateTeamModal({
+  members,
+  team,
+  onClose,
+  onCreate,
+  onUpdate,
+  onDelete,
+}: Props) {
+  const isEditing = Boolean(team);
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState<CreateTeamForm>({
-    name: "",
-    department: DEPARTMENTS[0],
-    description: "",
-    leadId: "",
-    secondaryLeadId: "",
-    memberIds: [],
-    defaultPermission: "Team Lead",
-  });
+  const [form, setForm] = useState<CreateTeamForm>(
+    team
+      ? teamToForm(team)
+      : {
+          name: "",
+          department: DEPARTMENTS[0],
+          description: "",
+          leadId: "",
+          secondaryLeadId: "",
+          memberIds: [],
+          defaultPermission: "Team Lead",
+        },
+  );
   const [memberSearch, setMemberSearch] = useState("");
+
+  useEffect(() => {
+    if (team) {
+      setForm(teamToForm(team));
+      setStep(0);
+    }
+  }, [team]);
 
   const filteredMembers = useMemo(() => {
     const q = memberSearch.trim().toLowerCase();
@@ -53,16 +87,29 @@ export default function CreateTeamModal({ members, onClose, onCreate }: Props) {
     return true;
   }
 
-  function handleCreate() {
+  function handleSubmit() {
     const lead = members.find((m) => m.id === form.leadId);
     const ids = new Set([form.leadId, ...form.memberIds]);
     if (form.secondaryLeadId) ids.add(form.secondaryLeadId);
-    onCreate({
+    const payload = {
       ...form,
       memberIds: Array.from(ids),
       leadId: form.leadId,
-    });
+    };
     if (!lead) return;
+    if (isEditing && team && onUpdate) {
+      onUpdate(team.id, payload);
+      return;
+    }
+    onCreate(payload);
+  }
+
+  function handleDeleteTeam() {
+    if (!team || !onDelete) return;
+    if (!window.confirm(`Delete team "${team.name}" and all related assignments, discussions, and meetings?`)) {
+      return;
+    }
+    onDelete(team.id);
   }
 
   return (
@@ -75,7 +122,7 @@ export default function CreateTeamModal({ members, onClose, onCreate }: Props) {
               STEP {step + 1} OF {STEPS.length}
             </p>
             <h2 id="create-team-title" className="font-serif text-xl font-bold text-[#022c22]">
-              Create Team — {STEPS[step]}
+              {isEditing ? "Edit Team" : "Create Team"} — {STEPS[step]}
             </h2>
           </div>
           <button type="button" onClick={onClose} aria-label="Close">
@@ -209,14 +256,21 @@ export default function CreateTeamModal({ members, onClose, onCreate }: Props) {
         </div>
 
         <div className="flex justify-between border-t border-[#e4dac6] px-6 py-4">
-          <button
-            type="button"
-            className="tm-secondary-btn"
-            disabled={step === 0}
-            onClick={() => setStep((s) => s - 1)}
-          >
-            <ChevronLeft size={16} /> Back
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="tm-secondary-btn"
+              disabled={step === 0}
+              onClick={() => setStep((s) => s - 1)}
+            >
+              <ChevronLeft size={16} /> Back
+            </button>
+            {isEditing && onDelete && (
+              <button type="button" className="tm-secondary-btn text-[#be123c]" onClick={handleDeleteTeam}>
+                Delete Team
+              </button>
+            )}
+          </div>
           {step < STEPS.length - 1 ? (
             <button
               type="button"
@@ -227,8 +281,8 @@ export default function CreateTeamModal({ members, onClose, onCreate }: Props) {
               Next <ChevronRight size={16} />
             </button>
           ) : (
-            <button type="button" className="tm-gold-btn" onClick={handleCreate}>
-              Create Team
+            <button type="button" className="tm-gold-btn" onClick={handleSubmit}>
+              {isEditing ? "Save Team" : "Create Team"}
             </button>
           )}
         </div>

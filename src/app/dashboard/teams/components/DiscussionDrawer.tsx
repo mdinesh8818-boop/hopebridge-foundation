@@ -11,9 +11,10 @@ type Props = {
   onClose: () => void;
   onReply: (discussionId: string, body: string) => void;
   onResolve: (discussionId: string) => void;
+  onDelete?: (discussionId: string) => void;
 };
 
-export default function DiscussionDrawer({ discussion, members, onClose, onReply, onResolve }: Props) {
+export default function DiscussionDrawer({ discussion, members, onClose, onReply, onResolve, onDelete }: Props) {
   const [reply, setReply] = useState("");
 
   function submitReply(e: React.FormEvent) {
@@ -66,6 +67,19 @@ export default function DiscussionDrawer({ discussion, members, onClose, onReply
               >
                 Mark resolved
               </button>
+              {onDelete && (
+                <button
+                  type="button"
+                  className="tm-secondary-btn text-sm text-[#be123c]"
+                  onClick={() => {
+                    if (window.confirm(`Delete discussion "${discussion.title}"?`)) {
+                      onDelete(discussion.id);
+                    }
+                  }}
+                >
+                  Delete
+                </button>
+              )}
             </div>
           </form>
         )}

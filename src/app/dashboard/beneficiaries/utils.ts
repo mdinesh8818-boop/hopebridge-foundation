@@ -1,11 +1,120 @@
 import { JOURNEY_STAGES } from "./data";
 import type {
   ActivityEvent,
+  ActivityType,
   Beneficiary,
   BeneficiaryFilters,
   DateInput,
   JourneyStage,
+  OutcomeStatus,
+  ServiceStatus,
+  FollowUpStatus,
 } from "./types";
+
+const SERVICE_STATUSES: ServiceStatus[] = [
+  "Enrolled",
+  "Active",
+  "Under Review",
+  "Follow-Up Required",
+  "Completed",
+  "Inactive",
+];
+
+const FOLLOW_UP_STATUSES: FollowUpStatus[] = [
+  "None",
+  "Required",
+  "Overdue",
+  "Scheduled",
+  "Completed",
+];
+
+const OUTCOME_STATUSES: OutcomeStatus[] = [
+  "Pending",
+  "Positive",
+  "In Progress",
+  "Review Due",
+];
+
+const JOURNEY_STAGE_SET = new Set<JourneyStage>(JOURNEY_STAGES);
+
+function coerceString(value: unknown, fallback = ""): string {
+  if (typeof value === "string") return value;
+  if (value == null) return fallback;
+  return String(value);
+}
+
+function coerceEnum<T extends string>(value: unknown, allowed: T[], fallback: T): T {
+  const candidate = coerceString(value, fallback);
+  return allowed.includes(candidate as T) ? (candidate as T) : fallback;
+}
+
+function formatStoredDate(value: unknown): string {
+  const date = normalizeToDate(value as DateInput);
+  if (date) return date.toISOString().slice(0, 10);
+  if (typeof value === "string" && value.trim()) return value.trim().slice(0, 10);
+  return "";
+}
+
+export function normalizeBeneficiaryRecord(
+  record: Record<string, unknown> & { id: string },
+): Beneficiary {
+  return {
+    id: record.id,
+    beneficiaryId: coerceString(record.beneficiaryId),
+    name: coerceString(record.name),
+    location: coerceString(record.location),
+    region: coerceString(record.region),
+    program: coerceString(record.program),
+    supportType: coerceString(record.supportType),
+    status: coerceEnum(record.status, SERVICE_STATUSES, "Enrolled"),
+    journeyStage: JOURNEY_STAGE_SET.has(record.journeyStage as JourneyStage)
+      ? (record.journeyStage as JourneyStage)
+      : "Enrolled",
+    followUpStatus: coerceEnum(record.followUpStatus, FOLLOW_UP_STATUSES, "None"),
+    coordinator: coerceString(record.coordinator),
+    enrollmentDate: formatStoredDate(record.enrollmentDate) || formatStoredDate(record.createdAt),
+    lastSupportDate: formatStoredDate(record.lastSupportDate),
+    nextFollowUp: formatStoredDate(record.nextFollowUp),
+    outcomeStatus: coerceEnum(record.outcomeStatus, OUTCOME_STATUSES, "Pending"),
+    notes: coerceString(record.notes),
+  };
+}
+
+export function toBeneficiaryWriteData(
+  data: Omit<Beneficiary, "id">,
+): Record<string, unknown> {
+  return {
+    beneficiaryId: data.beneficiaryId.trim(),
+    name: data.name.trim(),
+    location: data.location.trim(),
+    region: data.region,
+    program: data.program,
+    supportType: data.supportType,
+    status: data.status,
+    journeyStage: data.journeyStage,
+    followUpStatus: data.followUpStatus,
+    coordinator: data.coordinator,
+    enrollmentDate: data.enrollmentDate,
+    lastSupportDate: data.lastSupportDate,
+    nextFollowUp: data.nextFollowUp,
+    outcomeStatus: data.outcomeStatus,
+    notes: data.notes.trim(),
+  };
+}
+
+export function normalizeActivityEvent(
+  record: Record<string, unknown> & { id: string },
+): ActivityEvent {
+  const type = coerceString(record.type, "Status Updated") as ActivityType;
+  return {
+    id: record.id,
+    beneficiaryId: coerceString(record.beneficiaryId),
+    beneficiaryName: coerceString(record.beneficiaryName),
+    type,
+    detail: coerceString(record.detail),
+    createdAt: (record.createdAt as DateInput) ?? new Date().toISOString(),
+  };
+}
 
 export function normalizeToDate(value: DateInput | null | undefined): Date | null {
   if (value == null) return null;
@@ -194,12 +303,12 @@ export function filterBeneficiaries(
   return beneficiaries.filter((b) => {
     const matchesSearch =
       !query ||
-      b.name.toLowerCase().includes(query) ||
-      b.beneficiaryId.toLowerCase().includes(query) ||
-      b.location.toLowerCase().includes(query) ||
-      b.region.toLowerCase().includes(query) ||
-      b.program.toLowerCase().includes(query) ||
-      b.coordinator.toLowerCase().includes(query);
+      (b.name || "").toLowerCase().includes(query) ||
+      (b.beneficiaryId || "").toLowerCase().includes(query) ||
+      (b.location || "").toLowerCase().includes(query) ||
+      (b.region || "").toLowerCase().includes(query) ||
+      (b.program || "").toLowerCase().includes(query) ||
+      (b.coordinator || "").toLowerCase().includes(query);
 
     const matchesProgram = filters.program === "All" || b.program === filters.program;
     const matchesSupport =

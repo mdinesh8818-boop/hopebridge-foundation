@@ -12,6 +12,7 @@ type Props = {
   onClose: () => void;
   onSave: (data: Omit<TeamMeeting, "id"> & { id?: string }) => void;
   onComplete?: (id: string) => void;
+  onDelete?: (id: string) => void;
 };
 
 export default function MeetingModal({
@@ -22,6 +23,7 @@ export default function MeetingModal({
   onClose,
   onSave,
   onComplete,
+  onDelete,
 }: Props) {
   const [title, setTitle] = useState(meeting?.title ?? "");
   const [teamId, setTeamId] = useState(meeting?.teamId ?? defaultTeamId ?? teams[0]?.id ?? "");
@@ -104,6 +106,19 @@ export default function MeetingModal({
           )}
         </div>
         <div className="flex justify-end gap-3 border-t border-[#e4dac6] px-6 py-4">
+          {meeting && onDelete && (
+            <button
+              type="button"
+              className="tm-secondary-btn mr-auto text-[#be123c]"
+              onClick={() => {
+                if (window.confirm(`Delete meeting "${meeting.title}"?`)) {
+                  onDelete(meeting.id);
+                }
+              }}
+            >
+              Delete
+            </button>
+          )}
           <button type="button" className="tm-secondary-btn" onClick={onClose}>Cancel</button>
           <button type="submit" className="tm-gold-btn">Save Meeting</button>
         </div>
