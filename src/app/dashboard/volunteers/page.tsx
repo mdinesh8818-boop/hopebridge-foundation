@@ -145,7 +145,6 @@ function getInitials(name: string) {
 export default function VolunteersPage() {
   const { user } = useAuth();
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<VolunteerStatus | "All">("All");
@@ -170,26 +169,22 @@ export default function VolunteersPage() {
   }
 
   useEffect(() => {
-    if (!user) {
-      setVolunteers([]);
-      setIsLoading(false);
-      return;
-    }
+    if (!user) return;
 
     const unsubscribe = subscribeDocuments(
       "volunteers",
       (docs) => {
         setVolunteers(docs.map((doc) => normalizeVolunteerRecord(doc)));
-        setIsLoading(false);
       },
       (error) => {
         console.error("Unable to load volunteers from Firestore.", error);
         setVolunteers([]);
-        setIsLoading(false);
       },
     );
 
-    void refreshActivities();
+    getActivities({ module: "volunteers", limit: 5 })
+      .then(setModuleActivities)
+      .catch(() => setModuleActivities([]));
 
     return () => unsubscribe();
   }, [user]);

@@ -127,12 +127,7 @@ export default function BeneficiariesPage() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!user) {
-      setBeneficiaries([]);
-      setActivity([]);
-      setIsLoading(false);
-      return;
-    }
+    if (!user) return;
 
     let beneficiariesReady = false;
     let activityReady = false;
@@ -142,9 +137,6 @@ export default function BeneficiariesPage() {
       if (source === "activity") activityReady = true;
       if (beneficiariesReady && activityReady) setIsLoading(false);
     }
-
-    setIsLoading(true);
-    setLoadError(null);
 
     const unsubscribeBeneficiaries = subscribeDocuments(
       "beneficiaries",

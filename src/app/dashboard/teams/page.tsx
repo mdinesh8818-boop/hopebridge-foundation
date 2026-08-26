@@ -133,16 +133,7 @@ export default function TeamsPage() {
   const directorySearchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!user) {
-      setTeams([]);
-      setMembers([]);
-      setAssignments([]);
-      setDiscussions([]);
-      setMeetings([]);
-      setActivity([]);
-      setIsLoading(false);
-      return;
-    }
+    if (!user) return;
 
     const ready = {
       teams: false,
@@ -157,9 +148,6 @@ export default function TeamsPage() {
       ready[key] = true;
       if (Object.values(ready).every(Boolean)) setIsLoading(false);
     }
-
-    setIsLoading(true);
-    setLoadError(null);
 
     const unsubscribeTeams = subscribeDocuments(
       "teams",
