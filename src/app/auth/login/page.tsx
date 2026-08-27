@@ -2,12 +2,11 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { getAuthErrorMessage, getSafeDashboardPath } from "@/lib/auth";
+import { useSearchParams } from "next/navigation";
+import { getAuthErrorMessage, getSafeDashboardPath, redirectAfterAuth } from "@/lib/auth";
 import { useAuth } from "@/providers/AuthProvider";
 
 export default function LoginPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuth();
 
@@ -30,7 +29,7 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      router.push(nextPath);
+      redirectAfterAuth(searchParams.get("next"));
     } catch (err: unknown) {
       setError(getAuthErrorMessage(err));
     } finally {

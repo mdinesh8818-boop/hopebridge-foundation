@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
-import { getSafeDashboardPath } from "@/lib/auth";
+import { redirectAfterAuth } from "@/lib/auth";
 
 export function AuthLoading({ message = "Loading your workspace..." }: { message?: string }) {
   return (
@@ -37,14 +37,13 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 export function GuestRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
     if (loading || !user) return;
 
-    router.replace(getSafeDashboardPath(searchParams.get("next")));
-  }, [loading, router, searchParams, user]);
+    redirectAfterAuth(searchParams.get("next"));
+  }, [loading, searchParams, user]);
 
   if (loading || user) {
     return <AuthLoading message="Redirecting to your workspace..." />;
