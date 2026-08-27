@@ -29,6 +29,16 @@ export function setAuthCookie() {
   document.cookie = `${AUTH_COOKIE_NAME}=${AUTH_COOKIE_VALUE}; Path=/; Max-Age=${AUTH_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
 }
 
+/**
+ * Full document navigation after auth so the session cookie set via
+ * document.cookie is included on the next request to /dashboard.
+ * Client-side router transitions can race proxy/middleware cookie checks.
+ */
+export function redirectAfterAuth(next: string | null | undefined) {
+  if (typeof window === "undefined") return;
+  window.location.assign(getSafeDashboardPath(next));
+}
+
 export function clearAuthCookie() {
   if (typeof document === "undefined") return;
 
