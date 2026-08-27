@@ -286,27 +286,17 @@ function buildTrend(
     historySignals += 1;
   }
 
-  const activePrograms = programs.filter(
-    (p) => p.status === "Active" || p.status === "Planning",
-  );
-  const avgProgress =
-    activePrograms.length > 0
-      ? Math.round(
-          activePrograms.reduce((sum, p) => sum + toNumber(p.progress), 0) /
-            activePrograms.length,
-        )
-      : 0;
-
   const points: TrendPoint[] = [...buckets.entries()].map(([key, bucket]) => ({
     label: monthLabel(key),
     beneficiaries: bucket.beneficiaries,
     fundsRaised: Math.round(bucket.fundsRaised),
-    programProgress: avgProgress,
-    volunteerHours: bucket.volunteerEvents,
+    programProgress: 0,
+    volunteerActivity: bucket.volunteerEvents,
   }));
 
   return {
     points,
+    // Require real dated signals — empty zero-filled months alone are not history.
     hasHistory: historySignals > 0,
   };
 }
@@ -329,7 +319,7 @@ function buildProgramRows(programs: ProgramDoc[]): ProgramPerformanceRow[] {
         beneficiaryTarget: null,
         budget,
         fundsDeployed: spent,
-        goalAchievement: budget > 0 ? Math.round((spent / budget) * 100) : null,
+        budgetUtilization: budget > 0 ? Math.round((spent / budget) * 100) : null,
         health: resolveProgramHealth(program),
         endDate: typeof program.endDate === "string" ? program.endDate : "",
       };
@@ -351,13 +341,13 @@ function buildBeneficiaryOutcomes(
     if (enrolled && enrolled >= start) newInPeriod += 1;
   }
 
-  const byProgramMap = new Map<string, number>();
+  const byAssignmentMap = new Map<string, number>();
   const byRegionMap = new Map<string, number>();
   const byLocationMap = new Map<string, number>();
 
   for (const beneficiary of beneficiaries) {
-    const program = beneficiary.program?.trim() || "Unassigned";
-    byProgramMap.set(program, (byProgramMap.get(program) ?? 0) + 1);
+    const assignment = beneficiary.program?.trim() || "Unassigned";
+    byAssignmentMap.set(assignment, (byAssignmentMap.get(assignment) ?? 0) + 1);
 
     const region = beneficiary.region?.trim();
     if (region) byRegionMap.set(region, (byRegionMap.get(region) ?? 0) + 1);
@@ -375,17 +365,14 @@ function buildBeneficiaryOutcomes(
   }));
 
   const communities = new Set(
-    [
-      ...beneficiaries.map((b) => b.location?.trim() || ""),
-      ...beneficiaries.map((b) => b.region?.trim() || ""),
-    ].filter(Boolean),
+    beneficiaries.map((b) => b.location?.trim() || "").filter(Boolean),
   );
 
   return {
     total,
     newInPeriod,
-    byProgram: [...byProgramMap.entries()]
-      .map(([program, count]) => ({ program, count }))
+    byProgramAssignment: [...byAssignmentMap.entries()]
+      .map(([label, count]) => ({ label, count }))
       .sort((a, b) => b.count - a.count),
     byRegion: [...byRegionMap.entries()]
       .map(([region, count]) => ({ region, count }))
@@ -427,11 +414,12 @@ function buildFunding(
     fundsDeployed,
     beneficiariesServed,
     costPerBeneficiary:
-      beneficiariesServed > 0
+      beneficiariesServed > 0 && fundsDeployed > 0
         ? Number((fundsDeployed / beneficiariesServed).toFixed(2))
         : null,
     deploymentRate:
       fundsRaised > 0 ? Math.round((fundsDeployed / fundsRaised) * 100) : null,
+    hasDeployedSpend: fundsDeployed > 0,
     byProgram,
   };
 }
@@ -446,13 +434,13 @@ function buildVolunteerContribution(
   const totalHours = volunteers.reduce((sum, v) => sum + toNumber(v.hours), 0);
   const hoursTracked = volunteers.some((v) => toNumber(v.hours) > 0);
 
-  const byProgramMap = new Map<string, { volunteers: number; hours: number }>();
+  const byInitiativeMap = new Map<string, { volunteers: number; hours: number }>();
   for (const volunteer of volunteers) {
-    const program = volunteer.initiative?.trim() || "Unassigned";
-    const existing = byProgramMap.get(program) ?? { volunteers: 0, hours: 0 };
+    const initiative = volunteer.initiative?.trim() || "Unassigned";
+    const existing = byInitiativeMap.get(initiative) ?? { volunteers: 0, hours: 0 };
     existing.volunteers += 1;
     existing.hours += toNumber(volunteer.hours);
-    byProgramMap.set(program, existing);
+    byInitiativeMap.set(initiative, existing);
   }
 
   const volunteerActivities = activities.filter(
@@ -463,8 +451,8 @@ function buildVolunteerContribution(
     activeVolunteers: active.length,
     totalHours,
     activitiesLogged: volunteerActivities,
-    byProgram: [...byProgramMap.entries()]
-      .map(([program, data]) => ({ program, ...data }))
+    byInitiative: [...byInitiativeMap.entries()]
+      .map(([initiative, data]) => ({ initiative, ...data }))
       .sort((a, b) => b.hours - a.hours || b.volunteers - a.volunteers),
     hoursTracked,
   };
@@ -493,7 +481,7 @@ function buildGeography(
   }
 
   for (const beneficiary of beneficiaries) {
-    const loc = beneficiary.location?.trim() || beneficiary.region?.trim();
+    const loc = beneficiary.location?.trim();
     if (!loc) continue;
     const existing = locationMap.get(loc) ?? {
       programs: 0,
@@ -504,6 +492,8 @@ function buildGeography(
     locationMap.set(loc, existing);
   }
 
+  // Map markers use the location string itself. Country is intentionally
+  // left unspecified — source records do not store a country field.
   const locations = [...locationMap.entries()].map(([id, data], index) => ({
     id,
     name: data.name,
@@ -535,9 +525,11 @@ function buildGeography(
 
   return {
     locations,
-    countries: locations.length,
+    countries: null,
+    countriesAvailable: false,
     regions: regions.size,
     communities: communities.size,
+    uniqueLocations: locationMap.size,
   };
 }
 
@@ -927,11 +919,11 @@ export async function fetchImpactIntelligence(
       fundsDeployed,
       volunteerHours,
       costPerBeneficiary:
-        beneficiariesServed > 0
+        beneficiariesServed > 0 && fundsDeployed > 0
           ? Number((fundsDeployed / beneficiariesServed).toFixed(2))
           : null,
       goalAchievementRate,
-      geographicReach: geography.communities || geography.locations.length,
+      geographicReach: geography.uniqueLocations,
     },
     trend,
     trendHasHistory,
