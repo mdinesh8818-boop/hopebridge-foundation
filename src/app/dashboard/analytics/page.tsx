@@ -202,6 +202,7 @@ export default function AnalyticsPage() {
         label: "Geographic Reach",
         value: displayValue(loading, snapshot?.geographicReach),
         icon: Globe2,
+        hint: "Unique locations",
       },
     ];
   }, [bundle, loading]);
@@ -500,6 +501,9 @@ export default function AnalyticsPage() {
                           <div>
                             <p className="ia-kpi-label">{kpi.label}</p>
                             <p className="ia-kpi-value">{kpi.value}</p>
+                            {"hint" in kpi && kpi.hint ? (
+                              <p className="mt-1 text-[11px] text-[#7a6a4a]">{kpi.hint}</p>
+                            ) : null}
                           </div>
                           <div className="ia-kpi-icon">
                             <Icon size={18} />
@@ -573,8 +577,8 @@ export default function AnalyticsPage() {
                         />
                         <Area
                           type="monotone"
-                          dataKey="volunteerHours"
-                          name="Volunteer Activity"
+                          dataKey="volunteerActivity"
+                          name="Volunteer Activity Events"
                           stroke="#6b8f71"
                           fill="transparent"
                           strokeWidth={2}
@@ -653,7 +657,7 @@ export default function AnalyticsPage() {
                           <th>Beneficiaries</th>
                           <th>Budget</th>
                           <th>Funds Deployed</th>
-                          <th>Goal Achievement</th>
+                          <th>Budget Used</th>
                           <th>Health</th>
                           <th>Action</th>
                         </tr>
@@ -680,17 +684,15 @@ export default function AnalyticsPage() {
                             <td>
                               {formatAnalyticsNumber(program.beneficiariesReached)}
                               <div className="text-xs text-[#607269]">
-                                {program.beneficiaryTarget == null
-                                  ? "No separate target field"
-                                  : `Target ${formatAnalyticsNumber(program.beneficiaryTarget)}`}
+                                From program record
                               </div>
                             </td>
                             <td>{formatAnalyticsCurrency(program.budget)}</td>
                             <td>{formatAnalyticsCurrency(program.fundsDeployed)}</td>
                             <td>
-                              {program.goalAchievement == null
+                              {program.budgetUtilization == null
                                 ? "—"
-                                : `${program.goalAchievement}%`}
+                                : `${program.budgetUtilization}%`}
                             </td>
                             <td>
                               <span className={healthClass(program.health)}>
@@ -763,14 +765,18 @@ export default function AnalyticsPage() {
                     icon={Users}
                   />
 
-                  {(bundle?.beneficiaries.byProgram.length ?? 0) > 0 ? (
+                  {(bundle?.beneficiaries.byProgramAssignment.length ?? 0) > 0 ? (
                     <div className="ia-stat-list">
                       <p className="px-1 text-xs font-bold uppercase tracking-[0.08em] text-[#9f7b24]">
-                        Beneficiaries by Program
+                        Beneficiaries by Program Assignment
                       </p>
-                      {bundle!.beneficiaries.byProgram.slice(0, 8).map((row) => (
-                        <div key={row.program} className="ia-stat-row">
-                          <span>{row.program}</span>
+                      <p className="px-1 text-xs text-[#607269]">
+                        Grouped by the program label stored on each beneficiary record.
+                        These labels are not linked by ID to Programs module documents.
+                      </p>
+                      {bundle!.beneficiaries.byProgramAssignment.slice(0, 8).map((row) => (
+                        <div key={row.label} className="ia-stat-row">
+                          <span>{row.label}</span>
                           <strong>{formatAnalyticsNumber(row.count)}</strong>
                         </div>
                       ))}
@@ -817,8 +823,7 @@ export default function AnalyticsPage() {
                   </div>
 
                   {bundle &&
-                  bundle.funding.fundsRaised === 0 &&
-                  bundle.funding.fundsDeployed === 0 ? (
+                  (!bundle.funding.hasDeployedSpend && bundle.funding.fundsRaised === 0) ? (
                     <AnalyticsEmptyState
                       title="No funding or deployment data yet"
                       description="Record donations or campaign totals and program spend to evaluate whether fundraising is translating into impact."
@@ -826,6 +831,36 @@ export default function AnalyticsPage() {
                       actionLabel="View Donors"
                       icon={CircleDollarSign}
                     />
+                  ) : bundle && !bundle.funding.hasDeployedSpend ? (
+                    <>
+                      <div className="ia-stat-list">
+                        <div className="ia-stat-row">
+                          <span>Funds Raised</span>
+                          <strong>
+                            {formatAnalyticsCurrency(bundle.funding.fundsRaised)}
+                          </strong>
+                        </div>
+                        <div className="ia-stat-row">
+                          <span>Funds Deployed</span>
+                          <strong>—</strong>
+                        </div>
+                        <div className="ia-stat-row">
+                          <span>Deployment Rate</span>
+                          <strong>—</strong>
+                        </div>
+                        <div className="ia-stat-row">
+                          <span>Cost Per Beneficiary</span>
+                          <strong>—</strong>
+                        </div>
+                      </div>
+                      <AnalyticsEmptyState
+                        title="Funding-efficiency chart unavailable"
+                        description="$0 program expenditures are recorded. Efficiency analysis requires program spend (funds deployed) to compare against funds raised and beneficiaries served."
+                        actionHref="/dashboard/programs"
+                        actionLabel="View Programs"
+                        icon={CircleDollarSign}
+                      />
+                    </>
                   ) : (
                     <>
                       <div className="ia-stat-list">
@@ -859,11 +894,13 @@ export default function AnalyticsPage() {
                         </div>
                       </div>
 
-                      {(bundle?.funding.byProgram.length ?? 0) > 0 ? (
+                      {(bundle?.funding.byProgram.some((row) => row.spent > 0) ?? false) ? (
                         <div className="ia-chart-wrap">
                           <ResponsiveContainer width="100%" height="100%">
                             <BarChart
-                              data={(bundle?.funding.byProgram ?? []).slice(0, 6)}
+                              data={(bundle?.funding.byProgram ?? [])
+                                .filter((row) => row.spent > 0)
+                                .slice(0, 6)}
                               layout="vertical"
                               margin={{ left: 24, right: 12 }}
                             >
@@ -936,15 +973,18 @@ export default function AnalyticsPage() {
                     />
                   ) : null}
 
-                  {(bundle?.volunteers.byProgram.length ?? 0) > 0 ? (
+                  {(bundle?.volunteers.byInitiative.length ?? 0) > 0 ? (
                     <div className="ia-stat-list">
                       <p className="px-1 text-xs font-bold uppercase tracking-[0.08em] text-[#9f7b24]">
-                        Contribution by Program / Initiative
+                        Contribution by Initiative
                       </p>
-                      {bundle!.volunteers.byProgram.slice(0, 8).map((row) => (
-                        <div key={row.program} className="ia-stat-row">
+                      <p className="px-1 text-xs text-[#607269]">
+                        Grouped by the initiative label on volunteer records.
+                      </p>
+                      {bundle!.volunteers.byInitiative.slice(0, 8).map((row) => (
+                        <div key={row.initiative} className="ia-stat-row">
                           <span>
-                            {row.program}
+                            {row.initiative}
                             <div className="text-xs font-normal text-[#607269]">
                               {row.volunteers} volunteer{row.volunteers === 1 ? "" : "s"}
                             </div>
@@ -956,7 +996,7 @@ export default function AnalyticsPage() {
                   ) : (
                     <AnalyticsEmptyState
                       title="No volunteer participation yet"
-                      description="Add volunteers and assign initiatives to see contribution by program."
+                      description="Add volunteers and assign initiatives to see contribution by initiative."
                       actionHref="/dashboard/volunteers"
                       actionLabel="View Volunteers"
                     />
@@ -970,9 +1010,12 @@ export default function AnalyticsPage() {
                       <p className="ia-kicker">GEOGRAPHIC IMPACT</p>
                       <h2>Reach by Location</h2>
                       <p>
-                        Countries {bundle?.geography.countries ?? 0} · Regions{" "}
-                        {bundle?.geography.regions ?? 0} · Communities{" "}
-                        {bundle?.geography.communities ?? 0}
+                        {!bundle?.geography.countriesAvailable
+                          ? "Countries unavailable (not stored)"
+                          : `Countries ${bundle.geography.countries ?? 0}`}
+                        {" · "}Regions {bundle?.geography.regions ?? 0}
+                        {" · "}Communities {bundle?.geography.communities ?? 0}
+                        {" · "}Unique locations {bundle?.geography.uniqueLocations ?? 0}
                       </p>
                     </div>
                   </div>
@@ -980,13 +1023,19 @@ export default function AnalyticsPage() {
                   {mapLocations.length === 0 ? (
                     <AnalyticsEmptyState
                       title="No geographic reach data yet"
-                      description="Add location fields on programs and beneficiaries to map communities served."
+                      description="Add location fields on programs and beneficiaries to map communities served. Country counts are unavailable because no country field is stored on these records."
                       actionHref="/dashboard/programs"
                       actionLabel="View Programs"
                       icon={MapPin}
                     />
                   ) : (
                     <>
+                      {!bundle?.geography.countriesAvailable ? (
+                        <div className="mx-[22px] mt-3 rounded-xl border border-dashed border-[#e4dac6] bg-[#fcfbf8] px-4 py-3 text-xs text-[#607269]">
+                          Country totals are unavailable — beneficiary and program records store
+                          city/community locations and regions, not countries.
+                        </div>
+                      ) : null}
                       <div className="ia-map-panel">
                         <GeographicReachMap
                           locations={mapLocations}

@@ -23,8 +23,11 @@ export type AnalyticsKpis = {
   fundsRaised: number;
   fundsDeployed: number;
   volunteerHours: number;
+  /** null when beneficiariesServed is 0 or fundsDeployed is 0 (avoid misleading $0 efficiency). */
   costPerBeneficiary: number | null;
+  /** null when no campaign goals exist. */
   goalAchievementRate: number | null;
+  /** Unique city/community locations from program + beneficiary location fields. */
   geographicReach: number;
 };
 
@@ -33,7 +36,7 @@ export type TrendPoint = {
   beneficiaries: number;
   fundsRaised: number;
   programProgress: number;
-  volunteerHours: number;
+  volunteerActivity: number;
 };
 
 export type ProgramPerformanceRow = {
@@ -43,11 +46,13 @@ export type ProgramPerformanceRow = {
   category: string;
   location: string;
   progress: number;
+  /** From programs.beneficiaries field (program document), not beneficiary collection join. */
   beneficiariesReached: number;
   beneficiaryTarget: number | null;
   budget: number;
   fundsDeployed: number;
-  goalAchievement: number | null;
+  /** Budget utilization (spent/budget). null when budget is 0. */
+  budgetUtilization: number | null;
   health: ProgramHealth;
   endDate: string;
 };
@@ -55,7 +60,11 @@ export type ProgramPerformanceRow = {
 export type BeneficiaryOutcomes = {
   total: number;
   newInPeriod: number;
-  byProgram: { program: string; count: number }[];
+  /**
+   * Grouped by beneficiary.program free-text label (dropdown values),
+   * not by Programs module document IDs.
+   */
+  byProgramAssignment: { label: string; count: number }[];
   byRegion: { region: string; count: number }[];
   byLocation: { location: string; count: number }[];
   growthTrend: { label: string; count: number }[];
@@ -72,6 +81,7 @@ export type FundingVsImpact = {
   beneficiariesServed: number;
   costPerBeneficiary: number | null;
   deploymentRate: number | null;
+  hasDeployedSpend: boolean;
   byProgram: {
     name: string;
     spent: number;
@@ -84,7 +94,8 @@ export type VolunteerContribution = {
   activeVolunteers: number;
   totalHours: number;
   activitiesLogged: number;
-  byProgram: { program: string; volunteers: number; hours: number }[];
+  /** Grouped by volunteer.initiative label. */
+  byInitiative: { initiative: string; volunteers: number; hours: number }[];
   hoursTracked: boolean;
 };
 
@@ -92,6 +103,7 @@ export type GeographicImpact = {
   locations: {
     id: string;
     name: string;
+    /** Always unspecified — no country field exists in source records. */
     country: string;
     programs: number;
     beneficiaries: number;
@@ -102,9 +114,12 @@ export type GeographicImpact = {
     y: number;
     activePrograms: number;
   }[];
-  countries: number;
+  /** null when no country field is stored on programs/beneficiaries. */
+  countries: number | null;
+  countriesAvailable: boolean;
   regions: number;
   communities: number;
+  uniqueLocations: number;
 };
 
 export type CategoryDistribution = {

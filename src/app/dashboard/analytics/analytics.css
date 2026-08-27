@@ -166,6 +166,29 @@
   font-size: 1.7rem;
   font-weight: 700;
   color: #112e24;
+  word-break: break-word;
+}
+
+@media (max-width: 720px) {
+  .ia-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ia-hero {
+    padding: 22px 18px;
+  }
+
+  .ia-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .ia-chart-wrap {
+    height: 220px;
+  }
+
+  .ia-table {
+    min-width: 720px;
+  }
 }
 
 .ia-kpi-icon {
