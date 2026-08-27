@@ -57,11 +57,6 @@ export type AiOrgContext = {
   loadedAt: string;
 };
 
-function toNumber(value: unknown): number {
-  const n = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
-
 function coverageState(count: number, limited?: boolean): AiCoverageState {
   if (count <= 0) return "no_records";
   if (limited) return "limited";
