@@ -70,10 +70,27 @@ type HopeBridgeSidebarProps = {
   activePath: string;
 };
 
+function roleLabel(role: string | null | undefined) {
+  if (role === "administrator") return "Administrator";
+  if (role === "member") return "Member";
+  return "Member";
+}
+
 export default function HopeBridgeSidebar({ activePath }: HopeBridgeSidebarProps) {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout, user, role } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const displayName =
+    user?.displayName?.trim() ||
+    user?.email?.split("@")[0] ||
+    "Member";
+  const avatarInitials = displayName
+    .split(/[\s._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "HB";
 
   function navigate(href: string) {
     setMobileOpen(false);
@@ -153,10 +170,10 @@ export default function HopeBridgeSidebar({ activePath }: HopeBridgeSidebarProps
         </button>
 
         <div className="hb-user-card">
-          <div className="hb-user-avatar">DM</div>
+          <div className="hb-user-avatar">{avatarInitials}</div>
           <div className="hb-user-copy">
-            <strong>Dinesh M.</strong>
-            <small>Administrator</small>
+            <strong>{displayName}</strong>
+            <small>{roleLabel(role)}</small>
           </div>
           <button
             type="button"

@@ -1,0 +1,226 @@
+rules_version = '2';
+
+/**
+ * HopeBridge Foundation — Firestore security rules (versioned in-repo).
+ *
+ * Deploy with: firebase deploy --only firestore:rules
+ *
+ * Prerequisites before deploy:
+ * 1. Client creates users/{uid} with organizationId + role
+ * 2. Default-org admin session has soft-tagged legacy docs with
+ *    organizationId == "hopebridge-foundation"
+ *
+ * Design:
+ * - Authentication required for all application data
+ * - Organization isolation via organizationId
+ * - Legacy docs missing organizationId are treated as default org only
+ * - Roles: administrator | member (both CRUD org data; finer gates later)
+ */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDocPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function hasUserProfile() {
+      return isSignedIn() && exists(userDocPath());
+    }
+
+    function userDoc() {
+      return get(userDocPath()).data;
+    }
+
+    function userOrgId() {
+      return userDoc().organizationId;
+    }
+
+    function isAdmin() {
+      return hasUserProfile() && userDoc().role == 'administrator';
+    }
+
+    function defaultOrgId() {
+      return 'hopebridge-foundation';
+    }
+
+    /** Missing organizationId ⇒ default organization (legacy compatibility). */
+    function resourceOrgId() {
+      return resource.data.keys().hasAny(['organizationId'])
+        ? resource.data.organizationId
+        : defaultOrgId();
+    }
+
+    function belongsToUserOrg() {
+      return hasUserProfile() && resourceOrgId() == userOrgId();
+    }
+
+    function createInUserOrg() {
+      return hasUserProfile()
+        && request.resource.data.organizationId == userOrgId();
+    }
+
+    function updateInUserOrg() {
+      return belongsToUserOrg()
+        && request.resource.data.organizationId == userOrgId();
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.organizationId is string
+        && request.resource.data.role in ['administrator', 'member']
+        && request.resource.data.email is string;
+
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.organizationId == resource.data.organizationId
+        && request.resource.data.role == resource.data.role;
+
+      allow delete: if false;
+    }
+
+    match /organizations/{orgId} {
+      allow read: if hasUserProfile() && userOrgId() == orgId;
+
+      allow create: if isSignedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.name is string;
+
+      allow update: if isAdmin() && userOrgId() == orgId;
+
+      allow delete: if false;
+    }
+
+    match /campaigns/{id} {
+      allow read: if belongsToUserOrg();
+      allow create: if createInUserOrg();
+      allow update: if updateInUserOrg();
+      allow delete: if belongsToUserOrg();
+    }
+
+    match /programs/{id} {
+      allow read: if belongsToUserOrg();
+      allow create: if createInUserOrg();
+      allow update: if updateInUserOrg();
+      allow delete: if belongsToUserOrg();
+    }
+
+    match /donors/{id} {
+      allow read: if belongsToUserOrg();
+      allow create: if createInUserOrg();
+      allow update: if updateInUserOrg();
+      allow delete: if belongsToUserOrg();
+    }
+
+    match /donations/{id} {
+      allow read: if belongsToUserOrg();
+      allow create: if createInUserOrg();
+      allow update: if updateInUserOrg();
+      allow delete: if belongsToUserOrg();
+    }
+
+    match /volunteers/{id} {
+      allow read: if belongsToUserOrg();
+      allow create: if createInUserOrg();
+      allow update: if updateInUserOrg();
+      allow delete: if belongsToUserOrg();
+    }
+
+    match /beneficiaries/{id} {
+      allow read: if belongsToUserOrg();
+      allow create: if createInUserOrg();
+      allow update: if updateInUserOrg();
+      allow delete: if belongsToUserOrg();
+    }
+
+    match /beneficiaryActivity/{id} {
+      allow read: if belongsToUserOrg();
+      allow create: if createInUserOrg();
+      allow update: if updateInUserOrg();
+      allow delete: if belongsToUserOrg();
+    }
+
+    match /teams/{id} {
+      allow read: if belongsToUserOrg();
+      allow create: if createInUserOrg();
+      allow update: if updateInUserOrg();
+      allow delete: if belongsToUserOrg();
+    }
+
+    match /teamMembers/{id} {
+      allow read: if belongsToUserOrg();
+      allow create: if createInUserOrg();
+      allow update: if updateInUserOrg();
+      allow delete: if belongsToUserOrg();
+    }
+
+    match /teamAssignments/{id} {
+      allow read: if belongsToUserOrg();
+      allow create: if createInUserOrg();
+      allow update: if updateInUserOrg();
+      allow delete: if belongsToUserOrg();
+    }
+
+    match /teamDiscussions/{id} {
+      allow read: if belongsToUserOrg();
+      allow create: if createInUserOrg();
+      allow update: if updateInUserOrg();
+      allow delete: if belongsToUserOrg();
+    }
+
+    match /teamMeetings/{id} {
+      allow read: if belongsToUserOrg();
+      allow create: if createInUserOrg();
+      allow update: if updateInUserOrg();
+      allow delete: if belongsToUserOrg();
+    }
+
+    match /teamActivity/{id} {
+      allow read: if belongsToUserOrg();
+      allow create: if createInUserOrg();
+      allow update: if updateInUserOrg();
+      allow delete: if belongsToUserOrg();
+    }
+
+    match /activities/{id} {
+      allow read: if belongsToUserOrg();
+      allow create: if createInUserOrg();
+      allow update: if updateInUserOrg();
+      allow delete: if belongsToUserOrg();
+    }
+
+    match /missionVision/{id} {
+      allow read: if belongsToUserOrg();
+      allow create: if createInUserOrg();
+      allow update: if updateInUserOrg();
+      allow delete: if belongsToUserOrg();
+    }
+
+    match /coreValues/{id} {
+      allow read: if belongsToUserOrg();
+      allow create: if createInUserOrg();
+      allow update: if updateInUserOrg();
+      allow delete: if belongsToUserOrg();
+    }
+
+    match /strategicGoals/{id} {
+      allow read: if belongsToUserOrg();
+      allow create: if createInUserOrg();
+      allow update: if updateInUserOrg();
+      allow delete: if belongsToUserOrg();
+    }
+
+    match /appMetadata/{id} {
+      allow read: if belongsToUserOrg();
+      allow create: if createInUserOrg();
+      allow update: if updateInUserOrg();
+      allow delete: if belongsToUserOrg();
+    }
+  }
+}

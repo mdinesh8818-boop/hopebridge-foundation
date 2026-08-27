@@ -17,7 +17,7 @@ export function AuthLoading({ message = "Loading your workspace..." }: { message
 }
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -28,7 +28,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     router.replace(`/auth/login?next=${encodeURIComponent(next)}`);
   }, [loading, pathname, router, user]);
 
-  if (loading || !user) {
+  if (loading || !user || !profile) {
     return <AuthLoading />;
   }
 

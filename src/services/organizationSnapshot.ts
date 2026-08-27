@@ -675,8 +675,8 @@ function sortActivities(activities: ActivityRecord[]): ActivityRecord[] {
  * Single aggregation entry point for the Dashboard.
  * All metrics, alerts, deadlines, and performance derive from the same Firestore fetch.
  *
- * Multi-tenancy: records are not yet scoped by organizationId in queries.
- * When tenant support is added, filter all collection reads here by organizationId.
+ * Multi-tenancy: getDocuments() injects organization scoping via AuthProvider
+ * context (organizationId). This aggregator stays collection-agnostic.
  */
 export async function fetchDashboardOrganizationData(): Promise<DashboardOrganizationData> {
   const [cleanupReport, activityDedupeReport] = await Promise.all([
