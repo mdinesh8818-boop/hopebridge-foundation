@@ -47,6 +47,13 @@ type ChatMessage = {
   time: string;
 };
 
+let messageSeq = 0;
+
+function nextMessageId(prefix: string) {
+  messageSeq += 1;
+  return `${prefix}-${messageSeq}`;
+}
+
 const WELCOME_MESSAGE: ChatMessage = {
   id: "welcome",
   role: "assistant",
@@ -139,7 +146,7 @@ export default function AiAssistantPage() {
     setMessages([
       {
         ...WELCOME_MESSAGE,
-        id: `welcome-${Date.now()}`,
+        id: nextMessageId("welcome"),
         time: formatClock(),
       },
     ]);
@@ -162,7 +169,7 @@ export default function AiAssistantPage() {
     setInput("");
 
     const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
+      id: nextMessageId("user"),
       role: "user",
       text: question,
       time: formatClock(),
@@ -175,7 +182,7 @@ export default function AiAssistantPage() {
       await new Promise((resolve) => setTimeout(resolve, 180));
       const answer = answerOrganizationalQuestion(question, ctx);
       const assistantMessage: ChatMessage = {
-        id: `assistant-${Date.now()}`,
+        id: nextMessageId("assistant"),
         role: "assistant",
         text: answer.text,
         sections: answer.sections,
@@ -190,7 +197,7 @@ export default function AiAssistantPage() {
       setMessages((prev) => [
         ...prev,
         {
-          id: `assistant-error-${Date.now()}`,
+          id: nextMessageId("assistant-error"),
           role: "assistant",
           text: "A temporary error occurred while analyzing organizational data.",
           time: formatClock(),
