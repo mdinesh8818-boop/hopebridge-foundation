@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 
 import { isHopeBridgeSessionAuthenticated } from "@/lib/ai/auth";
 import { getAiProviderConfig } from "@/lib/ai/config";
-import { generateOpenAiAssistantReply } from "@/lib/ai/openai";
+import {
+  generateOpenAiAssistantReply,
+  OpenAiProviderError,
+} from "@/lib/ai/openai";
 import { buildHopeBridgeSystemPrompt } from "@/lib/ai/prompt";
 import type {
   AiAssistantStatusResponse,
@@ -104,10 +107,33 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("HopeBridge AI Assistant provider error:", error);
 
+    const provider =
+      error instanceof OpenAiProviderError
+        ? {
+            httpStatus: error.httpStatus,
+            code: error.providerCode,
+            type: error.providerType,
+            param: error.providerParam,
+            detail: error.message,
+            model: config.model,
+          }
+        : {
+            httpStatus: 0,
+            code: "unknown_provider_error",
+            type: "unknown",
+            param: null,
+            detail:
+              error instanceof Error
+                ? error.message.replace(/sk-[A-Za-z0-9_-]+/g, "[REDACTED_API_KEY]")
+                : "Unknown provider error",
+            model: config.model,
+          };
+
     const response: AiChatResponse = {
       mode: "error",
       message:
         "The AI provider is temporarily unavailable. Please try again in a moment.",
+      provider,
     };
 
     return NextResponse.json(response, { status: 502 });

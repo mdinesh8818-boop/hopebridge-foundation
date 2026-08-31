@@ -20,6 +20,14 @@ export type AiChatClientResult =
   | {
       source: "error";
       message: string;
+      provider?: {
+        httpStatus: number;
+        code: string | null;
+        type: string | null;
+        param: string | null;
+        detail: string;
+        model: string;
+      };
     };
 
 export async function fetchAiAssistantStatus(): Promise<AiAssistantStatusResponse> {
@@ -106,5 +114,6 @@ export async function requestHopeBridgeAiChat(input: {
   return {
     source: "error",
     message: payload.message,
+    provider: payload.provider,
   };
 }

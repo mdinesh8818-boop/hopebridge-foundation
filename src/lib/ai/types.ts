@@ -81,6 +81,15 @@ export type AiChatUnconfiguredResponse = {
 export type AiChatErrorResponse = {
   mode: "error";
   message: string;
+  /** Sanitized OpenAI/provider diagnostics for Preview debugging (no secrets). */
+  provider?: {
+    httpStatus: number;
+    code: string | null;
+    type: string | null;
+    param: string | null;
+    detail: string;
+    model: string;
+  };
 };
 
 export type AiChatResponse =

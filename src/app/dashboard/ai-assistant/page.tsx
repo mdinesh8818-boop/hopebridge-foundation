@@ -257,8 +257,12 @@ export default function AiAssistantPage() {
           "Conversational AI is not configured yet. Showing grounded HopeBridge organizational insights from connected records.",
         );
       } else {
+        const provider = llmResult.provider;
+        const diagnostic = provider
+          ? ` Provider diagnostic: HTTP ${provider.httpStatus || "n/a"} · code=${provider.code ?? "n/a"} · type=${provider.type ?? "n/a"}${provider.param ? ` · param=${provider.param}` : ""} · ${provider.detail}`
+          : "";
         setChatInfo(
-          "The AI provider is temporarily unavailable. Showing grounded HopeBridge organizational insights from connected records.",
+          `The AI provider is temporarily unavailable. Showing grounded HopeBridge organizational insights from connected records.${diagnostic}`,
         );
       }
 

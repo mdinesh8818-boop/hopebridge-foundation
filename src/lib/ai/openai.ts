@@ -9,8 +9,40 @@ type ChatCompletionResponse = {
   }>;
   error?: {
     message?: string;
+    type?: string;
+    code?: string | number | null;
+    param?: string | null;
   };
 };
+
+export class OpenAiProviderError extends Error {
+  readonly httpStatus: number;
+  readonly providerType: string | null;
+  readonly providerCode: string | null;
+  readonly providerParam: string | null;
+
+  constructor(input: {
+    message: string;
+    httpStatus: number;
+    providerType?: string | null;
+    providerCode?: string | number | null;
+    providerParam?: string | null;
+  }) {
+    super(input.message);
+    this.name = "OpenAiProviderError";
+    this.httpStatus = input.httpStatus;
+    this.providerType = input.providerType ?? null;
+    this.providerCode =
+      input.providerCode == null ? null : String(input.providerCode);
+    this.providerParam = input.providerParam ?? null;
+  }
+}
+
+function redactSecrets(value: string): string {
+  return value
+    .replace(/sk-[A-Za-z0-9_-]+/g, "[REDACTED_API_KEY]")
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer [REDACTED]");
+}
 
 export async function generateOpenAiAssistantReply(
   systemPrompt: string,
@@ -20,7 +52,12 @@ export async function generateOpenAiAssistantReply(
   const { apiKey, model } = getAiProviderConfig();
 
   if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+    throw new OpenAiProviderError({
+      message: "OPENAI_API_KEY is not configured",
+      httpStatus: 0,
+      providerCode: "missing_api_key",
+      providerType: "configuration_error",
+    });
   }
 
   const messages = [
@@ -32,31 +69,66 @@ export async function generateOpenAiAssistantReply(
     { role: "user" as const, content: question },
   ];
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      max_tokens: 1200,
-      messages,
-    }),
-  });
+  let response: Response;
+  try {
+    response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.2,
+        max_tokens: 1200,
+        messages,
+      }),
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Network request to OpenAI failed";
+    throw new OpenAiProviderError({
+      message: redactSecrets(message),
+      httpStatus: 0,
+      providerCode: "network_error",
+      providerType: "network_error",
+    });
+  }
 
-  const payload = (await response.json()) as ChatCompletionResponse;
+  let payload: ChatCompletionResponse;
+  try {
+    payload = (await response.json()) as ChatCompletionResponse;
+  } catch {
+    throw new OpenAiProviderError({
+      message: `OpenAI returned a non-JSON response (${response.status})`,
+      httpStatus: response.status,
+      providerCode: "invalid_json_response",
+      providerType: "api_error",
+    });
+  }
 
   if (!response.ok) {
-    const providerMessage =
-      payload.error?.message || `OpenAI request failed (${response.status})`;
-    throw new Error(providerMessage);
+    const providerMessage = redactSecrets(
+      payload.error?.message || `OpenAI request failed (${response.status})`,
+    );
+    throw new OpenAiProviderError({
+      message: providerMessage,
+      httpStatus: response.status,
+      providerType: payload.error?.type ?? "api_error",
+      providerCode: payload.error?.code ?? `http_${response.status}`,
+      providerParam:
+        typeof payload.error?.param === "string" ? payload.error.param : null,
+    });
   }
 
   const text = payload.choices?.[0]?.message?.content?.trim();
   if (!text) {
-    throw new Error("OpenAI returned an empty response");
+    throw new OpenAiProviderError({
+      message: "OpenAI returned an empty response",
+      httpStatus: response.status,
+      providerCode: "empty_response",
+      providerType: "api_error",
+    });
   }
 
   return text;
