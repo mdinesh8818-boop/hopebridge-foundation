@@ -36,6 +36,11 @@ import {
   type AiAnswerSection,
   type AiOrgContext,
 } from "@/services/aiIntelligence";
+import { buildHopeBridgeAiContextPayload } from "@/services/aiContextPayload";
+import {
+  fetchAiAssistantStatus,
+  requestHopeBridgeAiChat,
+} from "@/services/aiChatClient";
 import "../analytics/analytics.css";
 import "./ai-assistant.css";
 
@@ -57,12 +62,12 @@ function nextMessageId(prefix: string) {
 const WELCOME_MESSAGE: ChatMessage = {
   id: "welcome",
   role: "assistant",
-  text: "Welcome to HopeBridge Intelligence. Ask about campaigns, fundraising, programs, beneficiaries, volunteers, geographic reach, risks, or request an executive summary. Answers are built from your live organizational data — not invented.",
+  text: "Welcome to HopeBridge Intelligence. Ask about campaigns, fundraising, programs, beneficiaries, volunteers, geographic reach, risks, or request an executive summary. Answers are grounded in your live HopeBridge organizational data.",
   time: "Now",
   sections: [
     {
       heading: "OBSERVATION",
-      body: "Welcome to HopeBridge Intelligence. Ask about campaigns, fundraising, programs, beneficiaries, volunteers, geographic reach, risks, or request an executive summary. Answers are built from your live organizational data — not invented.",
+      body: "Welcome to HopeBridge Intelligence. Ask about campaigns, fundraising, programs, beneficiaries, volunteers, geographic reach, risks, or request an executive summary. Answers are grounded in your live HopeBridge organizational data.",
     },
   ],
 };
@@ -107,6 +112,9 @@ export default function AiAssistantPage() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [chatError, setChatError] = useState("");
+  const [chatInfo, setChatInfo] = useState("");
+  const [llmConfigured, setLlmConfigured] = useState<boolean | null>(null);
+  const [llmModel, setLlmModel] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [, startTransition] = useTransition();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -139,6 +147,30 @@ export default function AiAssistantPage() {
   }, [refreshToken]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadStatus() {
+      try {
+        const status = await fetchAiAssistantStatus();
+        if (!cancelled) {
+          setLlmConfigured(status.configured);
+          setLlmModel(status.model ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setLlmConfigured(false);
+          setLlmModel(null);
+        }
+      }
+    }
+
+    void loadStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshToken]);
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, sending]);
 
@@ -151,6 +183,7 @@ export default function AiAssistantPage() {
       },
     ]);
     setChatError("");
+    setChatInfo("");
     setInput("");
   }
 
@@ -160,6 +193,7 @@ export default function AiAssistantPage() {
 
     setSending(true);
     setChatError("");
+    setChatInfo("");
     setInput("");
 
     const userMessage: ChatMessage = {
@@ -175,7 +209,40 @@ export default function AiAssistantPage() {
       const activeCtx = await loadAiOrgContext();
       setCtx(activeCtx);
 
-      const answer = answerOrganizationalQuestion(question, activeCtx);
+      const history = messages
+        .filter(
+          (message) =>
+            message.role === "user" ||
+            (message.role === "assistant" && !message.id.startsWith("welcome")),
+        )
+        .map((message) => ({
+          role: message.role,
+          content: message.text,
+        }));
+
+      const llmResult = await requestHopeBridgeAiChat({
+        question,
+        history,
+        context: buildHopeBridgeAiContextPayload(activeCtx),
+      });
+
+      let answer = answerOrganizationalQuestion(question, activeCtx);
+
+      if (llmResult.source === "llm") {
+        answer = llmResult.answer;
+        setLlmConfigured(true);
+        setLlmModel(llmResult.model);
+      } else if (llmResult.source === "unconfigured") {
+        setLlmConfigured(false);
+        setChatInfo(
+          `${llmResult.message} Showing baseline HopeBridge intelligence for this response.`,
+        );
+      } else {
+        setChatInfo(
+          `${llmResult.message} Showing baseline HopeBridge intelligence for this response.`,
+        );
+      }
+
       const assistantMessage: ChatMessage = {
         id: nextMessageId("assistant"),
         role: "assistant",
@@ -183,6 +250,7 @@ export default function AiAssistantPage() {
         sections: answer.sections,
         time: formatClock(),
       };
+
       startTransition(() => {
         setMessages((prev) => [...prev, assistantMessage]);
       });
@@ -239,7 +307,11 @@ export default function AiAssistantPage() {
     ? "Data connection issue — retry refresh"
     : loading && !ctx
       ? "Loading organizational data…"
-      : "Organizational Intelligence Ready";
+      : llmConfigured
+        ? `Conversational AI ready${llmModel ? ` · ${llmModel}` : ""}`
+        : llmConfigured === false
+          ? "Baseline intelligence ready · LLM key not configured"
+          : "Organizational Intelligence Ready";
 
   return (
     <div className="hb-app ia-page ai-page">
@@ -434,6 +506,12 @@ export default function AiAssistantPage() {
                 ))}
               </div>
 
+              {chatInfo ? (
+                <div className="mx-5 mb-3 rounded-xl border border-[#ebe3d2] bg-[#fcfbf8] px-4 py-3 text-sm text-[#607269]">
+                  {chatInfo}
+                </div>
+              ) : null}
+
               {chatError ? (
                 <div className="mx-5 mb-3 ai-error-banner" role="alert">
                   {chatError}
@@ -467,8 +545,9 @@ export default function AiAssistantPage() {
                 </div>
                 <div className="ai-composer-actions">
                   <p className="text-xs text-[#607269]">
-                    Deterministic HopeBridge intelligence engine · Enter to send ·
-                    Shift+Enter for new line
+                    {llmConfigured
+                      ? `Conversational AI (${llmModel ?? "OpenAI"}) · Enter to send · Shift+Enter for new line`
+                      : "Baseline HopeBridge intelligence (add OPENAI_API_KEY for conversational AI) · Enter to send · Shift+Enter for new line"}
                   </p>
                 </div>
               </form>
