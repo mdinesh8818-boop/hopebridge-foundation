@@ -44,6 +44,16 @@ import {
 import "../analytics/analytics.css";
 import "./ai-assistant.css";
 
+const HERO_DATA_SOURCES: { module: string; href: string }[] = [
+  { module: "Campaigns", href: "/dashboard/campaigns" },
+  { module: "Programs", href: "/dashboard/programs" },
+  { module: "Donors", href: "/dashboard/donors" },
+  { module: "Volunteers", href: "/dashboard/volunteers" },
+  { module: "Beneficiaries", href: "/dashboard/beneficiaries" },
+  { module: "Teams", href: "/dashboard/teams" },
+  { module: "Impact Analytics", href: "/dashboard/analytics" },
+];
+
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -314,17 +324,7 @@ export default function AiAssistantPage() {
   }
 
   const risks = ctx?.impact.risks ?? [];
-  const heroSources =
-    ctx?.coverage.map((item) => item.module) ??
-    [
-      "Campaigns",
-      "Programs",
-      "Donors",
-      "Volunteers",
-      "Beneficiaries",
-      "Teams",
-      "Impact Analytics",
-    ];
+  const heroSources = ctx?.coverage ?? HERO_DATA_SOURCES;
 
   const intelligenceStatus = error
     ? "Data connection issue — retry refresh"
@@ -376,9 +376,13 @@ export default function AiAssistantPage() {
               </p>
               <div className="ai-source-row" aria-label="Connected data sources">
                 {heroSources.map((source) => (
-                  <span key={source} className="ai-source-chip">
-                    {source}
-                  </span>
+                  <Link
+                    key={source.href}
+                    href={source.href}
+                    className="ai-source-chip"
+                  >
+                    {source.module}
+                  </Link>
                 ))}
               </div>
             </div>

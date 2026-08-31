@@ -34,6 +34,7 @@
 }
 
 .ai-source-chip {
+  display: inline-block;
   border-radius: 999px;
   border: 1px solid rgba(247, 244, 235, 0.22);
   background: rgba(255, 255, 255, 0.08);
@@ -42,6 +43,28 @@
   font-weight: 700;
   letter-spacing: 0.02em;
   color: rgba(247, 244, 235, 0.9);
+  text-decoration: none;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+a.ai-source-chip:hover {
+  border-color: rgba(239, 208, 98, 0.5);
+  background: rgba(255, 255, 255, 0.14);
+  color: #f7f4eb;
+  transform: translateY(-1px);
+}
+
+a.ai-source-chip:focus-visible {
+  outline: none;
+  border-color: rgba(239, 208, 98, 0.55);
+  background: rgba(255, 255, 255, 0.14);
+  color: #f7f4eb;
+  box-shadow: 0 0 0 2px rgba(239, 208, 98, 0.35);
 }
 
 .ai-briefing-grid {
