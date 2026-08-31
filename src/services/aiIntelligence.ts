@@ -37,8 +37,16 @@ export type AiSnapshotMetric = {
   note?: string;
 };
 
+export type AiAnswerSectionHeading =
+  | "FACT"
+  | "OBSERVATION"
+  | "WHY IT MATTERS"
+  | "AI RECOMMENDATION"
+  | "RECOMMENDED ACTION"
+  | "DATA CONSIDERED";
+
 export type AiAnswerSection = {
-  heading: "FACT" | "OBSERVATION" | "RECOMMENDED ACTION";
+  heading: AiAnswerSectionHeading;
   body: string;
 };
 
@@ -426,8 +434,12 @@ function answerCampaignRisk(ctx: AiOrgContext): AiAnswer {
         body: "There are no active campaigns in HopeBridge right now.",
       },
       {
-        heading: "RECOMMENDED ACTION",
-        body: "Create or activate a campaign in Campaigns to begin fundraising intelligence.",
+        heading: "AI RECOMMENDATION",
+        body: "Create or activate a campaign in Campaigns to begin fundraising intelligence. This is an advisory recommendation only.",
+      },
+      {
+        heading: "DATA CONSIDERED",
+        body: "Campaigns · Impact Analytics",
       },
     ]);
   }
@@ -441,18 +453,30 @@ function answerCampaignRisk(ctx: AiOrgContext): AiAnswer {
         heading: "OBSERVATION",
         body: "No campaigns currently meet the under-goal risk rule (active and below 50% of goal).",
       },
+      {
+        heading: "DATA CONSIDERED",
+        body: "Campaigns · Impact Analytics",
+      },
     ]);
   }
   return formatAnswer([
     {
-      heading: "FACT",
+      heading: "OBSERVATION",
       body: `${risks.length} campaign${risks.length === 1 ? "" : "s"} need attention:\n${risks
         .map((r) => `• ${r.title} — ${r.detail}`)
         .join("\n")}`,
     },
     {
-      heading: "RECOMMENDED ACTION",
-      body: "Open Campaigns and review underperforming portfolios before deadlines pass.",
+      heading: "WHY IT MATTERS",
+      body: "These campaigns were flagged because available HopeBridge records show fundraising progress below 50% of goal and/or limited remaining time before the campaign end date.",
+    },
+    {
+      heading: "AI RECOMMENDATION",
+      body: "Open Campaigns and review underperforming portfolios before deadlines pass. This is an AI recommendation and does not change any records automatically.",
+    },
+    {
+      heading: "DATA CONSIDERED",
+      body: "Campaigns · Impact Analytics",
     },
   ]);
 }
@@ -482,8 +506,12 @@ function answerFundraising(ctx: AiOrgContext): AiAnswer {
         : "Program expenditure (funds deployed) has not been recorded, so deployment efficiency cannot be calculated.",
     },
     {
-      heading: "RECOMMENDED ACTION",
-      body: "Review Campaigns for goal progress and Donors for gift activity. Record program spend to enable funding-vs-impact analysis.",
+      heading: "AI RECOMMENDATION",
+      body: "Review Campaigns for goal progress and Donors for gift activity. Record program spend to enable funding-vs-impact analysis. This is advisory only.",
+    },
+    {
+      heading: "DATA CONSIDERED",
+      body: "Campaigns · Donors · Impact Analytics · Programs",
     },
   ]);
 }
@@ -499,7 +527,7 @@ function answerPrograms(ctx: AiOrgContext): AiAnswer {
         body: "No program records are available.",
       },
       {
-        heading: "RECOMMENDED ACTION",
+        heading: "AI RECOMMENDATION",
         body: "Create programs in the Programs module to enable delivery intelligence.",
       },
     ]);
@@ -523,8 +551,19 @@ function answerPrograms(ctx: AiOrgContext): AiAnswer {
           : "No programs are currently flagged Critical or Needs Attention.",
     },
     {
-      heading: "RECOMMENDED ACTION",
-      body: "Open Programs or Impact Analytics to review health, budget utilization, and beneficiary fields on program records.",
+      heading: "WHY IT MATTERS",
+      body:
+        attention.length > 0
+          ? "Programs are flagged based on recorded health, progress, budget/spend signals, and schedule context available in HopeBridge program and Impact Analytics data."
+          : "Program health currently appears stable based on available HopeBridge records.",
+    },
+    {
+      heading: "AI RECOMMENDATION",
+      body: "Open Programs or Impact Analytics to review health, budget utilization, and beneficiary fields on program records. This is advisory only.",
+    },
+    {
+      heading: "DATA CONSIDERED",
+      body: "Programs · Impact Analytics",
     },
   ]);
 }
@@ -537,7 +576,7 @@ function answerBeneficiaries(ctx: AiOrgContext): AiAnswer {
         body: "No beneficiary records are currently stored.",
       },
       {
-        heading: "RECOMMENDED ACTION",
+        heading: "AI RECOMMENDATION",
         body: "Enroll beneficiaries to measure community reach and follow-ups.",
       },
     ]);
@@ -558,8 +597,12 @@ function answerBeneficiaries(ctx: AiOrgContext): AiAnswer {
           : "Beneficiary assignment labels are not populated.",
     },
     {
-      heading: "RECOMMENDED ACTION",
-      body: "Review Beneficiaries for follow-ups and Impact Analytics for reach trends.",
+      heading: "AI RECOMMENDATION",
+      body: "Review Beneficiaries for follow-ups and Impact Analytics for reach trends. This is advisory only.",
+    },
+    {
+      heading: "DATA CONSIDERED",
+      body: "Beneficiaries · Impact Analytics",
     },
   ]);
 }
@@ -572,7 +615,7 @@ function answerDonors(ctx: AiOrgContext): AiAnswer {
         body: "No donor or fundraising totals are available yet.",
       },
       {
-        heading: "RECOMMENDED ACTION",
+        heading: "AI RECOMMENDATION",
         body: "Add donors and record gifts to enable donor portfolio intelligence.",
       },
     ]);
@@ -587,8 +630,12 @@ function answerDonors(ctx: AiOrgContext): AiAnswer {
       body: "Responses use aggregated donor counts and fundraising totals only — individual donor details are not exposed in organizational summaries.",
     },
     {
-      heading: "RECOMMENDED ACTION",
-      body: "Open Donors to manage cultivation and gift recording.",
+      heading: "AI RECOMMENDATION",
+      body: "Open Donors to manage cultivation and gift recording. This is advisory only.",
+    },
+    {
+      heading: "DATA CONSIDERED",
+      body: "Donors · Campaigns",
     },
   ]);
 }
@@ -601,7 +648,7 @@ function answerVolunteers(ctx: AiOrgContext): AiAnswer {
         body: "No active volunteers are recorded.",
       },
       {
-        heading: "RECOMMENDED ACTION",
+        heading: "AI RECOMMENDATION",
         body: "Add volunteers and log hours/initiatives to measure capacity.",
       },
     ]);
@@ -618,8 +665,12 @@ function answerVolunteers(ctx: AiOrgContext): AiAnswer {
         : "Volunteer hours have not been recorded yet — capacity trends cannot be measured from hours.",
     },
     {
-      heading: "RECOMMENDED ACTION",
-      body: "Review Volunteers to update hours and initiative assignments.",
+      heading: "AI RECOMMENDATION",
+      body: "Review Volunteers to update hours and initiative assignments. This is advisory only.",
+    },
+    {
+      heading: "DATA CONSIDERED",
+      body: "Volunteers · Impact Analytics",
     },
   ]);
 }
@@ -632,7 +683,7 @@ function answerGeographic(ctx: AiOrgContext): AiAnswer {
         body: "No location fields are populated on programs or beneficiaries.",
       },
       {
-        heading: "RECOMMENDED ACTION",
+        heading: "AI RECOMMENDATION",
         body: "Add locations to program and beneficiary records to measure community reach.",
       },
     ]);
@@ -656,8 +707,12 @@ function answerGeographic(ctx: AiOrgContext): AiAnswer {
           : "Location markers exist but beneficiary associations are limited.",
     },
     {
-      heading: "RECOMMENDED ACTION",
-      body: "Open Impact Analytics → Geographic Impact for the full location map.",
+      heading: "AI RECOMMENDATION",
+      body: "Open Impact Analytics → Geographic Impact for the full location map. This is advisory only.",
+    },
+    {
+      heading: "DATA CONSIDERED",
+      body: "Beneficiaries · Programs · Impact Analytics",
     },
   ]);
 }
@@ -683,8 +738,12 @@ function answerImpact(ctx: AiOrgContext): AiAnswer {
         : "Funding-to-impact efficiency cannot be calculated until program expenditures are recorded.",
     },
     {
-      heading: "RECOMMENDED ACTION",
-      body: "Open Impact Analytics for funding vs impact, program health, and leadership alerts.",
+      heading: "AI RECOMMENDATION",
+      body: "Open Impact Analytics for funding vs impact, program health, and leadership alerts. This is advisory only.",
+    },
+    {
+      heading: "DATA CONSIDERED",
+      body: "Campaigns · Programs · Beneficiaries · Impact Analytics",
     },
   ]);
 }
@@ -707,12 +766,20 @@ function answerDeadlines(ctx: AiOrgContext): AiAnswer {
   }
   return formatAnswer([
     {
-      heading: "FACT",
+      heading: "OBSERVATION",
       body: ending.map((r) => `• ${r.title} — ${r.detail}`).join("\n"),
     },
     {
-      heading: "RECOMMENDED ACTION",
-      body: "Review the linked Programs or Campaigns modules before deadlines pass.",
+      heading: "WHY IT MATTERS",
+      body: "These items were flagged because available HopeBridge records show approaching end dates combined with progress, goal, or delivery context that warrants leadership attention.",
+    },
+    {
+      heading: "AI RECOMMENDATION",
+      body: "Review the linked Programs or Campaigns modules before deadlines pass. This is advisory only.",
+    },
+    {
+      heading: "DATA CONSIDERED",
+      body: "Campaigns · Programs · Impact Analytics",
     },
   ]);
 }
@@ -760,16 +827,22 @@ function answerPriorities(ctx: AiOrgContext): AiAnswer {
 
   return formatAnswer([
     {
-      heading: "FACT",
-      body: `${ctx.impact.risks.length} leadership alert${ctx.impact.risks.length === 1 ? "" : "s"} are active in the risk engine.`,
-    },
-    {
       heading: "OBSERVATION",
-      body: priorities.map((p, i) => `${i + 1}. ${p}`).join("\n"),
+      body: `${ctx.impact.risks.length} leadership alert${ctx.impact.risks.length === 1 ? "" : "s"} are active.\n${priorities
+        .map((p, i) => `${i + 1}. ${p}`)
+        .join("\n")}`,
     },
     {
-      heading: "RECOMMENDED ACTION",
-      body: "Work the Priority & Risk panel actions, then confirm progress in Campaigns, Programs, Beneficiaries, and Volunteers.",
+      heading: "WHY IT MATTERS",
+      body: "Priorities combine under-goal campaigns, program health, overdue beneficiary follow-ups, and missing volunteer/expenditure signals derived from current HopeBridge records — not invented thresholds.",
+    },
+    {
+      heading: "AI RECOMMENDATION",
+      body: "Work the Priority & Risk panel actions, then confirm progress in Campaigns, Programs, Beneficiaries, and Volunteers. These are AI recommendations and do not change data automatically.",
+    },
+    {
+      heading: "DATA CONSIDERED",
+      body: "Campaigns · Programs · Beneficiaries · Volunteers · Impact Analytics",
     },
   ]);
 }
@@ -826,10 +899,16 @@ function answerExecutiveSummary(ctx: AiOrgContext): AiAnswer {
       .filter(Boolean) ?? ["• Continue monitoring operational modules"],
   ].join("\n");
 
-  return {
-    text: body,
-    sections: [{ heading: "FACT", body }],
-  };
+  return formatAnswer([
+    {
+      heading: "FACT",
+      body,
+    },
+    {
+      heading: "DATA CONSIDERED",
+      body: "Campaigns · Programs · Donors · Volunteers · Beneficiaries · Teams · Impact Analytics",
+    },
+  ]);
 }
 
 function answerOrganizationSummary(ctx: AiOrgContext): AiAnswer {
@@ -843,15 +922,19 @@ function answerOrganizationSummary(ctx: AiOrgContext): AiAnswer {
       body: `Impact Analytics reports ${ctx.impact.risks.length} leadership alert${ctx.impact.risks.length === 1 ? "" : "s"} and ${ctx.impact.geography.uniqueLocations} unique locations.`,
     },
     {
-      heading: "RECOMMENDED ACTION",
-      body: "Ask a focused question (campaigns, programs, beneficiaries, volunteers, priorities) or generate an executive summary.",
+      heading: "AI RECOMMENDATION",
+      body: "Ask a focused question (campaigns, programs, beneficiaries, volunteers, priorities) or generate an executive summary. This is advisory only.",
+    },
+    {
+      heading: "DATA CONSIDERED",
+      body: "Campaigns · Programs · Donors · Volunteers · Beneficiaries · Teams · Impact Analytics",
     },
   ]);
 }
 
 /**
- * Deterministic HopeBridge organizational intelligence.
- * No external LLM — answers are constructed from live application aggregates.
+ * Offline/baseline HopeBridge organizational intelligence.
+ * Used when OpenAI is unavailable; answers are constructed from live aggregates.
  */
 export function answerOrganizationalQuestion(
   question: string,
@@ -883,7 +966,7 @@ export function answerOrganizationalQuestion(
         body: "HopeBridge does not yet have enough operational records to answer organizational questions.",
       },
       {
-        heading: "RECOMMENDED ACTION",
+        heading: "AI RECOMMENDATION",
         body: "Create campaigns, programs, donors, volunteers, or beneficiaries to enable intelligence.",
       },
     ]);

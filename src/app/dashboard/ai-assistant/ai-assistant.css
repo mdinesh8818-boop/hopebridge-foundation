@@ -185,6 +185,27 @@
   color: #314940;
 }
 
+.ai-sources {
+  margin-top: 12px;
+  border-top: 1px solid #f0ebe2;
+  padding-top: 10px;
+}
+
+.ai-sources-label {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #9f7b24;
+}
+
+.ai-sources-body {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #607269;
+}
+
 .ai-empty-chat {
   margin: 8px 22px 0;
   border-radius: 16px;

@@ -82,6 +82,12 @@ function coverageLabel(state: string) {
   return "No records";
 }
 
+function sectionDisplayLabel(heading: AiAnswerSection["heading"]) {
+  if (heading === "RECOMMENDED ACTION") return "AI RECOMMENDATION";
+  if (heading === "DATA CONSIDERED") return "DATA CONSIDERED";
+  return heading;
+}
+
 function MessageBody({
   message,
 }: {
@@ -91,14 +97,27 @@ function MessageBody({
     return <p className="whitespace-pre-wrap">{message.text}</p>;
   }
 
+  const contentSections = message.sections.filter(
+    (section) => section.heading !== "DATA CONSIDERED",
+  );
+  const dataConsidered = message.sections.find(
+    (section) => section.heading === "DATA CONSIDERED",
+  );
+
   return (
     <div>
-      {message.sections.map((section) => (
+      {contentSections.map((section) => (
         <div key={`${message.id}-${section.heading}`} className="ai-section">
-          <p className="ai-section-label">{section.heading}</p>
+          <p className="ai-section-label">{sectionDisplayLabel(section.heading)}</p>
           <p className="ai-section-body">{section.body}</p>
         </div>
       ))}
+      {dataConsidered ? (
+        <div className="ai-sources" aria-label="Data considered">
+          <span className="ai-sources-label">Sources used</span>
+          <p className="ai-sources-body">{dataConsidered.body}</p>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -235,11 +254,11 @@ export default function AiAssistantPage() {
       } else if (llmResult.source === "unconfigured") {
         setLlmConfigured(false);
         setChatInfo(
-          `${llmResult.message} Showing baseline HopeBridge intelligence for this response.`,
+          "Conversational AI is not configured yet. Showing grounded HopeBridge organizational insights from connected records.",
         );
       } else {
         setChatInfo(
-          `${llmResult.message} Showing baseline HopeBridge intelligence for this response.`,
+          "The AI provider is temporarily unavailable. Showing grounded HopeBridge organizational insights from connected records.",
         );
       }
 
@@ -310,7 +329,7 @@ export default function AiAssistantPage() {
       : llmConfigured
         ? `Conversational AI ready${llmModel ? ` · ${llmModel}` : ""}`
         : llmConfigured === false
-          ? "Baseline intelligence ready · LLM key not configured"
+          ? "Organizational Intelligence Ready · Conversational AI awaiting configuration"
           : "Organizational Intelligence Ready";
 
   return (
@@ -337,8 +356,9 @@ export default function AiAssistantPage() {
               HopeBridge AI <em className="not-italic text-[#efd062]">Assistant</em>
             </h1>
             <p>
-              Ask questions about your organization, identify risks, understand
-              performance, and turn HopeBridge data into actionable nonprofit insights.
+              HopeBridge AI analyzes your organization&apos;s connected data to provide
+              grounded nonprofit intelligence on campaigns, programs, fundraising,
+              community impact, and operational risks.
             </p>
 
             <div className="ai-status" role="status">
@@ -406,7 +426,7 @@ export default function AiAssistantPage() {
                 <p className="ia-kicker">EXECUTIVE INTELLIGENCE</p>
                 <h2>Today&apos;s Organizational Briefing</h2>
                 <p>
-                  Deterministic summaries calculated from current HopeBridge records.
+                  Insights generated from current HopeBridge organizational records.
                 </p>
               </div>
             </div>
@@ -446,7 +466,10 @@ export default function AiAssistantPage() {
                 <div>
                   <p className="ia-kicker">STRATEGIC CONVERSATION</p>
                   <h2>Strategic Conversation</h2>
-                  <p>Ask questions using HopeBridge organizational data.</p>
+                  <p>
+                    Ask questions grounded in HopeBridge campaigns, programs, donors,
+                    volunteers, beneficiaries, teams, and impact data.
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -464,8 +487,8 @@ export default function AiAssistantPage() {
                     <BrainCircuit className="mx-auto text-[#0d5f44]" size={28} />
                     <h3>Start with a nonprofit intelligence question</h3>
                     <p>
-                      Use a suggested question below, or type your own. Responses use
-                      aggregated HopeBridge data only.
+                      Use a suggested question below, or type your own. HopeBridge AI
+                      answers from connected organizational records — never invented totals.
                     </p>
                   </div>
                 ) : null}
@@ -486,7 +509,7 @@ export default function AiAssistantPage() {
                 {sending ? (
                   <div className="ai-typing">
                     <Loader2 className="mr-2 inline animate-spin" size={14} />
-                    Analyzing HopeBridge organizational data…
+                    Analyzing connected HopeBridge data…
                   </div>
                 ) : null}
                 <div ref={messagesEndRef} />
@@ -546,8 +569,8 @@ export default function AiAssistantPage() {
                 <div className="ai-composer-actions">
                   <p className="text-xs text-[#607269]">
                     {llmConfigured
-                      ? `Conversational AI (${llmModel ?? "OpenAI"}) · Enter to send · Shift+Enter for new line`
-                      : "Baseline HopeBridge intelligence (add OPENAI_API_KEY for conversational AI) · Enter to send · Shift+Enter for new line"}
+                      ? `HopeBridge AI · grounded in live organizational data${llmModel ? ` · ${llmModel}` : ""} · Enter to send`
+                      : "HopeBridge AI · grounded organizational insights · Enter to send · Shift+Enter for new line"}
                   </p>
                 </div>
               </form>
@@ -560,7 +583,10 @@ export default function AiAssistantPage() {
                   <div>
                     <p className="ia-kicker">PRIORITY &amp; RISK</p>
                     <h2>Organizational Alerts</h2>
-                    <p>Calculated from live campaigns, programs, and follow-ups.</p>
+                    <p>
+                      Alerts explain why items were flagged using live campaign, program,
+                      and follow-up records.
+                    </p>
                   </div>
                 </div>
 
@@ -662,8 +688,8 @@ export default function AiAssistantPage() {
                 <p className="ia-kicker">QUICK ANALYSIS</p>
                 <h2>Nonprofit Intelligence Actions</h2>
                 <p>
-                  Each action submits a grounded question to the HopeBridge intelligence
-                  engine.
+                  Each action asks HopeBridge AI a grounded nonprofit intelligence
+                  question.
                 </p>
               </div>
               <Sparkles className="text-[#d4af37]" size={20} />

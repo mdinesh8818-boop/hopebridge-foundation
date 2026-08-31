@@ -1,6 +1,16 @@
-import type { AiAnswerSection } from "@/services/aiIntelligence";
+import type {
+  AiAnswerSection,
+  AiAnswerSectionHeading,
+} from "@/services/aiIntelligence";
 
-const SECTION_HEADINGS = ["FACT", "OBSERVATION", "RECOMMENDED ACTION"] as const;
+const SECTION_HEADINGS: AiAnswerSectionHeading[] = [
+  "FACT",
+  "OBSERVATION",
+  "WHY IT MATTERS",
+  "AI RECOMMENDATION",
+  "RECOMMENDED ACTION",
+  "DATA CONSIDERED",
+];
 
 export function parseAssistantSections(text: string): AiAnswerSection[] | undefined {
   const normalized = text.replace(/\r\n/g, "\n").trim();
@@ -18,7 +28,7 @@ export function parseAssistantSections(text: string): AiAnswerSection[] | undefi
 
   for (let index = 0; index < matches.length; index += 1) {
     const match = matches[index];
-    const heading = match[1] as AiAnswerSection["heading"];
+    const heading = match[1] as AiAnswerSectionHeading;
     const start = (match.index ?? 0) + match[0].length;
     const end =
       index + 1 < matches.length

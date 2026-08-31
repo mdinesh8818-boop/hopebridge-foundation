@@ -79,7 +79,7 @@ export async function POST(request: Request) {
     const response: AiChatResponse = {
       mode: "unconfigured",
       message:
-        "Conversational AI is not configured yet. Add OPENAI_API_KEY to your server environment to enable LLM responses.",
+        "Conversational AI is not configured yet. Add OPENAI_API_KEY on the server to enable LLM responses.",
     };
     return NextResponse.json(response, { status: 503 });
   }
