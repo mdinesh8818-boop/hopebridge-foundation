@@ -157,12 +157,6 @@ export default function AiAssistantPage() {
   async function submitQuestion(raw: string) {
     const question = raw.trim();
     if (!question || sending) return;
-    if (!ctx) {
-      setChatError(
-        "Organizational data is not available yet. Refresh the page or wait for data to finish loading.",
-      );
-      return;
-    }
 
     setSending(true);
     setChatError("");
@@ -178,9 +172,10 @@ export default function AiAssistantPage() {
     setMessages((prev) => [...prev, userMessage]);
 
     try {
-      // Small delay keeps loading UX readable for fast deterministic answers
-      await new Promise((resolve) => setTimeout(resolve, 180));
-      const answer = answerOrganizationalQuestion(question, ctx);
+      const activeCtx = await loadAiOrgContext();
+      setCtx(activeCtx);
+
+      const answer = answerOrganizationalQuestion(question, activeCtx);
       const assistantMessage: ChatMessage = {
         id: nextMessageId("assistant"),
         role: "assistant",
@@ -240,6 +235,12 @@ export default function AiAssistantPage() {
       "Impact Analytics",
     ];
 
+  const intelligenceStatus = error
+    ? "Data connection issue — retry refresh"
+    : loading && !ctx
+      ? "Loading organizational data…"
+      : "Organizational Intelligence Ready";
+
   return (
     <div className="hb-app ia-page ai-page">
       <HopeBridgeSidebar activePath="/dashboard/ai-assistant" />
@@ -270,7 +271,7 @@ export default function AiAssistantPage() {
 
             <div className="ai-status" role="status">
               <span className="ai-status-dot" aria-hidden />
-              Organizational Intelligence Ready
+              {intelligenceStatus}
             </div>
 
             <div className="mt-4">
@@ -425,7 +426,7 @@ export default function AiAssistantPage() {
                     key={question}
                     type="button"
                     className="ai-chip-btn"
-                    disabled={sending || loading || !ctx}
+                    disabled={sending || loading}
                     onClick={() => void submitQuestion(question)}
                   >
                     {question}
@@ -454,7 +455,7 @@ export default function AiAssistantPage() {
                   <button
                     type="submit"
                     className="ia-gold-btn shrink-0"
-                    disabled={sending || !input.trim() || !ctx}
+                    disabled={sending || !input.trim() || loading}
                   >
                     {sending ? (
                       <Loader2 size={15} className="animate-spin" />
@@ -595,7 +596,7 @@ export default function AiAssistantPage() {
                   key={action.id}
                   type="button"
                   className="ai-quick-btn"
-                  disabled={sending || loading || !ctx}
+                  disabled={sending || loading}
                   onClick={() => void submitQuestion(action.question)}
                 >
                   {action.id === "fundraising" ? (
