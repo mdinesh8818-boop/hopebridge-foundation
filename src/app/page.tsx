@@ -3,11 +3,9 @@ import {
   ArrowRight,
   BarChart3,
   BrainCircuit,
-  CalendarDays,
   CircleDollarSign,
   FileBarChart,
   HandHeart,
-  HeartHandshake,
   Megaphone,
   Shield,
   Sparkles,
@@ -85,6 +83,22 @@ const pricingTiers = [
   },
 ];
 
+const footerLinkMap: Record<string, string> = {
+  Features: "#features",
+  Solutions: "#product",
+  Impact: "#impact",
+  Pricing: "#pricing",
+  "Help Center": "/auth/login?next=%2Fdashboard%2Fhelp",
+  "Getting Started": "/auth/signup",
+  "Product Guide": "/auth/login?next=%2Fdashboard%2Fhelp",
+  About: "#product",
+  Contact: "/auth/signup",
+  Careers: "#product",
+  Privacy: "#security",
+  Terms: "#security",
+  Support: "/auth/login?next=%2Fdashboard%2Fhelp",
+};
+
 export default function Home() {
   return (
     <div className="min-h-screen bg-[#faf7ef] text-[#18392e]">
@@ -106,7 +120,7 @@ export default function Home() {
             <a href="#impact" className="hover:text-[#0d5f44]">Impact</a>
             <a href="#security" className="hover:text-[#0d5f44]">Security</a>
             <a href="#pricing" className="hover:text-[#0d5f44]">Pricing</a>
-            <Link href="/dashboard/help" className="hover:text-[#0d5f44]">Resources</Link>
+            <Link href="/auth/login?next=%2Fdashboard%2Fhelp" className="hover:text-[#0d5f44]">Resources</Link>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -117,7 +131,7 @@ export default function Home() {
               Sign In
             </Link>
             <Link
-              href="/auth/login"
+              href="/auth/signup"
               className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-[#073b2f]"
               style={{
                 background:
@@ -165,7 +179,7 @@ export default function Home() {
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
-                href="/auth/login"
+                href="/auth/signup"
                 className="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-[#073b2f]"
                 style={{
                   background:
@@ -177,10 +191,10 @@ export default function Home() {
                 <ArrowRight size={16} />
               </Link>
               <Link
-                href="/dashboard"
+                href="/auth/login"
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#0d5f44]/25 bg-white px-6 py-3 text-sm font-semibold text-[#0d5f44]"
               >
-                Explore Platform
+                Sign in to explore
               </Link>
             </div>
           </div>
@@ -333,8 +347,9 @@ export default function Home() {
           </h2>
           <p className="mt-6 text-lg leading-8 text-[#607269]">
             HopeBridge uses Firebase Authentication for sign-in and Firestore for
-            selected operational records such as campaigns. Additional modules
-            may store data locally in the browser depending on configuration.
+            operational records across campaigns, programs, donors, volunteers,
+            beneficiaries, teams, and mission data. Access requires an authenticated
+            HopeBridge account.
           </p>
         </div>
       </section>
@@ -351,6 +366,9 @@ export default function Home() {
             >
               Plans for every stage of growth
             </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-sm text-[#65766e]">
+              Commercial pricing is under evaluation. Request early access while plans are finalized.
+            </p>
           </div>
           <div className="mt-12 grid gap-6 lg:grid-cols-3">
             {pricingTiers.map((tier) => (
@@ -365,9 +383,39 @@ export default function Home() {
                 <h3 className="text-xl font-semibold">{tier.name}</h3>
                 <p className="mt-4 text-3xl font-bold text-[#112e24]">{tier.price}</p>
                 <p className="mt-4 text-sm leading-6 text-[#607269]">{tier.detail}</p>
+                <Link
+                  href="/auth/signup"
+                  className="mt-6 inline-flex items-center justify-center rounded-xl border border-[#0d5f44]/20 bg-white px-4 py-2.5 text-sm font-semibold text-[#0d5f44] hover:border-[#0d5f44]/40"
+                >
+                  Request early access
+                </Link>
               </article>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section id="resources" className="border-y border-[#ebe3d2] bg-[#fffdf6] px-6 py-20">
+        <div className="mx-auto max-w-4xl text-center">
+          <p className="text-xs font-bold tracking-[0.18em] text-[#9e7b24]">RESOURCES</p>
+          <h2
+            className="mt-4 text-3xl font-bold"
+            style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+          >
+            Guides for your HopeBridge workspace
+          </h2>
+          <p className="mt-4 text-sm leading-7 text-[#607269]">
+            The in-product Help Center covers every module — campaigns, programs, donors,
+            analytics, AI Assistant, reports, and administration. Sign in to access guides
+            and workflows tailored to your organization.
+          </p>
+          <Link
+            href="/auth/login?next=%2Fdashboard%2Fhelp"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#0d5f44]/25 bg-white px-5 py-2.5 text-sm font-semibold text-[#0d5f44]"
+          >
+            Open Help Center
+            <ArrowRight size={15} />
+          </Link>
         </div>
       </section>
 
@@ -380,7 +428,7 @@ export default function Home() {
             Build more impact with less operational friction.
           </h2>
           <Link
-            href="/auth/login"
+            href="/auth/signup"
             className="mt-8 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-[#073b2f]"
             style={{
               background:
@@ -408,13 +456,7 @@ export default function Home() {
                 {(links as string[]).map((link) => (
                   <li key={link}>
                     <Link
-                      href={
-                        link === "Help Center"
-                          ? "/dashboard/help"
-                          : link === "Getting Started"
-                            ? "/auth/login"
-                            : "#"
-                      }
+                      href={footerLinkMap[link] ?? "#product"}
                       className="text-sm text-[#65766e] hover:text-[#0d5f44]"
                     >
                       {link}

@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:routes": "node scripts/route-smoke-check.mjs",
     "cleanup-demo-data": "node scripts/cleanup-demo-data.mjs"
   },
   "dependencies": {
