@@ -348,7 +348,7 @@ export default function DashboardPage() {
           <span className="hb-ai-side-icon"><BrainCircuit size={22} /></span>
           <span>
             <strong>HopeBridge AI</strong>
-            <small>Strategic assistant online</small>
+            <small>Grounded insights available</small>
           </span>
           <i />
         </button>

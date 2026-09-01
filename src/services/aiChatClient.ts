@@ -30,8 +30,11 @@ export type AiChatClientResult =
       };
     };
 
-export async function fetchAiAssistantStatus(): Promise<AiAssistantStatusResponse> {
-  const response = await fetch("/api/ai-assistant/chat", {
+export async function fetchAiAssistantStatus(options?: {
+  verify?: boolean;
+}): Promise<AiAssistantStatusResponse> {
+  const query = options?.verify ? "?verify=1" : "";
+  const response = await fetch(`/api/ai-assistant/chat${query}`, {
     method: "GET",
     credentials: "same-origin",
   });

@@ -197,9 +197,17 @@ export default function TeamDetailDrawer({
           )}
 
           {tab === "files" && (
-            <p className="text-sm text-[#65766e]">
-              Shared team resources and planning documents are organized here. Upload integration coming soon.
-            </p>
+            <div className="rounded-xl border border-dashed border-[#e4dac6] bg-[#fcfbf8] p-5">
+              <p className="font-semibold text-[#18392e]">Document storage not configured</p>
+              <p className="mt-2 text-sm leading-6 text-[#65766e]">
+                Shared team documents require an approved file storage integration (for
+                example Firebase Storage or your organization&apos;s document system).
+                Team assignments, discussions, and meetings remain available in HopeBridge.
+              </p>
+              <p className="mt-3 text-xs text-[#929d97]">
+                Contact your HopeBridge administrator to enable document storage.
+              </p>
+            </div>
           )}
 
           {tab === "activity" && (

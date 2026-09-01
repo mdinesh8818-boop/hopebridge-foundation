@@ -160,7 +160,7 @@ export default function HopeBridgeSidebar({ activePath }: HopeBridgeSidebarProps
           </span>
           <span>
             <strong>HopeBridge AI</strong>
-            <small>Strategic assistant online</small>
+            <small>Grounded insights available</small>
           </span>
           <i />
         </button>

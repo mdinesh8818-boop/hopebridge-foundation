@@ -133,3 +133,62 @@ export async function generateOpenAiAssistantReply(
 
   return text;
 }
+
+/** Lightweight runtime probe — does not log secrets or full responses. */
+export async function probeOpenAiProvider(): Promise<{
+  ok: boolean;
+  detail: string;
+  httpStatus?: number;
+  code?: string | null;
+}> {
+  const { apiKey, model } = getAiProviderConfig();
+
+  if (!apiKey) {
+    return { ok: false, detail: "Provider not configured" };
+  }
+
+  let response: Response;
+  try {
+    response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 1,
+        temperature: 0,
+        messages: [{ role: "user", content: "ping" }],
+      }),
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Network request to OpenAI failed";
+    return {
+      ok: false,
+      detail: redactSecrets(message),
+      code: "network_error",
+    };
+  }
+
+  if (!response.ok) {
+    let payload: ChatCompletionResponse = {};
+    try {
+      payload = (await response.json()) as ChatCompletionResponse;
+    } catch {
+      // ignore parse errors for probe
+    }
+    return {
+      ok: false,
+      detail: redactSecrets(
+        payload.error?.message || `OpenAI probe failed (${response.status})`,
+      ),
+      httpStatus: response.status,
+      code:
+        payload.error?.code == null ? `http_${response.status}` : String(payload.error.code),
+    };
+  }
+
+  return { ok: true, detail: "Provider responded successfully" };
+}

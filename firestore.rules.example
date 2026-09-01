@@ -1,0 +1,106 @@
+rules_version = '2';
+
+// EXAMPLE ONLY — NOT DEPLOYED AUTOMATICALLY
+// Review with your security team before applying in Firebase Console.
+// HopeBridge currently operates as a single-tenant authenticated workspace.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // --- Product-completion collections ---
+
+    match /organizationProfile/{docId} {
+      // Production: restrict writes to admin custom claims, e.g. request.auth.token.admin == true
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    match /userSettings/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // --- Existing operational collections (illustrative) ---
+    // Your live Firebase project may already have broader rules.
+    // Align these with your actual deployment before replacing production rules.
+
+    match /campaigns/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /programs/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /donors/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /donations/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /volunteers/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /beneficiaries/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /beneficiaryActivity/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /teams/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /teamMembers/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /teamAssignments/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /teamDiscussions/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /teamMeetings/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /teamActivity/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /activities/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /missionVision/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /coreValues/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /strategicGoals/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /appMetadata/{id} {
+      allow read, write: if isSignedIn();
+    }
+  }
+}

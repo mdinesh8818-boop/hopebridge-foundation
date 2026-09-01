@@ -101,4 +101,9 @@ export type AiAssistantStatusResponse = {
   configured: boolean;
   provider: "openai";
   model?: string;
+  /** Present when GET includes verify=1 */
+  verified?: boolean;
+  verificationDetail?: string;
+  verificationCode?: string | null;
+  verificationHttpStatus?: number;
 };

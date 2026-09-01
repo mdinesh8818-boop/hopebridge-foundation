@@ -24,13 +24,14 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!user) return;
+    const userId = user.uid;
     let cancelled = false;
 
     async function loadSettings() {
       setLoading(true);
       setError("");
       try {
-        const next = await fetchUserSettings(user.uid);
+        const next = await fetchUserSettings(userId);
         if (!cancelled) setSettings(next);
       } catch (loadError) {
         console.error(loadError);

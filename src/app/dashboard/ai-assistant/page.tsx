@@ -145,6 +145,7 @@ export default function AiAssistantPage() {
   const [llmConfigured, setLlmConfigured] = useState<boolean | null>(null);
   const [llmVerified, setLlmVerified] = useState(false);
   const [llmUnavailable, setLlmUnavailable] = useState(false);
+  const [llmVerificationPending, setLlmVerificationPending] = useState(false);
   const [llmModel, setLlmModel] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [, startTransition] = useTransition();
@@ -182,15 +183,34 @@ export default function AiAssistantPage() {
 
     async function loadStatus() {
       try {
-        const status = await fetchAiAssistantStatus();
+        const status = await fetchAiAssistantStatus({ verify: true });
         if (!cancelled) {
           setLlmConfigured(status.configured);
           setLlmModel(status.model ?? null);
+          if (status.configured) {
+            if (status.verified === true) {
+              setLlmVerified(true);
+              setLlmVerificationPending(false);
+              setLlmUnavailable(false);
+            } else if (status.verified === false) {
+              setLlmVerified(false);
+              setLlmVerificationPending(false);
+              setLlmUnavailable(true);
+            } else {
+              setLlmVerified(false);
+              setLlmVerificationPending(true);
+            }
+          } else {
+            setLlmVerified(false);
+            setLlmVerificationPending(false);
+          }
         }
       } catch {
         if (!cancelled) {
           setLlmConfigured(false);
           setLlmModel(null);
+          setLlmVerified(false);
+          setLlmVerificationPending(false);
         }
       }
     }
@@ -264,16 +284,20 @@ export default function AiAssistantPage() {
         setLlmConfigured(true);
         setLlmVerified(true);
         setLlmUnavailable(false);
+        setLlmVerificationPending(false);
         setLlmModel(llmResult.model);
       } else if (llmResult.source === "unconfigured") {
         setLlmConfigured(false);
         setLlmVerified(false);
         setLlmUnavailable(false);
+        setLlmVerificationPending(false);
         setChatInfo(
-          "Conversational AI is not configured yet. Showing grounded HopeBridge organizational insights from connected records.",
+          "Conversational AI is not configured on the server. Showing grounded HopeBridge organizational insights from connected records.",
         );
       } else {
         setLlmUnavailable(true);
+        setLlmVerified(false);
+        setLlmVerificationPending(false);
         const provider = llmResult.provider;
         const diagnostic = provider
           ? ` Provider diagnostic: HTTP ${provider.httpStatus || "n/a"} · code=${provider.code ?? "n/a"} · type=${provider.type ?? "n/a"}${provider.param ? ` · param=${provider.param}` : ""} · ${provider.detail}`
@@ -339,13 +363,15 @@ export default function AiAssistantPage() {
       ? "Loading organizational data…"
       : llmVerified
         ? `Conversational AI verified${llmModel ? ` · ${llmModel}` : ""}`
-        : llmConfigured && llmUnavailable
-          ? "Provider configured · fallback active (grounded insights)"
-          : llmConfigured
-            ? `Provider configured · not yet verified${llmModel ? ` · ${llmModel}` : ""}`
-            : llmConfigured === false
-              ? "Grounded insights active · conversational provider not configured"
-              : "Grounded insights active";
+        : llmUnavailable
+          ? "Fallback intelligence active"
+          : llmConfigured && llmVerificationPending
+            ? `AI configured · provider verification pending${llmModel ? ` · ${llmModel}` : ""}`
+            : llmConfigured
+              ? `AI configured · verification incomplete${llmModel ? ` · ${llmModel}` : ""}`
+              : llmConfigured === false
+                ? "Fallback intelligence active · provider not configured"
+                : "Fallback intelligence active";
 
   return (
     <div className="hb-app ia-page ai-page">
@@ -587,9 +613,11 @@ export default function AiAssistantPage() {
                 </div>
                 <div className="ai-composer-actions">
                   <p className="text-xs text-[#607269]">
-                    {llmConfigured
-                      ? `HopeBridge AI · grounded in live organizational data${llmModel ? ` · ${llmModel}` : ""} · Enter to send`
-                      : "HopeBridge AI · grounded organizational insights · Enter to send · Shift+Enter for new line"}
+                    {llmVerified
+                      ? `HopeBridge AI · verified provider${llmModel ? ` · ${llmModel}` : ""} · Enter to send`
+                      : llmConfigured
+                        ? "HopeBridge AI · grounded insights active · provider verification pending · Enter to send"
+                        : "HopeBridge AI · fallback intelligence active · Enter to send · Shift+Enter for new line"}
                   </p>
                 </div>
               </form>

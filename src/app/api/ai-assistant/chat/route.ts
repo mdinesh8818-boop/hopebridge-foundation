@@ -5,6 +5,7 @@ import { getAiProviderConfig } from "@/lib/ai/config";
 import {
   generateOpenAiAssistantReply,
   OpenAiProviderError,
+  probeOpenAiProvider,
 } from "@/lib/ai/openai";
 import { buildHopeBridgeSystemPrompt } from "@/lib/ai/prompt";
 import type {
@@ -37,17 +38,27 @@ function sanitizeHistory(history: unknown): AiChatTurn[] {
     .slice(-MAX_HISTORY_TURNS);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   if (!(await isHopeBridgeSessionAuthenticated())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const config = getAiProviderConfig();
+  const verify = new URL(request.url).searchParams.get("verify") === "1";
+
   const body: AiAssistantStatusResponse = {
     configured: config.configured,
     provider: config.provider,
     model: config.configured ? config.model : undefined,
   };
+
+  if (verify && config.configured) {
+    const probe = await probeOpenAiProvider();
+    body.verified = probe.ok;
+    body.verificationDetail = probe.detail;
+    body.verificationCode = probe.code ?? null;
+    body.verificationHttpStatus = probe.httpStatus;
+  }
 
   return NextResponse.json(body);
 }
