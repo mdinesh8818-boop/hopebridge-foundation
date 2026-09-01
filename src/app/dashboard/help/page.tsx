@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
+  Activity,
   ArrowLeft,
   BookOpen,
   BrainCircuit,
@@ -21,6 +22,9 @@ import {
   Target,
   Users,
 } from "lucide-react";
+
+import HopeBridgeSidebar from "../components/HopeBridgeSidebar";
+import "../styles/hopebridge.css";
 
 type HelpTopic = {
   id: string;
@@ -177,8 +181,21 @@ const helpTopics: HelpTopic[] = [
     summary: "Use HopeBridge AI for strategic recommendations and operational guidance.",
     steps: [
       "Open AI Assistant from the Intelligence group.",
-      "Ask questions about campaigns, programs, donors, volunteers, or reporting.",
-      "Review recommendations and apply them to your operational planning.",
+      "Review the executive briefing and organizational alerts from live records.",
+      "Ask questions in Strategic Conversation — responses stay grounded in HopeBridge data.",
+      "Use connected data source chips to jump to Campaigns, Programs, Donors, and other modules.",
+    ],
+  },
+  {
+    id: "activity",
+    title: "Organization Activity",
+    section: "Organization Activity",
+    icon: Activity,
+    summary: "Review a chronological feed of changes across HopeBridge modules.",
+    steps: [
+      "Open Activity from the Intelligence navigation group or Dashboard.",
+      "Scan recent creates, updates, and deletions logged by operational modules.",
+      "Use module links on the Dashboard to return to the record that triggered an event.",
     ],
   },
   {
@@ -186,10 +203,11 @@ const helpTopics: HelpTopic[] = [
     title: "Reports",
     section: "Reports",
     icon: FileBarChart,
-    summary: "Generate executive and operational reports.",
+    summary: "Export executive summaries built from connected organizational records.",
     steps: [
-      "Open Reports to create or schedule foundation reports.",
-      "Export insights for board meetings, audits, and stakeholder updates.",
+      "Open Reports to view executive, program delivery, and attention summaries.",
+      "Select Export CSV to download a spreadsheet for board or leadership review.",
+      "Use Refresh report after updating campaigns, programs, or donor records.",
     ],
   },
   {
@@ -197,21 +215,23 @@ const helpTopics: HelpTopic[] = [
     title: "Calendar",
     section: "Calendar",
     icon: CalendarDays,
-    summary: "Plan events, milestones, and operational schedules.",
+    summary: "See campaign dates, program timelines, and team meetings in one list.",
     steps: [
-      "Open Calendar to review upcoming campaign milestones and team events.",
-      "Use calendar planning to coordinate cross-module activities.",
+      "Open Calendar to review dates pulled from campaigns, programs, and team meetings.",
+      "Filter by event type when coordinating fundraising, delivery, or meeting schedules.",
+      "Update source records in Campaigns, Programs, or Teams to change calendar entries.",
     ],
   },
   {
     id: "organization",
-    title: "Organization Settings",
-    section: "Organization Settings",
+    title: "Organization Profile",
+    section: "Organization Profile",
     icon: ShieldCheck,
-    summary: "Manage your nonprofit profile and public foundation details.",
+    summary: "Maintain foundation contact details and the Core Strategy Resources link.",
     steps: [
       "Open Organization under Administration.",
-      "Update legal details, branding, and public-facing organization information.",
+      "Update legal name, contact information, and operating preferences.",
+      "Configure the approved Core Strategy Resources URL — HopeBridge will not invent a destination.",
     ],
   },
   {
@@ -219,9 +239,10 @@ const helpTopics: HelpTopic[] = [
     title: "Account Settings",
     section: "Account Settings",
     icon: Settings,
-    summary: "Configure account preferences and platform defaults.",
+    summary: "Manage notifications, workspace defaults, and payment readiness status.",
     steps: [
-      "Open Settings to manage notifications, security preferences, and integrations.",
+      "Open Settings to save notification and workspace preferences per user.",
+      "Review payment readiness sections for donation processing and SaaS billing status.",
     ],
   },
   {
@@ -232,8 +253,8 @@ const helpTopics: HelpTopic[] = [
     summary: "Understand how HopeBridge handles authentication and data persistence.",
     steps: [
       "Sign in using your organization credentials through Firebase Authentication.",
-      "Campaign records are stored in Firestore when cloud connectivity is available.",
-      "Mission & Vision and Programs may use local browser storage for selected modules.",
+      "Operational records — campaigns, programs, donors, volunteers, beneficiaries, teams, and mission data — are stored in Firestore.",
+      "HopeBridge requires a signed-in account to read or write organizational records.",
       "Contact your administrator for access control and account recovery.",
     ],
     tips: [
@@ -249,7 +270,7 @@ const faqs = [
   },
   {
     q: "Where are my campaign records stored?",
-    a: "Campaigns are saved to Firestore when available. If cloud access fails, the page falls back to local session data until connectivity is restored.",
+    a: "Campaigns and other operational modules save to Firestore. You must be signed in to view or edit records.",
   },
   {
     q: "Can I edit Mission & Vision after initial setup?",
@@ -286,7 +307,9 @@ export default function HelpCenterPage() {
   const SelectedIcon = selected.icon;
 
   return (
-    <main className="hb-page min-h-screen px-5 py-7 sm:px-8 lg:px-10">
+    <div className="hb-app">
+      <HopeBridgeSidebar activePath="/dashboard/help" />
+      <main className="hb-module-main px-5 py-7 sm:px-8 lg:px-10">
       <div className="mx-auto max-w-[1500px]">
         <nav className="flex flex-wrap items-center gap-2 text-xs text-[#65766e]">
           <Link href="/dashboard" className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]">
@@ -379,10 +402,6 @@ export default function HelpCenterPage() {
                 </div>
               </div>
 
-              <div className="mt-8 rounded-2xl border border-dashed border-[#e4dac6] bg-[#fffdfa] p-6 text-center text-sm text-[#929d97]">
-                Tutorial screenshot placeholder — add product images here later.
-              </div>
-
               <ol className="mt-8 space-y-4">
                 {selected.steps.map((step, index) => (
                   <li key={step} className="flex gap-4">
@@ -453,6 +472,7 @@ export default function HelpCenterPage() {
           </div>
         </div>
       </div>
-    </main>
+      </main>
+    </div>
   );
 }

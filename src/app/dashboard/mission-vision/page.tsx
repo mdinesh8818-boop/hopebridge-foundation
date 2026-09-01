@@ -46,6 +46,11 @@ import {
   updateStrategicGoal,
 } from "@/services/missionVision";
 import {
+  fetchOrganizationProfile,
+  isResourcesUrlConfigured,
+  type OrganizationProfile,
+} from "@/services/organizationProfile";
+import {
   CORE_VALUE_ACCENT_OPTIONS,
   CORE_VALUE_ICON_MAP,
   CORE_VALUE_ICON_OPTIONS,
@@ -196,6 +201,7 @@ export default function MissionVisionPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [bundle, setBundle] = useState<MissionVisionBundle | null>(null);
+  const [orgProfile, setOrgProfile] = useState<OrganizationProfile | null>(null);
 
   const [isEditingMission, setIsEditingMission] = useState(false);
   const [missionForm, setMissionForm] = useState<MissionVisionInput>({
@@ -223,8 +229,12 @@ export default function MissionVisionPage() {
     setLoading(true);
     setLoadError(null);
     try {
-      const data = await fetchMissionVisionBundle();
+      const [data, profile] = await Promise.all([
+        fetchMissionVisionBundle(),
+        fetchOrganizationProfile(),
+      ]);
       setBundle(data);
+      setOrgProfile(profile);
     } catch (error) {
       console.error("Unable to load Mission & Vision data.", error);
       setLoadError("Unable to load organizational strategy data.");
@@ -1248,6 +1258,31 @@ export default function MissionVisionPage() {
                     ) : (
                       <p className="mv2-alignment-text text-sm font-normal text-[#5f7268]">
                         No programs or campaigns linked yet.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mv2-alignment-step">
+                    <p className="mv2-alignment-label">Core Strategy — Resources</p>
+                    {orgProfile && isResourcesUrlConfigured(orgProfile) ? (
+                      <p className="mv2-alignment-text">
+                        <a
+                          href={orgProfile.resourcesUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold text-[#0d5f44] underline"
+                        >
+                          {orgProfile.resourcesLabel}
+                        </a>
+                      </p>
+                    ) : (
+                      <p className="mv2-alignment-text text-sm font-normal text-[#5f7268]">
+                        No external resource link is configured yet. An administrator can
+                        add the approved URL in{" "}
+                        <Link href="/dashboard/organization" className="text-[#0d5f44] underline">
+                          Organization
+                        </Link>
+                        .
                       </p>
                     )}
                   </div>

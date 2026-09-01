@@ -143,6 +143,8 @@ export default function AiAssistantPage() {
   const [chatError, setChatError] = useState("");
   const [chatInfo, setChatInfo] = useState("");
   const [llmConfigured, setLlmConfigured] = useState<boolean | null>(null);
+  const [llmVerified, setLlmVerified] = useState(false);
+  const [llmUnavailable, setLlmUnavailable] = useState(false);
   const [llmModel, setLlmModel] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [, startTransition] = useTransition();
@@ -260,13 +262,18 @@ export default function AiAssistantPage() {
       if (llmResult.source === "llm") {
         answer = llmResult.answer;
         setLlmConfigured(true);
+        setLlmVerified(true);
+        setLlmUnavailable(false);
         setLlmModel(llmResult.model);
       } else if (llmResult.source === "unconfigured") {
         setLlmConfigured(false);
+        setLlmVerified(false);
+        setLlmUnavailable(false);
         setChatInfo(
           "Conversational AI is not configured yet. Showing grounded HopeBridge organizational insights from connected records.",
         );
       } else {
+        setLlmUnavailable(true);
         const provider = llmResult.provider;
         const diagnostic = provider
           ? ` Provider diagnostic: HTTP ${provider.httpStatus || "n/a"} · code=${provider.code ?? "n/a"} · type=${provider.type ?? "n/a"}${provider.param ? ` · param=${provider.param}` : ""} · ${provider.detail}`
@@ -330,11 +337,15 @@ export default function AiAssistantPage() {
     ? "Data connection issue — retry refresh"
     : loading && !ctx
       ? "Loading organizational data…"
-      : llmConfigured
-        ? `Conversational AI ready${llmModel ? ` · ${llmModel}` : ""}`
-        : llmConfigured === false
-          ? "Organizational Intelligence Ready · Conversational AI awaiting configuration"
-          : "Organizational Intelligence Ready";
+      : llmVerified
+        ? `Conversational AI verified${llmModel ? ` · ${llmModel}` : ""}`
+        : llmConfigured && llmUnavailable
+          ? "Provider configured · fallback active (grounded insights)"
+          : llmConfigured
+            ? `Provider configured · not yet verified${llmModel ? ` · ${llmModel}` : ""}`
+            : llmConfigured === false
+              ? "Grounded insights active · conversational provider not configured"
+              : "Grounded insights active";
 
   return (
     <div className="hb-app ia-page ai-page">
