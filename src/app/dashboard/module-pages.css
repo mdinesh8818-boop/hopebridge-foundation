@@ -1,0 +1,197 @@
+/* Shared operational module pages — Reports, Calendar, Organization, Settings */
+
+.op-page {
+  color: #112e24;
+}
+
+.op-hero {
+  border-radius: 20px;
+  border: 1px solid rgba(230, 191, 62, 0.28);
+  background: linear-gradient(135deg, #053b2d 0%, #0d5f44 58%, #0a4a36 100%);
+  color: #f7f4eb;
+  padding: 24px 28px;
+}
+
+.op-hero h1 {
+  margin-top: 6px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.6rem, 2vw, 2.1rem);
+  font-weight: 700;
+}
+
+.op-hero p {
+  margin-top: 8px;
+  max-width: 52rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: rgba(247, 244, 235, 0.82);
+}
+
+.op-kicker {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #efd062;
+}
+
+.op-panel {
+  border-radius: 16px;
+  border: 1px solid #ebe3d2;
+  background: #fffdfa;
+  padding: 20px 22px;
+}
+
+.op-panel h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #18392e;
+}
+
+.op-panel p,
+.op-panel li {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: #607269;
+}
+
+.op-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.op-btn-gold {
+  border: 1px solid #d1a627;
+  background: linear-gradient(135deg, #fff1a3, #ebc34a 40%, #c28a17);
+  color: #073b2f;
+}
+
+.op-btn-gold:hover {
+  filter: brightness(1.03);
+}
+
+.op-btn-gold:focus-visible {
+  outline: 2px solid #efd062;
+  outline-offset: 2px;
+}
+
+.op-btn-secondary {
+  border: 1px solid #e4dac6;
+  background: white;
+  color: #2d493e;
+}
+
+.op-btn-secondary:hover {
+  border-color: #d1a627;
+}
+
+.op-btn-secondary:focus-visible {
+  outline: 2px solid #0d5f44;
+  outline-offset: 2px;
+}
+
+.op-field {
+  display: block;
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #e4dac6;
+  background: white;
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  color: #18392e;
+}
+
+.op-field:focus {
+  outline: 2px solid rgba(13, 95, 68, 0.25);
+  border-color: #0d5f44;
+}
+
+.op-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #334b41;
+}
+
+.op-empty {
+  border-radius: 12px;
+  border: 1px dashed #e4dac6;
+  background: #fcfbf8;
+  padding: 20px;
+  font-size: 0.875rem;
+  color: #65766e;
+}
+
+.op-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid #e4dac6;
+  background: white;
+  padding: 3px 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #607269;
+}
+
+.op-badge.pending {
+  border-color: rgba(185, 120, 40, 0.35);
+  background: #fffaf0;
+  color: #9a6700;
+}
+
+.op-badge.ready {
+  border-color: rgba(13, 95, 68, 0.25);
+  background: #f4fbf7;
+  color: #08734f;
+}
+
+.op-event-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #f0eadf;
+  padding: 14px 0;
+}
+
+.op-event-row:last-child {
+  border-bottom: none;
+}
+
+.op-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 12px;
+  border: 1px solid #f0eadf;
+  background: white;
+  padding: 12px 14px;
+}
+
+.op-success {
+  border-radius: 10px;
+  border: 1px solid rgba(13, 95, 68, 0.25);
+  background: #f4fbf7;
+  padding: 10px 14px;
+  font-size: 0.8125rem;
+  color: #08734f;
+}
+
+.op-error {
+  border-radius: 10px;
+  border: 1px solid #fecdd3;
+  background: #fff1f2;
+  padding: 10px 14px;
+  font-size: 0.8125rem;
+  color: #be123c;
+}
