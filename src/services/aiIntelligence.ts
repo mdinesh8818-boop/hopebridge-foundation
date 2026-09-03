@@ -349,10 +349,102 @@ type Intent =
   | "priorities"
   | "executive_summary"
   | "organization_summary"
+  | "general"
   | "unknown";
+
+const ORG_SCOPE_MARKERS = [
+  "hopebridge",
+  "our campaign",
+  "our program",
+  "our donor",
+  "our volunteer",
+  "our beneficiar",
+  "our fundrais",
+  "our team",
+  "our organization",
+  "our organisation",
+  "which campaign",
+  "which program",
+  "how many",
+  "currently serving",
+  "need attention",
+  "at risk",
+  "leadership priorit",
+  "executive summary",
+  "impact analytics",
+  "funds raised",
+  "analyze fundraising",
+  "review program",
+  "summarize volunteer",
+  "summarize our",
+  "organization summary",
+];
+
+const ORG_TOPIC_WORDS = [
+  "campaign",
+  "program",
+  "donor",
+  "donation",
+  "volunteer",
+  "beneficiar",
+  "fundrais",
+  "team",
+  "leadership",
+  "organization",
+  "organisation",
+];
+
+function isDefinitionalQuestion(question: string): boolean {
+  const q = question.toLowerCase().trim();
+  return (
+    /^(what is|what's|whats|what are|explain|define|describe)\b/.test(q) ||
+    /\b(what is|what's|explain|define)\b/.test(q)
+  );
+}
+
+function looksOrganizational(question: string): boolean {
+  const q = question.toLowerCase();
+
+  // Definitional / educational questions are general unless clearly about HopeBridge data.
+  if (isDefinitionalQuestion(q)) {
+    return (
+      q.includes("hopebridge") ||
+      q.includes("our ") ||
+      q.includes("we ") ||
+      ORG_SCOPE_MARKERS.some((marker) => q.includes(marker))
+    );
+  }
+
+  if (ORG_SCOPE_MARKERS.some((marker) => q.includes(marker))) {
+    return true;
+  }
+
+  // Mentions of modules plus operational verbs → organizational.
+  const hasTopic = ORG_TOPIC_WORDS.some((word) => q.includes(word));
+  if (!hasTopic) return false;
+
+  return (
+    q.includes("our ") ||
+    q.includes("we ") ||
+    q.includes("hopebridge") ||
+    q.includes("summarize") ||
+    q.includes("overview") ||
+    q.includes("attention") ||
+    q.includes("priorit") ||
+    q.includes("performance") ||
+    q.includes("risk") ||
+    q.includes("health") ||
+    q.includes("how many") ||
+    q.includes("status")
+  );
+}
 
 function detectIntent(question: string): Intent {
   const q = question.toLowerCase();
+
+  if (!looksOrganizational(q) && isDefinitionalQuestion(q)) {
+    return "general";
+  }
 
   if (
     q.includes("executive summary") ||
@@ -381,23 +473,31 @@ function detectIntent(question: string): Intent {
   ) {
     return "program_performance";
   }
-  if (q.includes("beneficiar") || q.includes("community reach") || q.includes("people we serve")) {
-    return "beneficiaries";
+  if (
+    q.includes("beneficiar") ||
+    q.includes("community reach") ||
+    q.includes("people we serve")
+  ) {
+    return looksOrganizational(q) ? "beneficiaries" : "general";
   }
   if (q.includes("donor")) {
-    return "donors";
+    return looksOrganizational(q) ? "donors" : "general";
   }
   if (q.includes("volunteer")) {
-    return "volunteers";
+    return looksOrganizational(q) ? "volunteers" : "general";
   }
-  if (q.includes("geographic") || q.includes("geography") || q.includes("location") || q.includes("where is our community")) {
+  if (
+    q.includes("geographic") ||
+    q.includes("geography") ||
+    q.includes("where is our community")
+  ) {
     return "geographic";
   }
   if (
     q.includes("funding with beneficiary") ||
     q.includes("compare funding") ||
-    q.includes("impact") ||
-    q.includes("cost per")
+    q.includes("cost per") ||
+    (q.includes("impact") && looksOrganizational(q))
   ) {
     return "impact";
   }
@@ -412,10 +512,42 @@ function detectIntent(question: string): Intent {
   ) {
     return "priorities";
   }
-  if (q.includes("summarize") || q.includes("overview") || q.includes("organization")) {
+  if (
+    (q.includes("summarize") || q.includes("overview") || q.includes("organization")) &&
+    looksOrganizational(q)
+  ) {
     return "organization_summary";
   }
+
+  if (!looksOrganizational(q)) {
+    return "general";
+  }
+
   return "unknown";
+}
+
+export function isHopeBridgeOrganizationalQuestion(question: string): boolean {
+  const intent = detectIntent(question.trim());
+  if (intent === "general") return false;
+  if (intent === "unknown") return looksOrganizational(question);
+  return true;
+}
+
+function answerGeneralFallback(question: string): AiAnswer {
+  return formatAnswer([
+    {
+      heading: "OBSERVATION",
+      body: `HopeBridge fallback intelligence is limited to your organization's connected records. It cannot answer general questions such as "${question.trim()}" while the conversational AI provider is unavailable.`,
+    },
+    {
+      heading: "AI RECOMMENDATION",
+      body: "Ask a HopeBridge-specific question (campaigns, programs, donors, volunteers, beneficiaries, teams, or impact), or retry after conversational AI becomes available. This is an advisory message only.",
+    },
+    {
+      heading: "DATA CONSIDERED",
+      body: "None — this question is outside HopeBridge organizational intelligence.",
+    },
+  ]);
 }
 
 function formatAnswer(sections: AiAnswerSection[]): AiAnswer {
@@ -950,6 +1082,11 @@ export function answerOrganizationalQuestion(
     ]);
   }
 
+  const intent = detectIntent(trimmed);
+  if (intent === "general") {
+    return answerGeneralFallback(trimmed);
+  }
+
   const hasData =
     ctx.snapshot.activeCampaigns > 0 ||
     ctx.snapshot.activePrograms > 0 ||
@@ -972,7 +1109,7 @@ export function answerOrganizationalQuestion(
     ]);
   }
 
-  switch (detectIntent(trimmed)) {
+  switch (intent) {
     case "campaign_risk":
       return answerCampaignRisk(ctx);
     case "fundraising":
@@ -998,7 +1135,9 @@ export function answerOrganizationalQuestion(
     case "organization_summary":
       return answerOrganizationSummary(ctx);
     default:
-      return answerOrganizationSummary(ctx);
+      return looksOrganizational(trimmed)
+        ? answerOrganizationSummary(ctx)
+        : answerGeneralFallback(trimmed);
   }
 }
 

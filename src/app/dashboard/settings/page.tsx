@@ -8,6 +8,7 @@ import HopeBridgeSidebar from "../components/HopeBridgeSidebar";
 import { useAuth } from "@/providers/AuthProvider";
 import {
   DEFAULT_USER_SETTINGS,
+  describeFirestoreError,
   fetchUserSettings,
   saveUserSettings,
   type UserSettings,
@@ -49,17 +50,21 @@ export default function SettingsPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!user) return;
+    if (!user || saving) return;
 
     setSaving(true);
     setError("");
     setSuccess("");
     try {
-      await saveUserSettings(user.uid, settings);
-      setSuccess("Settings saved.");
+      const confirmed = await saveUserSettings(user.uid, settings);
+      setSettings(confirmed);
+      setSuccess(
+        "Settings saved successfully. Your preferences will remain after refresh.",
+      );
     } catch (saveError) {
-      console.error(saveError);
-      setError("Unable to save settings. Check permissions and try again.");
+      console.error("Settings save failed:", saveError);
+      setSuccess("");
+      setError(describeFirestoreError(saveError));
     } finally {
       setSaving(false);
     }
@@ -100,8 +105,16 @@ export default function SettingsPage() {
             </div>
           ) : (
             <form onSubmit={(event) => void handleSubmit(event)} className="space-y-5">
-              {error ? <div className="op-error" role="alert">{error}</div> : null}
-              {success ? <div className="op-success" role="status">{success}</div> : null}
+              {error ? (
+                <div className="op-error" role="alert">
+                  {error}
+                </div>
+              ) : null}
+              {success ? (
+                <div className="op-success" role="status" aria-live="polite">
+                  {success}
+                </div>
+              ) : null}
 
               <section className="op-panel space-y-3">
                 <h2>Notifications</h2>
@@ -115,12 +128,14 @@ export default function SettingsPage() {
                   <input
                     type="checkbox"
                     checked={settings.emailNotifications}
-                    onChange={(e) =>
+                    disabled={saving}
+                    onChange={(e) => {
+                      setSuccess("");
                       setSettings((s) => ({
                         ...s,
                         emailNotifications: e.target.checked,
-                      }))
-                    }
+                      }));
+                    }}
                   />
                 </label>
                 <label className="op-toggle">
@@ -133,9 +148,11 @@ export default function SettingsPage() {
                   <input
                     type="checkbox"
                     checked={settings.weeklyDigest}
-                    onChange={(e) =>
-                      setSettings((s) => ({ ...s, weeklyDigest: e.target.checked }))
-                    }
+                    disabled={saving}
+                    onChange={(e) => {
+                      setSuccess("");
+                      setSettings((s) => ({ ...s, weeklyDigest: e.target.checked }));
+                    }}
                   />
                 </label>
               </section>
@@ -147,12 +164,14 @@ export default function SettingsPage() {
                   <select
                     className="op-field"
                     value={settings.defaultLandingModule}
-                    onChange={(e) =>
+                    disabled={saving}
+                    onChange={(e) => {
+                      setSuccess("");
                       setSettings((s) => ({
                         ...s,
                         defaultLandingModule: e.target.value,
-                      }))
-                    }
+                      }));
+                    }}
                   >
                     <option value="/dashboard">Dashboard</option>
                     <option value="/dashboard/campaigns">Campaigns</option>
@@ -166,9 +185,11 @@ export default function SettingsPage() {
                   <input
                     className="op-field"
                     value={settings.timezone}
-                    onChange={(e) =>
-                      setSettings((s) => ({ ...s, timezone: e.target.value }))
-                    }
+                    disabled={saving}
+                    onChange={(e) => {
+                      setSuccess("");
+                      setSettings((s) => ({ ...s, timezone: e.target.value }));
+                    }}
                   />
                 </label>
                 <label className="op-toggle">
@@ -181,9 +202,11 @@ export default function SettingsPage() {
                   <input
                     type="checkbox"
                     checked={settings.compactTables}
-                    onChange={(e) =>
-                      setSettings((s) => ({ ...s, compactTables: e.target.checked }))
-                    }
+                    disabled={saving}
+                    onChange={(e) => {
+                      setSuccess("");
+                      setSettings((s) => ({ ...s, compactTables: e.target.checked }));
+                    }}
                   />
                 </label>
               </section>

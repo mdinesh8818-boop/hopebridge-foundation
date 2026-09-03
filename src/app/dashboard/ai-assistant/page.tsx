@@ -30,6 +30,7 @@ import {
 import HopeBridgeSidebar from "../components/HopeBridgeSidebar";
 import {
   answerOrganizationalQuestion,
+  isHopeBridgeOrganizationalQuestion,
   loadAiOrgContext,
   QUICK_ACTIONS,
   SUGGESTED_QUESTIONS,
@@ -286,14 +287,21 @@ export default function AiAssistantPage() {
         setLlmUnavailable(false);
         setLlmVerificationPending(false);
         setLlmModel(llmResult.model);
+        setChatInfo("");
       } else if (llmResult.source === "unconfigured") {
         setLlmConfigured(false);
         setLlmVerified(false);
         setLlmUnavailable(false);
         setLlmVerificationPending(false);
-        setChatInfo(
-          "Conversational AI is not configured on the server. Showing grounded HopeBridge organizational insights from connected records.",
-        );
+        if (isHopeBridgeOrganizationalQuestion(question)) {
+          setChatInfo(
+            "Conversational AI is not configured on the server. Showing HopeBridge organizational fallback intelligence.",
+          );
+        } else {
+          setChatInfo(
+            "Conversational AI is not configured. Fallback intelligence only answers HopeBridge organizational questions.",
+          );
+        }
       } else {
         setLlmUnavailable(true);
         setLlmVerified(false);
@@ -302,9 +310,15 @@ export default function AiAssistantPage() {
         const diagnostic = provider
           ? ` Provider diagnostic: HTTP ${provider.httpStatus || "n/a"} · code=${provider.code ?? "n/a"} · type=${provider.type ?? "n/a"}${provider.param ? ` · param=${provider.param}` : ""} · ${provider.detail}`
           : "";
-        setChatInfo(
-          `The AI provider is temporarily unavailable. Showing grounded HopeBridge organizational insights from connected records.${diagnostic}`,
-        );
+        if (isHopeBridgeOrganizationalQuestion(question)) {
+          setChatInfo(
+            `Fallback intelligence active — provider unavailable. Answering from HopeBridge organizational records.${diagnostic}`,
+          );
+        } else {
+          setChatInfo(
+            `Fallback intelligence active — provider unavailable. General conversational questions cannot be answered until the provider is available.${diagnostic}`,
+          );
+        }
       }
 
       const assistantMessage: ChatMessage = {
@@ -362,11 +376,11 @@ export default function AiAssistantPage() {
     : loading && !ctx
       ? "Loading organizational data…"
       : llmVerified
-        ? `Conversational AI verified${llmModel ? ` · ${llmModel}` : ""}`
+        ? `Conversational AI active${llmModel ? ` · ${llmModel}` : ""}`
         : llmUnavailable
           ? "Fallback intelligence active"
           : llmConfigured && llmVerificationPending
-            ? `AI configured · provider verification pending${llmModel ? ` · ${llmModel}` : ""}`
+            ? `Provider verification pending${llmModel ? ` · ${llmModel}` : ""}`
             : llmConfigured
               ? `AI configured · verification incomplete${llmModel ? ` · ${llmModel}` : ""}`
               : llmConfigured === false
@@ -614,10 +628,10 @@ export default function AiAssistantPage() {
                 <div className="ai-composer-actions">
                   <p className="text-xs text-[#607269]">
                     {llmVerified
-                      ? `HopeBridge AI · verified provider${llmModel ? ` · ${llmModel}` : ""} · Enter to send`
+                      ? `HopeBridge AI · Conversational AI active${llmModel ? ` · ${llmModel}` : ""} · Enter to send`
                       : llmConfigured
-                        ? "HopeBridge AI · grounded insights active · provider verification pending · Enter to send"
-                        : "HopeBridge AI · fallback intelligence active · Enter to send · Shift+Enter for new line"}
+                        ? "HopeBridge AI · Fallback intelligence active · provider verification pending · Enter to send"
+                        : "HopeBridge AI · Fallback intelligence active · Enter to send · Shift+Enter for new line"}
                   </p>
                 </div>
               </form>

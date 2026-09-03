@@ -8,6 +8,7 @@ import HopeBridgeSidebar from "../components/HopeBridgeSidebar";
 import { useAuth } from "@/providers/AuthProvider";
 import {
   EMPTY_ORGANIZATION_PROFILE,
+  describeOrganizationSaveError,
   fetchOrganizationProfile,
   isResourcesUrlConfigured,
   saveOrganizationProfile,
@@ -63,17 +64,21 @@ export default function OrganizationPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!user) return;
+    if (!user || saving) return;
 
     setSaving(true);
     setError("");
     setSuccess("");
     try {
-      await saveOrganizationProfile(profile);
-      setSuccess("Organization profile saved.");
+      const confirmed = await saveOrganizationProfile(profile);
+      setProfile(confirmed);
+      setSuccess(
+        "Organization profile saved successfully. Changes remain after refresh, including Core Strategy Resources.",
+      );
     } catch (saveError) {
-      console.error(saveError);
-      setError("Unable to save organization profile. Check permissions and try again.");
+      console.error("Organization profile save failed:", saveError);
+      setSuccess("");
+      setError(describeOrganizationSaveError(saveError));
     } finally {
       setSaving(false);
     }
@@ -115,9 +120,21 @@ export default function OrganizationPage() {
               Loading organization profile…
             </div>
           ) : (
-            <form onSubmit={(event) => void handleSubmit(event)} className="space-y-5">
-              {error ? <div className="op-error" role="alert">{error}</div> : null}
-              {success ? <div className="op-success" role="status">{success}</div> : null}
+            <form
+              onSubmit={(event) => void handleSubmit(event)}
+              onInput={() => setSuccess("")}
+              className="space-y-5"
+            >
+              {error ? (
+                <div className="op-error" role="alert">
+                  {error}
+                </div>
+              ) : null}
+              {success ? (
+                <div className="op-success" role="status" aria-live="polite">
+                  {success}
+                </div>
+              ) : null}
 
               <section className="op-panel space-y-4">
                 <h2>Foundation details</h2>

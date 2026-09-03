@@ -15,8 +15,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Keep HopeBridge operational UI readable on ivory surfaces even when the OS is in dark mode. */
+    --background: #faf7ef;
+    --foreground: #112e24;
   }
 }
 

@@ -19,12 +19,18 @@ service cloud.firestore {
 
     match /organizationProfile/{docId} {
       // Production: restrict writes to admin custom claims, e.g. request.auth.token.admin == true
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if false;
     }
 
     match /userSettings/{userId} {
-      allow read, write: if isOwner(userId);
+      // Prefer get on own document over collection list.
+      allow get: if isOwner(userId);
+      allow list: if isSignedIn();
+      allow create, update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     // --- Existing operational collections (illustrative) ---

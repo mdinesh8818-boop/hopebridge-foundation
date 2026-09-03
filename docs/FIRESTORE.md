@@ -57,6 +57,23 @@ This document describes Firestore collections used by HopeBridge Foundation and 
 
 See `firestore.rules.example` in the repository root. **Do not weaken production rules** to pass tests. E2E tests should run against a dedicated Firebase project with appropriate test credentials.
 
+### Product-completion collections — minimum authenticated access
+
+```
+match /organizationProfile/{docId} {
+  allow get, list: if request.auth != null;
+  allow create, update: if request.auth != null;
+  allow delete: if false;
+}
+
+match /userSettings/{userId} {
+  allow get, create, update, delete: if request.auth != null && request.auth.uid == userId;
+  // list is optional; the app now reads by document id (getDocument)
+}
+```
+
+The application now uses **document get by id** (`getDocument`) for both collections rather than listing the whole collection. If Preview saves appear to succeed but refresh resets values, confirm these rules (or equivalent) are deployed in the Firebase console.
+
 ## Team file storage
 
 Team **Files** tab does not persist uploads. Document storage requires a separate integration (e.g. Firebase Storage + security rules). No `teamFiles` collection exists at this time.

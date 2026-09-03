@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:routes": "node scripts/route-smoke-check.mjs",
+    "test:ai-intent": "node scripts/ai-intent-smoke.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "cleanup-demo-data": "node scripts/cleanup-demo-data.mjs"

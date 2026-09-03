@@ -1,4 +1,4 @@
-import { getDocuments, setDocument } from "./firestore";
+import { getDocument, setDocument } from "./firestore";
 
 export type OrganizationProfile = {
   organizationName: string;
@@ -88,15 +88,43 @@ function normalizeProfile(
 }
 
 export async function fetchOrganizationProfile(): Promise<OrganizationProfile> {
-  const docs = await getDocuments(COLLECTION);
-  const record = docs.find((doc) => doc.id === DOC_ID) ?? docs[0] ?? null;
-  return normalizeProfile(record as Record<string, unknown> | null);
+  const record = await getDocument(COLLECTION, DOC_ID);
+  return normalizeProfile(record);
 }
 
 export async function saveOrganizationProfile(
   profile: OrganizationProfile,
-): Promise<void> {
-  await setDocument(COLLECTION, DOC_ID, profile);
+): Promise<OrganizationProfile> {
+  const payload: OrganizationProfile = {
+    organizationName:
+      profile.organizationName.trim() || EMPTY_ORGANIZATION_PROFILE.organizationName,
+    legalName: profile.legalName.trim(),
+    ein: profile.ein.trim(),
+    addressLine1: profile.addressLine1.trim(),
+    addressLine2: profile.addressLine2.trim(),
+    city: profile.city.trim(),
+    state: profile.state.trim(),
+    postalCode: profile.postalCode.trim(),
+    country: profile.country.trim() || EMPTY_ORGANIZATION_PROFILE.country,
+    phone: profile.phone.trim(),
+    email: profile.email.trim(),
+    website: profile.website.trim(),
+    primaryContactName: profile.primaryContactName.trim(),
+    primaryContactTitle: profile.primaryContactTitle.trim(),
+    fiscalYearStartMonth: Number.isFinite(profile.fiscalYearStartMonth)
+      ? profile.fiscalYearStartMonth
+      : EMPTY_ORGANIZATION_PROFILE.fiscalYearStartMonth,
+    timezone: profile.timezone.trim() || EMPTY_ORGANIZATION_PROFILE.timezone,
+    resourcesUrl: profile.resourcesUrl.trim(),
+    resourcesLabel:
+      profile.resourcesLabel.trim() || EMPTY_ORGANIZATION_PROFILE.resourcesLabel,
+  };
+
+  await setDocument(COLLECTION, DOC_ID, payload);
+
+  // Re-read to confirm persistence without wiping existing fields.
+  const confirmed = await fetchOrganizationProfile();
+  return confirmed;
 }
 
 export function isResourcesUrlConfigured(profile: OrganizationProfile): boolean {
@@ -108,4 +136,21 @@ export function isResourcesUrlConfigured(profile: OrganizationProfile): boolean 
   } catch {
     return false;
   }
+}
+
+export function describeOrganizationSaveError(error: unknown): string {
+  if (!error || typeof error !== "object") {
+    return "Unable to save organization profile. Please try again.";
+  }
+  const code =
+    "code" in error && typeof (error as { code?: unknown }).code === "string"
+      ? (error as { code: string }).code
+      : "";
+  if (code.includes("permission-denied")) {
+    return "Unable to save organization profile: Firestore permission denied for organizationProfile/foundation.";
+  }
+  if (code.includes("unavailable")) {
+    return "Unable to save organization profile: Firestore is temporarily unavailable. Please retry.";
+  }
+  return "Unable to save organization profile. Check your connection and try again.";
 }

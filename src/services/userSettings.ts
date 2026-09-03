@@ -1,4 +1,4 @@
-import { setDocument, getDocuments } from "./firestore";
+import { getDocument, setDocument } from "./firestore";
 
 export type UserSettings = {
   emailNotifications: boolean;
@@ -47,14 +47,51 @@ function normalizeSettings(
 }
 
 export async function fetchUserSettings(userId: string): Promise<UserSettings> {
-  const docs = await getDocuments(COLLECTION);
-  const record = docs.find((doc) => doc.id === userId) ?? null;
-  return normalizeSettings(record as Record<string, unknown> | null);
+  if (!userId) {
+    throw new Error("A signed-in user is required to load settings.");
+  }
+  const record = await getDocument(COLLECTION, userId);
+  return normalizeSettings(record);
 }
 
 export async function saveUserSettings(
   userId: string,
   settings: UserSettings,
-): Promise<void> {
-  await setDocument(COLLECTION, userId, settings);
+): Promise<UserSettings> {
+  if (!userId) {
+    throw new Error("A signed-in user is required to save settings.");
+  }
+
+  const payload: UserSettings = {
+    emailNotifications: Boolean(settings.emailNotifications),
+    weeklyDigest: Boolean(settings.weeklyDigest),
+    compactTables: Boolean(settings.compactTables),
+    timezone: settings.timezone.trim() || DEFAULT_USER_SETTINGS.timezone,
+    defaultLandingModule:
+      settings.defaultLandingModule.trim() ||
+      DEFAULT_USER_SETTINGS.defaultLandingModule,
+  };
+
+  await setDocument(COLLECTION, userId, payload);
+
+  // Re-read to confirm persistence and return canonical saved values.
+  const confirmed = await fetchUserSettings(userId);
+  return confirmed;
+}
+
+export function describeFirestoreError(error: unknown): string {
+  if (!error || typeof error !== "object") {
+    return "Unable to save settings. Please try again.";
+  }
+  const code =
+    "code" in error && typeof (error as { code?: unknown }).code === "string"
+      ? (error as { code: string }).code
+      : "";
+  if (code.includes("permission-denied")) {
+    return "Unable to save settings: Firestore permission denied for userSettings. Ask an administrator to allow authenticated users to read/write their own settings document.";
+  }
+  if (code.includes("unavailable")) {
+    return "Unable to save settings: Firestore is temporarily unavailable. Please retry.";
+  }
+  return "Unable to save settings. Check your connection and try again.";
 }

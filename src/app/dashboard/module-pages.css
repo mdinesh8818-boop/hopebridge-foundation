@@ -104,7 +104,14 @@
   background: white;
   padding: 10px 12px;
   font-size: 0.875rem;
-  color: #18392e;
+  color: #112e24;
+  -webkit-text-fill-color: #112e24;
+}
+
+.op-field::placeholder {
+  color: #8a968f;
+  -webkit-text-fill-color: #8a968f;
+  opacity: 1;
 }
 
 .op-field:focus {
@@ -180,18 +187,20 @@
 
 .op-success {
   border-radius: 10px;
-  border: 1px solid rgba(13, 95, 68, 0.25);
-  background: #f4fbf7;
-  padding: 10px 14px;
-  font-size: 0.8125rem;
-  color: #08734f;
+  border: 1px solid rgba(13, 95, 68, 0.35);
+  background: #eaf8ef;
+  padding: 12px 14px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0a5c3f;
 }
 
 .op-error {
   border-radius: 10px;
   border: 1px solid #fecdd3;
   background: #fff1f2;
-  padding: 10px 14px;
-  font-size: 0.8125rem;
+  padding: 12px 14px;
+  font-size: 0.875rem;
+  font-weight: 600;
   color: #be123c;
 }

@@ -736,13 +736,45 @@
 .bf-input {
   border: 1px solid rgba(228, 218, 198, 0.9);
   background: #fdfcf8;
+  color: #112e24;
+  -webkit-text-fill-color: #112e24;
+  caret-color: #0d5f44;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.bf-input::placeholder {
+  color: #8a968f;
+  -webkit-text-fill-color: #8a968f;
+  opacity: 1;
+}
+
+.bf-input:disabled,
+.bf-input[readonly] {
+  color: #334b41;
+  -webkit-text-fill-color: #334b41;
+  opacity: 1;
+  background: #f5f2ea;
+}
+
+.bf-input option {
+  color: #112e24;
+  background: #fff;
 }
 
 .bf-input:focus {
   border-color: rgba(212, 175, 55, 0.45);
   box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
   outline: none;
+  color: #112e24;
+  -webkit-text-fill-color: #112e24;
+}
+
+.bf-input:-webkit-autofill,
+.bf-input:-webkit-autofill:hover,
+.bf-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #112e24;
+  box-shadow: 0 0 0 1000px #fdfcf8 inset;
+  transition: background-color 99999s ease-out;
 }
 
 .bf-overlay {
@@ -772,6 +804,14 @@
   background: transparent;
   outline: none;
   font-size: 14px;
+  color: #112e24;
+  -webkit-text-fill-color: #112e24;
+}
+
+.bf-search-input input::placeholder {
+  color: #8a968f;
+  -webkit-text-fill-color: #8a968f;
+  opacity: 1;
 }
 
 .bf-segment-btn {
