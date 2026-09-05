@@ -656,13 +656,46 @@
 .vl-input {
   border: 1px solid rgba(228, 218, 198, 0.9);
   background: #fdfcf8;
+  color: #112e24;
+  -webkit-text-fill-color: #112e24;
+  caret-color: #0d5f44;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.vl-input::placeholder {
+  color: #8a968f;
+  -webkit-text-fill-color: #8a968f;
+  opacity: 1;
+}
+
+.vl-input:disabled,
+.vl-input[readonly] {
+  color: #334b41;
+  -webkit-text-fill-color: #334b41;
+  opacity: 1;
+  background: #f5f2ea;
+}
+
+.vl-input option {
+  color: #112e24;
+  background: #fff;
 }
 
 .vl-input:focus {
   border-color: rgba(212, 175, 55, 0.45);
   box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
   outline: none;
+  color: #112e24;
+  -webkit-text-fill-color: #112e24;
+}
+
+/* Prevent OS dark-mode / autofill from forcing light text on ivory fields */
+.vl-input:-webkit-autofill,
+.vl-input:-webkit-autofill:hover,
+.vl-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #112e24;
+  box-shadow: 0 0 0 1000px #fdfcf8 inset;
+  transition: background-color 99999s ease-out;
 }
 
 .vl-filter-panel {

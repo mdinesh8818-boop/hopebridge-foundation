@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import {
+  Activity,
   BarChart3,
   BrainCircuit,
   CalendarDays,
   ChevronRight,
   CircleDollarSign,
   FileBarChart,
+  FolderKanban,
   HandHeart,
   Handshake,
   HelpCircle,
@@ -35,7 +37,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
       { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { label: "Mission & Vision", href: "/dashboard/mission-vision", icon: Target },
       { label: "Campaigns", href: "/dashboard/campaigns", icon: Megaphone },
-      { label: "Programs", href: "/dashboard/programs", icon: BarChart3 },
+      { label: "Programs", href: "/dashboard/programs", icon: FolderKanban },
     ],
   },
   {
@@ -54,6 +56,7 @@ const navGroups: { title: string; items: NavItem[] }[] = [
       { label: "AI Assistant", href: "/dashboard/ai-assistant", icon: BrainCircuit },
       { label: "Reports", href: "/dashboard/reports", icon: FileBarChart },
       { label: "Calendar", href: "/dashboard/calendar", icon: CalendarDays },
+      { label: "Activity", href: "/dashboard/activity", icon: Activity },
     ],
   },
   {
@@ -72,8 +75,18 @@ type HopeBridgeSidebarProps = {
 
 export default function HopeBridgeSidebar({ activePath }: HopeBridgeSidebarProps) {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const displayName =
+    user?.displayName?.trim() ||
+    (user?.email ? user.email.split("@")[0] : "HopeBridge user");
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "HB";
 
   function navigate(href: string) {
     setMobileOpen(false);
@@ -147,16 +160,16 @@ export default function HopeBridgeSidebar({ activePath }: HopeBridgeSidebarProps
           </span>
           <span>
             <strong>HopeBridge AI</strong>
-            <small>Strategic assistant online</small>
+            <small>Grounded insights available</small>
           </span>
           <i />
         </button>
 
         <div className="hb-user-card">
-          <div className="hb-user-avatar">DM</div>
+          <div className="hb-user-avatar">{initials}</div>
           <div className="hb-user-copy">
-            <strong>Dinesh M.</strong>
-            <small>Administrator</small>
+            <strong>{displayName}</strong>
+            <small>{user?.email ?? "Signed in"}</small>
           </div>
           <button
             type="button"

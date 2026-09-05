@@ -1,497 +1,795 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
-  fetchAttentionItems,
-  fetchOrganizationSnapshot,
-  formatCurrency,
-  type AttentionItem,
-  type OrganizationSnapshot,
-} from "@/services/organizationMetrics";
+  FormEvent,
+  KeyboardEvent,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
+import { useRouter } from "next/navigation";
+import {
+  AlertTriangle,
+  BarChart3,
+  BrainCircuit,
+  CircleDollarSign,
+  Eraser,
+  HandHeart,
+  Home,
+  Loader2,
+  Megaphone,
+  RefreshCw,
+  Send,
+  Sparkles,
+  Target,
+  UsersRound,
+} from "lucide-react";
 
-type Message = {
-  id: number;
+import HopeBridgeSidebar from "../components/HopeBridgeSidebar";
+import {
+  answerOrganizationalQuestion,
+  isHopeBridgeOrganizationalQuestion,
+  loadAiOrgContext,
+  QUICK_ACTIONS,
+  SUGGESTED_QUESTIONS,
+  type AiAnswerSection,
+  type AiOrgContext,
+} from "@/services/aiIntelligence";
+import { buildHopeBridgeAiContextPayload } from "@/services/aiContextPayload";
+import {
+  fetchAiAssistantStatus,
+  requestHopeBridgeAiChat,
+} from "@/services/aiChatClient";
+import "../analytics/analytics.css";
+import "./ai-assistant.css";
+
+const HERO_DATA_SOURCES: { module: string; href: string }[] = [
+  { module: "Campaigns", href: "/dashboard/campaigns" },
+  { module: "Programs", href: "/dashboard/programs" },
+  { module: "Donors", href: "/dashboard/donors" },
+  { module: "Volunteers", href: "/dashboard/volunteers" },
+  { module: "Beneficiaries", href: "/dashboard/beneficiaries" },
+  { module: "Teams", href: "/dashboard/teams" },
+  { module: "Impact Analytics", href: "/dashboard/analytics" },
+];
+
+type ChatMessage = {
+  id: string;
   role: "user" | "assistant";
   text: string;
+  sections?: AiAnswerSection[];
   time: string;
 };
 
-const suggestedQuestions = [
-  "Which campaign needs attention?",
-  "How can we improve donor retention?",
-  "Summarize program performance",
-  "What should leadership prioritize?",
-];
+let messageSeq = 0;
 
-const initialMessages: Message[] = [
-  {
-    id: 1,
-    role: "assistant",
-    text:
-      "Hello. I am HopeBridge AI. I analyze your organization's real Firestore data — campaigns, donors, programs, volunteers, and beneficiaries. What would you like to review?",
-    time: "Now",
-  },
-];
-
-async function getAiResponse(
-  question: string,
-  snapshot: OrganizationSnapshot,
-): Promise<string> {
-  const message = question.toLowerCase();
-  const hasData =
-    snapshot.activeCampaigns > 0 ||
-    snapshot.activePrograms > 0 ||
-    snapshot.beneficiaryCount > 0 ||
-    snapshot.volunteerCount > 0 ||
-    snapshot.fundsRaised > 0 ||
-    snapshot.activeDonors > 0;
-
-  if (!hasData) {
-    return "There is not enough HopeBridge data yet to answer that question. Create campaigns, programs, donors, volunteers, or beneficiaries to enable insights.";
-  }
-
-  if (
-    message.includes("campaign") ||
-    message.includes("fundraising") ||
-    message.includes("attention")
-  ) {
-    if (snapshot.activeCampaigns === 0) {
-      return "You have no active campaigns. Create a campaign to begin tracking fundraising progress.";
-    }
-    const goalPct =
-      snapshot.totalCampaignGoal > 0
-        ? Math.round((snapshot.fundsRaised / snapshot.totalCampaignGoal) * 100)
-        : 0;
-    return `You have ${snapshot.activeCampaigns} active campaign${snapshot.activeCampaigns === 1 ? "" : "s"}. Combined fundraising progress is ${goalPct}% (${formatCurrency(snapshot.fundsRaised)} of ${formatCurrency(snapshot.totalCampaignGoal)} goal). Review campaigns with approaching deadlines or low progress.`;
-  }
-
-  if (
-    message.includes("donor") ||
-    message.includes("retention") ||
-    message.includes("donation")
-  ) {
-    if (snapshot.activeDonors === 0) {
-      return "No donor records exist yet. Add donors or record donations to enable donor analysis.";
-    }
-    return `You have ${snapshot.activeDonors} active donor${snapshot.activeDonors === 1 ? "" : "s"} with ${formatCurrency(snapshot.fundsRaised)} recorded in fundraising totals. Continue recording gifts to improve retention analysis.`;
-  }
-
-  if (
-    message.includes("program") ||
-    message.includes("performance") ||
-    message.includes("summary")
-  ) {
-    if (snapshot.activePrograms === 0) {
-      return "No active programs found. Create a program to begin tracking service delivery.";
-    }
-    return `HopeBridge has ${snapshot.activePrograms} active program${snapshot.activePrograms === 1 ? "" : "s"} with ${formatCurrency(snapshot.totalProgramBudget)} total budget and ${formatCurrency(snapshot.totalProgramSpent)} spent. ${snapshot.programsOnTrack} program${snapshot.programsOnTrack === 1 ? "" : "s"} on target; ${snapshot.programsAtRisk} at risk.`;
-  }
-
-  if (
-    message.includes("volunteer") ||
-    message.includes("shift") ||
-    message.includes("hours")
-  ) {
-    if (snapshot.volunteerCount === 0) {
-      return "No volunteers registered yet. Add volunteers to track hours and assignments.";
-    }
-    return `${snapshot.volunteerCount} volunteer${snapshot.volunteerCount === 1 ? "" : "s"} registered with ${snapshot.volunteerHours} total hours logged. Review volunteers marked as needing attention.`;
-  }
-
-  if (
-    message.includes("beneficiar") ||
-    message.includes("people") ||
-    message.includes("community")
-  ) {
-    if (snapshot.beneficiaryCount === 0) {
-      return "No beneficiaries enrolled yet. Enroll beneficiaries to track service delivery and outcomes.";
-    }
-    return `${snapshot.beneficiaryCount} beneficiar${snapshot.beneficiaryCount === 1 ? "y" : "ies"} currently in the system across your programs.`;
-  }
-
-  if (
-    message.includes("priority") ||
-    message.includes("leadership") ||
-    message.includes("recommend")
-  ) {
-    const actions: string[] = [];
-    if (snapshot.programsAtRisk > 0) {
-      actions.push(`review ${snapshot.programsAtRisk} at-risk program${snapshot.programsAtRisk === 1 ? "" : "s"}`);
-    }
-    if (snapshot.activeCampaigns > 0 && snapshot.totalCampaignGoal > snapshot.fundsRaised) {
-      actions.push("accelerate fundraising on active campaigns");
-    }
-    if (snapshot.activeDonors === 0) {
-      actions.push("begin donor cultivation");
-    }
-    if (actions.length === 0) {
-      return "Based on current data, no urgent leadership actions are flagged. Continue monitoring operational metrics.";
-    }
-    return `Leadership should prioritize: ${actions.join("; ")}. These recommendations are based on your current HopeBridge records.`;
-  }
-
-  return `Based on your HopeBridge data: ${snapshot.activeCampaigns} active campaigns, ${snapshot.activePrograms} active programs, ${snapshot.activeDonors} active donors, ${snapshot.volunteerCount} volunteers, and ${snapshot.beneficiaryCount} beneficiaries. Ask about a specific module for deeper analysis.`;
+function nextMessageId(prefix: string) {
+  messageSeq += 1;
+  return `${prefix}-${messageSeq}`;
 }
 
-function currentTime(): string {
-  return new Date().toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+const WELCOME_MESSAGE: ChatMessage = {
+  id: "welcome",
+  role: "assistant",
+  text: "Welcome to HopeBridge Intelligence. Ask about campaigns, fundraising, programs, beneficiaries, volunteers, geographic reach, risks, or request an executive summary. Answers are grounded in your live HopeBridge organizational data.",
+  time: "Now",
+  sections: [
+    {
+      heading: "OBSERVATION",
+      body: "Welcome to HopeBridge Intelligence. Ask about campaigns, fundraising, programs, beneficiaries, volunteers, geographic reach, risks, or request an executive summary. Answers are grounded in your live HopeBridge organizational data.",
+    },
+  ],
+};
+
+function formatClock(date = new Date()) {
+  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function coverageLabel(state: string) {
+  if (state === "connected") return "Connected";
+  if (state === "limited") return "Limited data";
+  return "No records";
+}
+
+function sectionDisplayLabel(heading: AiAnswerSection["heading"]) {
+  if (heading === "RECOMMENDED ACTION") return "AI RECOMMENDATION";
+  if (heading === "DATA CONSIDERED") return "DATA CONSIDERED";
+  return heading;
+}
+
+function MessageBody({
+  message,
+}: {
+  message: ChatMessage;
+}) {
+  if (message.role === "user" || !message.sections?.length) {
+    return <p className="whitespace-pre-wrap">{message.text}</p>;
+  }
+
+  const contentSections = message.sections.filter(
+    (section) => section.heading !== "DATA CONSIDERED",
+  );
+  const dataConsidered = message.sections.find(
+    (section) => section.heading === "DATA CONSIDERED",
+  );
+
+  return (
+    <div>
+      {contentSections.map((section) => (
+        <div key={`${message.id}-${section.heading}`} className="ai-section">
+          <p className="ai-section-label">{sectionDisplayLabel(section.heading)}</p>
+          <p className="ai-section-body">{section.body}</p>
+        </div>
+      ))}
+      {dataConsidered ? (
+        <div className="ai-sources" aria-label="Data considered">
+          <span className="ai-sources-label">Sources used</span>
+          <p className="ai-sources-body">{dataConsidered.body}</p>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export default function AiAssistantPage() {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const router = useRouter();
+  const [ctx, setCtx] = useState<AiOrgContext | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState("");
-  const [isThinking, setIsThinking] = useState(false);
-  const [snapshot, setSnapshot] = useState<OrganizationSnapshot | null>(null);
-  const [attentionItems, setAttentionItems] = useState<AttentionItem[]>([]);
+  const [sending, setSending] = useState(false);
+  const [chatError, setChatError] = useState("");
+  const [chatInfo, setChatInfo] = useState("");
+  const [llmConfigured, setLlmConfigured] = useState<boolean | null>(null);
+  const [llmVerified, setLlmVerified] = useState(false);
+  const [llmUnavailable, setLlmUnavailable] = useState(false);
+  const [llmVerificationPending, setLlmVerificationPending] = useState(false);
+  const [llmModel, setLlmModel] = useState<string | null>(null);
+  const [refreshToken, setRefreshToken] = useState(0);
+  const [, startTransition] = useTransition();
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
-    fetchOrganizationSnapshot().then(setSnapshot).catch(() => setSnapshot(null));
-    fetchAttentionItems().then(setAttentionItems).catch(() => setAttentionItems([]));
-  }, []);
+    let cancelled = false;
 
-  const conversationCount = useMemo(
-    () => messages.filter((message) => message.role === "user").length,
-    [messages]
-  );
-
-  function sendMessage(text?: string) {
-    const question = (text ?? input).trim();
-
-    if (!question || isThinking) {
-      return;
+    async function load() {
+      setLoading(true);
+      setError("");
+      try {
+        const data = await loadAiOrgContext();
+        if (!cancelled) setCtx(data);
+      } catch (err) {
+        console.error("Unable to load AI Assistant context.", err);
+        if (!cancelled) {
+          setError("Unable to load organizational intelligence. Please try again.");
+          setCtx(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
 
-    const userMessage: Message = {
-      id: Date.now(),
-      role: "user",
-      text: question,
-      time: currentTime(),
+    void load();
+    return () => {
+      cancelled = true;
     };
+  }, [refreshToken]);
 
-    setMessages((previous) => [...previous, userMessage]);
-    setInput("");
-    setIsThinking(true);
+  useEffect(() => {
+    let cancelled = false;
 
-    window.setTimeout(async () => {
-      const snapshot = await fetchOrganizationSnapshot();
-      const assistantMessage: Message = {
-        id: Date.now() + 1,
-        role: "assistant",
-        text: await getAiResponse(question, snapshot),
-        time: currentTime(),
-      };
+    async function loadStatus() {
+      try {
+        const status = await fetchAiAssistantStatus({ verify: true });
+        if (!cancelled) {
+          setLlmConfigured(status.configured);
+          setLlmModel(status.model ?? null);
+          if (status.configured) {
+            if (status.verified === true) {
+              setLlmVerified(true);
+              setLlmVerificationPending(false);
+              setLlmUnavailable(false);
+            } else if (status.verified === false) {
+              setLlmVerified(false);
+              setLlmVerificationPending(false);
+              setLlmUnavailable(true);
+            } else {
+              setLlmVerified(false);
+              setLlmVerificationPending(true);
+            }
+          } else {
+            setLlmVerified(false);
+            setLlmVerificationPending(false);
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setLlmConfigured(false);
+          setLlmModel(null);
+          setLlmVerified(false);
+          setLlmVerificationPending(false);
+        }
+      }
+    }
 
-      setMessages((previous) => [...previous, assistantMessage]);
-      setIsThinking(false);
-    }, 700);
-  }
+    void loadStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshToken]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    sendMessage();
-  }
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, sending]);
 
   function clearConversation() {
-    setMessages(initialMessages);
+    setMessages([
+      {
+        ...WELCOME_MESSAGE,
+        id: nextMessageId("welcome"),
+        time: formatClock(),
+      },
+    ]);
+    setChatError("");
+    setChatInfo("");
     setInput("");
-    setIsThinking(false);
   }
 
+  async function submitQuestion(raw: string) {
+    const question = raw.trim();
+    if (!question || sending) return;
+
+    setSending(true);
+    setChatError("");
+    setChatInfo("");
+    setInput("");
+
+    const userMessage: ChatMessage = {
+      id: nextMessageId("user"),
+      role: "user",
+      text: question,
+      time: formatClock(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+
+    try {
+      const activeCtx = await loadAiOrgContext();
+      setCtx(activeCtx);
+
+      const history = messages
+        .filter(
+          (message) =>
+            message.role === "user" ||
+            (message.role === "assistant" && !message.id.startsWith("welcome")),
+        )
+        .map((message) => ({
+          role: message.role,
+          content: message.text,
+        }));
+
+      const llmResult = await requestHopeBridgeAiChat({
+        question,
+        history,
+        context: buildHopeBridgeAiContextPayload(activeCtx),
+      });
+
+      let answer = answerOrganizationalQuestion(question, activeCtx);
+
+      if (llmResult.source === "llm") {
+        answer = llmResult.answer;
+        setLlmConfigured(true);
+        setLlmVerified(true);
+        setLlmUnavailable(false);
+        setLlmVerificationPending(false);
+        setLlmModel(llmResult.model);
+        setChatInfo("");
+      } else if (llmResult.source === "unconfigured") {
+        setLlmConfigured(false);
+        setLlmVerified(false);
+        setLlmUnavailable(false);
+        setLlmVerificationPending(false);
+        if (isHopeBridgeOrganizationalQuestion(question)) {
+          setChatInfo(
+            "Conversational AI is not configured on the server. Showing HopeBridge organizational fallback intelligence.",
+          );
+        } else {
+          setChatInfo(
+            "Conversational AI is not configured. Fallback intelligence only answers HopeBridge organizational questions.",
+          );
+        }
+      } else {
+        setLlmUnavailable(true);
+        setLlmVerified(false);
+        setLlmVerificationPending(false);
+        const provider = llmResult.provider;
+        const diagnostic = provider
+          ? ` Provider diagnostic: HTTP ${provider.httpStatus || "n/a"} · code=${provider.code ?? "n/a"} · type=${provider.type ?? "n/a"}${provider.param ? ` · param=${provider.param}` : ""} · ${provider.detail}`
+          : "";
+        if (isHopeBridgeOrganizationalQuestion(question)) {
+          setChatInfo(
+            `Fallback intelligence active — provider unavailable. Answering from HopeBridge organizational records.${diagnostic}`,
+          );
+        } else {
+          setChatInfo(
+            `Fallback intelligence active — provider unavailable. General conversational questions cannot be answered until the provider is available.${diagnostic}`,
+          );
+        }
+      }
+
+      const assistantMessage: ChatMessage = {
+        id: nextMessageId("assistant"),
+        role: "assistant",
+        text: answer.text,
+        sections: answer.sections,
+        time: formatClock(),
+      };
+
+      startTransition(() => {
+        setMessages((prev) => [...prev, assistantMessage]);
+      });
+    } catch (err) {
+      console.error("Unable to answer organizational question.", err);
+      setChatError("Unable to generate a response from HopeBridge data. Please try again.");
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: nextMessageId("assistant-error"),
+          role: "assistant",
+          text: "A temporary error occurred while analyzing organizational data.",
+          time: formatClock(),
+          sections: [
+            {
+              heading: "OBSERVATION",
+              body: "A temporary error occurred while analyzing organizational data. Please retry your question.",
+            },
+          ],
+        },
+      ]);
+    } finally {
+      setSending(false);
+      inputRef.current?.focus();
+    }
+  }
+
+  function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    void submitQuestion(input);
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      void submitQuestion(input);
+    }
+  }
+
+  const risks = ctx?.impact.risks ?? [];
+  const heroSources = ctx?.coverage ?? HERO_DATA_SOURCES;
+
+  const intelligenceStatus = error
+    ? "Data connection issue — retry refresh"
+    : loading && !ctx
+      ? "Loading organizational data…"
+      : llmVerified
+        ? `Conversational AI active${llmModel ? ` · ${llmModel}` : ""}`
+        : llmUnavailable
+          ? "Fallback intelligence active"
+          : llmConfigured && llmVerificationPending
+            ? `Provider verification pending${llmModel ? ` · ${llmModel}` : ""}`
+            : llmConfigured
+              ? `AI configured · verification incomplete${llmModel ? ` · ${llmModel}` : ""}`
+              : llmConfigured === false
+                ? "Fallback intelligence active · provider not configured"
+                : "Fallback intelligence active";
+
   return (
-    <main className="min-h-screen bg-[#050706] px-5 py-6 text-white sm:px-8 lg:px-10">
-      <div className="mx-auto max-w-[1500px]">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm text-white/80 transition hover:border-white/30 hover:bg-white/[0.08] hover:text-white"
-          >
-            <span>←</span>
-            Back to Dashboard
-          </Link>
+    <div className="hb-app ia-page ai-page">
+      <HopeBridgeSidebar activePath="/dashboard/ai-assistant" />
 
-          <button
-            type="button"
-            onClick={clearConversation}
-            className="rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-medium text-white/75 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-300"
-          >
-            Clear Conversation
-          </button>
-        </div>
+      <main className="hb-module-main">
+        <div className="mx-auto max-w-[1680px] space-y-6 pb-10">
+          <nav className="flex items-center gap-2 text-sm text-[#607269]">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]"
+            >
+              <Home size={14} className="text-[#0d5f44]" />
+              HopeBridge Foundation
+            </Link>
+            <span>/</span>
+            <strong className="text-[#112e24]">AI Assistant</strong>
+          </nav>
 
-        <section className="mb-6 overflow-hidden rounded-[28px] border border-emerald-400/20 bg-gradient-to-br from-emerald-500/[0.10] via-[#0b100f] to-cyan-500/[0.08] p-6 shadow-2xl shadow-black/30 sm:p-8">
-          <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
-            <div>
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-300">
-                ✦ HopeBridge Intelligence
-              </div>
+          <header className="ia-hero">
+            <p className="ia-hero-kicker">HOPEBRIDGE INTELLIGENCE</p>
+            <h1>
+              HopeBridge AI <em className="not-italic text-[#efd062]">Assistant</em>
+            </h1>
+            <p>
+              HopeBridge AI analyzes your organization&apos;s connected data to provide
+              grounded nonprofit intelligence on campaigns, programs, fundraising,
+              community impact, and operational risks.
+            </p>
 
-              <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-                AI Assistant
-              </h1>
+            <div className="ai-status" role="status">
+              <span className="ai-status-dot" aria-hidden />
+              {intelligenceStatus}
+            </div>
 
-              <p className="mt-4 max-w-3xl text-base leading-7 text-white/55 sm:text-lg">
-                Ask strategic questions, identify risks, discover opportunities,
-                and receive nonprofit recommendations based on HopeBridge data.
+            <div className="mt-4">
+              <p className="text-[10px] font-extrabold tracking-[0.14em] text-[#efd062]">
+                CONNECTED DATA SOURCES
               </p>
-            </div>
-
-            <div className="grid min-w-full grid-cols-2 gap-3 sm:min-w-[430px]">
-              <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                <p className="text-xs text-white/40">Conversations</p>
-                <p className="mt-2 text-2xl font-bold">{conversationCount}</p>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                <p className="text-xs text-white/40">AI status</p>
-                <p className="mt-2 text-sm font-semibold text-emerald-300">
-                  ● Online
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                <p className="text-xs text-white/40">Data coverage</p>
-                <p className="mt-2 text-2xl font-bold">8</p>
-                <p className="text-xs text-white/35">Modules connected</p>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                <p className="text-xs text-white/40">Confidence</p>
-                <p className="mt-2 text-2xl font-bold text-cyan-300">94%</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
-          <section className="flex min-h-[680px] flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#0d1110] shadow-2xl shadow-black/30">
-            <div className="flex items-center justify-between border-b border-white/10 px-5 py-5 sm:px-7">
-              <div>
-                <p className="text-lg font-semibold">Strategic conversation</p>
-                <p className="mt-1 text-sm text-white/40">
-                  HopeBridge organizational intelligence
-                </p>
-              </div>
-
-              <div className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1.5 text-xs font-medium text-emerald-300">
-                AI ready
-              </div>
-            </div>
-
-            <div className="flex-1 space-y-5 overflow-y-auto px-4 py-6 sm:px-7">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${
-                    message.role === "user"
-                      ? "justify-end"
-                      : "justify-start"
-                  }`}
-                >
-                  <div
-                    className={`max-w-[90%] rounded-2xl px-5 py-4 sm:max-w-[78%] ${
-                      message.role === "user"
-                        ? "rounded-br-md bg-gradient-to-r from-amber-400 to-orange-500 text-black"
-                        : "rounded-bl-md border border-white/10 bg-white/[0.05] text-white"
-                    }`}
+              <div className="ai-source-row" aria-label="Connected data sources">
+                {heroSources.map((source) => (
+                  <Link
+                    key={source.href}
+                    href={source.href}
+                    className="ai-source-chip"
                   >
-                    <div className="mb-2 flex items-center gap-2">
-                      <span
-                        className={`text-xs font-semibold ${
-                          message.role === "user"
-                            ? "text-black/70"
-                            : "text-emerald-300"
-                        }`}
-                      >
-                        {message.role === "user"
-                          ? "You"
-                          : "HopeBridge AI"}
-                      </span>
-
-                      <span
-                        className={`text-[11px] ${
-                          message.role === "user"
-                            ? "text-black/45"
-                            : "text-white/30"
-                        }`}
-                      >
-                        {message.time}
-                      </span>
-                    </div>
-
-                    <p className="whitespace-pre-line text-sm leading-6 sm:text-[15px]">
-                      {message.text}
-                    </p>
-                  </div>
-                </div>
-              ))}
-
-              {isThinking && (
-                <div className="flex justify-start">
-                  <div className="rounded-2xl rounded-bl-md border border-white/10 bg-white/[0.05] px-5 py-4">
-                    <p className="text-xs font-semibold text-emerald-300">
-                      HopeBridge AI
-                    </p>
-                    <div className="mt-3 flex gap-1.5">
-                      <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300" />
-                      <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300 [animation-delay:150ms]" />
-                      <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300 [animation-delay:300ms]" />
-                    </div>
-                  </div>
-                </div>
-              )}
+                    {source.module}
+                  </Link>
+                ))}
+              </div>
             </div>
 
-            <div className="border-t border-white/10 bg-black/20 p-4 sm:p-6">
-              <div className="mb-4 flex flex-wrap gap-2">
-                {suggestedQuestions.map((question) => (
+            <div className="ia-hero-actions">
+              <button
+                type="button"
+                className="ia-gold-btn"
+                onClick={() => setRefreshToken((n) => n + 1)}
+                disabled={loading}
+              >
+                <RefreshCw size={15} className={loading ? "animate-spin" : undefined} />
+                Refresh Data
+              </button>
+              <button
+                type="button"
+                className="ia-secondary-btn"
+                onClick={() => router.push("/dashboard/analytics")}
+              >
+                <BarChart3 size={15} /> Open Impact Analytics
+              </button>
+              <button
+                type="button"
+                className="ia-secondary-btn"
+                onClick={() => router.push("/dashboard")}
+              >
+                <Home size={15} /> Dashboard
+              </button>
+            </div>
+          </header>
+
+          {error ? (
+            <div className="ai-error-banner" role="alert">
+              {error}{" "}
+              <button
+                type="button"
+                className="ml-2 font-bold underline"
+                onClick={() => setRefreshToken((n) => n + 1)}
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
+
+          {/* Executive Briefing */}
+          <section className="ia-panel" aria-label="Executive intelligence">
+            <div className="ia-panel-header">
+              <div>
+                <p className="ia-kicker">EXECUTIVE INTELLIGENCE</p>
+                <h2>Today&apos;s Organizational Briefing</h2>
+                <p>
+                  Insights generated from current HopeBridge organizational records.
+                </p>
+              </div>
+            </div>
+
+            {loading && !ctx ? (
+              <div className="px-6 py-8 text-sm text-[#607269]">
+                <Loader2 className="mb-2 inline animate-spin text-[#0d5f44]" size={18} />{" "}
+                Loading briefing from live modules…
+              </div>
+            ) : ctx ? (
+              <div className="ai-briefing-grid">
+                {ctx.briefing.map((card) => (
+                  <article key={card.id} className={`ai-briefing-card ${card.tone}`}>
+                    <h3>{card.title}</h3>
+                    <p>{card.body}</p>
+                    <button
+                      type="button"
+                      className="ia-ghost-btn self-start"
+                      onClick={() => router.push(card.href)}
+                    >
+                      {card.actionLabel}
+                    </button>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="px-6 py-8 text-sm text-[#607269]">
+                Briefing unavailable until organizational data can be loaded.
+              </div>
+            )}
+          </section>
+
+          <div className="ai-workspace">
+            {/* Strategic Conversation */}
+            <section className="ia-panel ai-chat-shell" aria-label="Strategic conversation">
+              <div className="ia-panel-header">
+                <div>
+                  <p className="ia-kicker">STRATEGIC CONVERSATION</p>
+                  <h2>Strategic Conversation</h2>
+                  <p>
+                    Ask questions grounded in HopeBridge campaigns, programs, donors,
+                    volunteers, beneficiaries, teams, and impact data.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="ia-ghost-btn"
+                  onClick={clearConversation}
+                  disabled={sending}
+                >
+                  <Eraser size={14} /> Clear Conversation
+                </button>
+              </div>
+
+              <div className="ai-messages" aria-live="polite">
+                {messages.length === 0 ? (
+                  <div className="ai-empty-chat">
+                    <BrainCircuit className="mx-auto text-[#0d5f44]" size={28} />
+                    <h3>Start with a nonprofit intelligence question</h3>
+                    <p>
+                      Use a suggested question below, or type your own. HopeBridge AI
+                      answers from connected organizational records — never invented totals.
+                    </p>
+                  </div>
+                ) : null}
+                {messages.map((message) => (
+                  <article
+                    key={message.id}
+                    className={`ai-message ${message.role}`}
+                  >
+                    <div className="ai-message-meta">
+                      <span>
+                        {message.role === "assistant" ? "HopeBridge AI" : "You"}
+                      </span>
+                      <time>{message.time}</time>
+                    </div>
+                    <MessageBody message={message} />
+                  </article>
+                ))}
+                {sending ? (
+                  <div className="ai-typing">
+                    <Loader2 className="mr-2 inline animate-spin" size={14} />
+                    Analyzing connected HopeBridge data…
+                  </div>
+                ) : null}
+                <div ref={messagesEndRef} />
+              </div>
+
+              <div className="ai-chips" aria-label="Suggested questions">
+                {SUGGESTED_QUESTIONS.map((question) => (
                   <button
                     key={question}
                     type="button"
-                    onClick={() => sendMessage(question)}
-                    disabled={isThinking}
-                    className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/65 transition hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="ai-chip-btn"
+                    disabled={sending || loading}
+                    onClick={() => void submitQuestion(question)}
                   >
                     {question}
                   </button>
                 ))}
               </div>
 
-              <form
-                onSubmit={handleSubmit}
-                className="flex flex-col gap-3 sm:flex-row"
-              >
-                <input
-                  value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  placeholder="Ask HopeBridge AI a strategic question..."
-                  className="min-h-14 flex-1 rounded-2xl border border-white/10 bg-[#080b0a] px-5 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-emerald-400/50 focus:ring-2 focus:ring-emerald-400/10"
-                />
+              {chatInfo ? (
+                <div className="mx-5 mb-3 rounded-xl border border-[#ebe3d2] bg-[#fcfbf8] px-4 py-3 text-sm text-[#607269]">
+                  {chatInfo}
+                </div>
+              ) : null}
 
-                <button
-                  type="submit"
-                  disabled={!input.trim() || isThinking}
-                  className="min-h-14 rounded-2xl bg-gradient-to-r from-emerald-400 to-cyan-400 px-7 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Send →
-                </button>
+              {chatError ? (
+                <div className="mx-5 mb-3 ai-error-banner" role="alert">
+                  {chatError}
+                </div>
+              ) : null}
+
+              <form className="ai-composer" onSubmit={onSubmit}>
+                <div className="ai-composer-row">
+                  <textarea
+                    ref={inputRef}
+                    value={input}
+                    onChange={(event) => setInput(event.target.value)}
+                    onKeyDown={onKeyDown}
+                    placeholder="Ask about campaigns, programs, beneficiaries, risks…"
+                    disabled={sending}
+                    rows={2}
+                    aria-label="Ask HopeBridge AI"
+                  />
+                  <button
+                    type="submit"
+                    className="ia-gold-btn shrink-0"
+                    disabled={sending || !input.trim() || loading}
+                  >
+                    {sending ? (
+                      <Loader2 size={15} className="animate-spin" />
+                    ) : (
+                      <Send size={15} />
+                    )}
+                    Send
+                  </button>
+                </div>
+                <div className="ai-composer-actions">
+                  <p className="text-xs text-[#607269]">
+                    {llmVerified
+                      ? `HopeBridge AI · Conversational AI active${llmModel ? ` · ${llmModel}` : ""} · Enter to send`
+                      : llmConfigured
+                        ? "HopeBridge AI · Fallback intelligence active · provider verification pending · Enter to send"
+                        : "HopeBridge AI · Fallback intelligence active · Enter to send · Shift+Enter for new line"}
+                  </p>
+                </div>
               </form>
+            </section>
 
-              <p className="mt-3 text-center text-[11px] text-white/25">
-                Responses are based on your organization&apos;s real HopeBridge data.
-              </p>
+            {/* Right panel */}
+            <aside className="ai-side-stack" aria-label="Intelligence panels">
+              <section className="ia-panel" aria-label="Priority and risk">
+                <div className="ia-panel-header">
+                  <div>
+                    <p className="ia-kicker">PRIORITY &amp; RISK</p>
+                    <h2>Organizational Alerts</h2>
+                    <p>
+                      Alerts explain why items were flagged using live campaign, program,
+                      and follow-up records.
+                    </p>
+                  </div>
+                </div>
+
+                {loading && !ctx ? (
+                  <div className="px-6 py-6 text-sm text-[#607269]">Loading alerts…</div>
+                ) : risks.length === 0 ? (
+                  <div className="px-6 py-6 text-sm text-[#607269]">
+                    No campaigns currently meet the risk criteria, and no program or
+                    follow-up alerts are flagged.
+                  </div>
+                ) : (
+                  <div className="ia-risk">
+                    {risks.map((risk) => (
+                      <article key={risk.id} className="ia-risk-item">
+                        <div>
+                          <span className={`ia-severity ${risk.severity}`}>
+                            {risk.severity}
+                          </span>
+                          <h3 className="mt-2">{risk.title}</h3>
+                          <p>{risk.detail}</p>
+                        </div>
+                        <button
+                          type="button"
+                          className="ia-ghost-btn"
+                          onClick={() => router.push(risk.href)}
+                        >
+                          {risk.actionLabel}
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="ia-panel" aria-label="Live organization snapshot">
+                <div className="ia-panel-header">
+                  <div>
+                    <p className="ia-kicker">LIVE ORGANIZATION SNAPSHOT</p>
+                    <h2>Current Metrics</h2>
+                    <p>Compact metrics from HopeBridge operational modules.</p>
+                  </div>
+                </div>
+
+                {loading && !ctx ? (
+                  <div className="px-6 py-6 text-sm text-[#607269]">Loading metrics…</div>
+                ) : ctx ? (
+                  <div className="ai-metric-grid">
+                    {ctx.liveMetrics.map((metric) => (
+                      <div key={metric.id} className="ai-metric" title={metric.note}>
+                        <span>{metric.label}</span>
+                        <strong>{metric.value}</strong>
+                        {!metric.available && metric.note ? (
+                          <em>{metric.note}</em>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="px-6 py-6 text-sm text-[#607269]">
+                    Snapshot unavailable.
+                  </div>
+                )}
+              </section>
+
+              <section className="ia-panel" aria-label="Data coverage">
+                <div className="ia-panel-header">
+                  <div>
+                    <p className="ia-kicker">DATA COVERAGE</p>
+                    <h2>Connected HopeBridge Modules</h2>
+                    <p>Coverage reflects actual records — not page existence.</p>
+                  </div>
+                </div>
+
+                {loading && !ctx ? (
+                  <div className="px-6 py-6 text-sm text-[#607269]">Checking coverage…</div>
+                ) : ctx ? (
+                  <div className="ai-coverage-list">
+                    {ctx.coverage.map((item) => (
+                      <div key={item.module} className="ai-coverage-row">
+                        <Link href={item.href}>{item.module}</Link>
+                        <div className="ai-coverage-meta">
+                          <strong className={item.state}>
+                            {coverageLabel(item.state)}
+                          </strong>
+                          <span>{item.detail}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+            </aside>
+          </div>
+
+          {/* Quick Analysis Actions */}
+          <section className="ia-panel" aria-label="Quick analysis actions">
+            <div className="ia-panel-header">
+              <div>
+                <p className="ia-kicker">QUICK ANALYSIS</p>
+                <h2>Nonprofit Intelligence Actions</h2>
+                <p>
+                  Each action asks HopeBridge AI a grounded nonprofit intelligence
+                  question.
+                </p>
+              </div>
+              <Sparkles className="text-[#d4af37]" size={20} />
+            </div>
+
+            <div className="ai-quick-grid">
+              {QUICK_ACTIONS.map((action) => (
+                <button
+                  key={action.id}
+                  type="button"
+                  className="ai-quick-btn"
+                  disabled={sending || loading}
+                  onClick={() => void submitQuestion(action.question)}
+                >
+                  {action.id === "fundraising" ? (
+                    <CircleDollarSign size={16} className="text-[#0d5f44]" />
+                  ) : null}
+                  {action.id === "programs" ? (
+                    <Target size={16} className="text-[#0d5f44]" />
+                  ) : null}
+                  {action.id === "beneficiaries" ? (
+                    <HandHeart size={16} className="text-[#0d5f44]" />
+                  ) : null}
+                  {action.id === "volunteers" ? (
+                    <UsersRound size={16} className="text-[#0d5f44]" />
+                  ) : null}
+                  {action.id === "risks" ? (
+                    <AlertTriangle size={16} className="text-[#0d5f44]" />
+                  ) : null}
+                  {action.id === "executive" ? (
+                    <Megaphone size={16} className="text-[#0d5f44]" />
+                  ) : null}
+                  {action.label}
+                </button>
+              ))}
             </div>
           </section>
-
-          <aside className="space-y-6">
-            <section className="rounded-[26px] border border-amber-400/20 bg-gradient-to-br from-amber-400/[0.09] to-orange-500/[0.04] p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
-                Priority risk
-              </p>
-
-              {attentionItems.length === 0 ? (
-                <>
-                  <h2 className="mt-3 text-xl font-semibold">No urgent risks</h2>
-                  <p className="mt-3 text-sm leading-6 text-white/50">
-                    No items need attention based on current records.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <h2 className="mt-3 text-xl font-semibold">{attentionItems[0].title}</h2>
-                  <p className="mt-3 text-sm leading-6 text-white/50">
-                    {attentionItems[0].detail}
-                  </p>
-                  <Link
-                    href={attentionItems[0].href}
-                    className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-3 text-sm font-bold text-black transition hover:brightness-110"
-                  >
-                    Review →
-                  </Link>
-                </>
-              )}
-            </section>
-
-            <section className="rounded-[26px] border border-white/10 bg-[#0d1110] p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
-                Live intelligence
-              </p>
-
-              <div className="mt-5 space-y-4">
-                {!snapshot ||
-                (snapshot.activeDonors === 0 &&
-                  snapshot.programsAtRisk === 0 &&
-                  snapshot.beneficiaryCount === 0) ? (
-                  <p className="text-sm text-white/40">
-                    No AI insights available yet. HopeBridge AI will generate insights when sufficient real data exists.
-                  </p>
-                ) : (
-                  <>
-                    {snapshot.activeDonors > 0 && (
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                        <p className="text-sm font-semibold">Donor portfolio</p>
-                        <p className="mt-2 text-xs leading-5 text-white/40">
-                          {snapshot.activeDonors} active donor{snapshot.activeDonors === 1 ? "" : "s"} on file.
-                        </p>
-                        <p className="mt-3 text-sm font-bold text-emerald-300">
-                          Raised: {formatCurrency(snapshot.fundsRaised)}
-                        </p>
-                      </div>
-                    )}
-                    {snapshot.programsAtRisk > 0 && (
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                        <p className="text-sm font-semibold">Program warning</p>
-                        <p className="mt-2 text-xs leading-5 text-white/40">
-                          {snapshot.programsAtRisk} program{snapshot.programsAtRisk === 1 ? "" : "s"} at risk.
-                        </p>
-                      </div>
-                    )}
-                    {snapshot.beneficiaryCount > 0 && (
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                        <p className="text-sm font-semibold">Community reach</p>
-                        <p className="mt-2 text-xs leading-5 text-white/40">
-                          {snapshot.beneficiaryCount} beneficiar{snapshot.beneficiaryCount === 1 ? "y" : "ies"} enrolled.
-                        </p>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </section>
-
-            <section className="rounded-[26px] border border-emerald-400/20 bg-emerald-400/[0.06] p-6">
-              <p className="text-sm font-semibold text-emerald-300">
-                Connected modules
-              </p>
-
-              <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-white/55">
-                {[
-                  "Campaigns",
-                  "Programs",
-                  "Donors",
-                  "Volunteers",
-                  "Beneficiaries",
-                  "Teams",
-                  "Reports",
-                  "Analytics",
-                ].map((module) => (
-                  <div
-                    key={module}
-                    className="rounded-xl border border-white/10 bg-black/20 px-3 py-3"
-                  >
-                    <span className="mr-2 text-emerald-300">●</span>
-                    {module}
-                  </div>
-                ))}
-              </div>
-            </section>
-          </aside>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
-

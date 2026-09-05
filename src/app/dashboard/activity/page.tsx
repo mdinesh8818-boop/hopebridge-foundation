@@ -24,7 +24,7 @@ export default function OrganizationActivityPage() {
 
   return (
     <div className="flex min-h-screen bg-[#f8f6ef]">
-      <HopeBridgeSidebar activePath="/dashboard" />
+      <HopeBridgeSidebar activePath="/dashboard/activity" />
       <main className="flex-1 p-6 md:p-8 md:ml-[284px]">
         <div className="mb-6 flex items-center gap-3 text-sm text-[#6a7a72]">
           <Home size={16} className="text-[#0b7754]" />

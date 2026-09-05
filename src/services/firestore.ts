@@ -2,6 +2,7 @@ import {
   collection,
   addDoc,
   getDocs,
+  getDoc,
   doc,
   updateDoc,
   deleteDoc,
@@ -58,6 +59,19 @@ export async function getDocuments(collectionName: string) {
   const snapshot = await getDocs(collection(db, collectionName));
 
   return mapSnapshotDocs(snapshot);
+}
+
+/** Read a single document by id — preferred when rules allow get but not list. */
+export async function getDocument(
+  collectionName: string,
+  id: string,
+): Promise<FirestoreRecord | null> {
+  const snapshot = await getDoc(doc(db, collectionName, id));
+  if (!snapshot.exists()) return null;
+  return {
+    ...(snapshot.data() as Record<string, unknown>),
+    id: snapshot.id,
+  };
 }
 
 export function subscribeDocuments(
