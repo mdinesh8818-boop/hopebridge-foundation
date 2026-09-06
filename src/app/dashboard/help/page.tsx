@@ -156,10 +156,11 @@ const helpTopics: HelpTopic[] = [
     title: "Teams",
     section: "Teams",
     icon: Users,
-    summary: "Organize staff and volunteer teams across the foundation.",
+    summary: "Review team structure, members, assignments, and workload.",
     steps: [
-      "Open Teams to review team structure and assignments.",
-      "Use team records to coordinate responsibilities across modules.",
+      "Open Teams to review active teams, members, and open assignments.",
+      "Use Overview KPIs and Team Workspace cards — both use the same normalized records.",
+      "Add or edit teams, members, and assignments; seeded duplicates are counted once on read.",
     ],
   },
   {
@@ -178,12 +179,12 @@ const helpTopics: HelpTopic[] = [
     title: "AI Assistant",
     section: "AI Assistant",
     icon: BrainCircuit,
-    summary: "Use HopeBridge AI for strategic recommendations and operational guidance.",
+    summary: "Ask questions about HopeBridge records and get concise, data-backed answers.",
     steps: [
       "Open AI Assistant from the Intelligence group.",
-      "Review the executive briefing and organizational alerts from live records.",
-      "Ask questions in Strategic Conversation — responses stay grounded in HopeBridge data.",
-      "Use connected data source chips to jump to Campaigns, Programs, Donors, and other modules.",
+      "Review the briefing cards and connected data sources from live modules.",
+      "Ask about campaigns, programs, teams, donors, volunteers, or beneficiaries.",
+      "Use connected data chips to open the related module when you need detail.",
     ],
   },
   {

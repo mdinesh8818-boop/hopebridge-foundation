@@ -1,4 +1,5 @@
 import { getDocuments } from "./firestore";
+import { loadNormalizedTeamsBundle } from "./teamsNormalization";
 import { fetchAttentionItems, type AttentionItem, type OrganizationSnapshot } from "./organizationMetrics";
 
 export type SearchResult = {
@@ -99,7 +100,7 @@ export async function searchOrganizationRecords(
   const q = query.trim().toLowerCase();
   if (!q) return [];
 
-  const [campaigns, programs, donors, volunteers, beneficiaries, teams] =
+  const [campaigns, programs, donors, volunteers, beneficiaries, teamsBundle] =
     await Promise.all([
       getDocuments("campaigns") as Promise<
         { id: string; name?: string; category?: string; owner?: string }[]
@@ -116,10 +117,13 @@ export async function searchOrganizationRecords(
       getDocuments("beneficiaries") as Promise<
         { id: string; name?: string; beneficiaryId?: string; program?: string; location?: string }[]
       >,
-      getDocuments("teams") as Promise<
-        { id: string; name?: string; department?: string }[]
-      >,
+      loadNormalizedTeamsBundle(),
     ]);
+  const teams = teamsBundle.canonicalTeams.map((team) => ({
+    id: team.id,
+    name: team.name,
+    department: team.department,
+  }));
 
   const results: SearchResult[] = [];
 

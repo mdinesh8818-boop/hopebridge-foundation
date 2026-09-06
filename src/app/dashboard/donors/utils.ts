@@ -401,6 +401,6 @@ export function computeAiInsight(donors: DonorRecord[]): {
   return {
     title: "Donor portfolio growing",
     body: `${donors.length} donor record${donors.length === 1 ? "" : "s"} on file.`,
-    recommendation: "Continue recording gifts to unlock trend analysis.",
+    recommendation: "Continue recording gifts to improve trend analysis.",
   };
 }

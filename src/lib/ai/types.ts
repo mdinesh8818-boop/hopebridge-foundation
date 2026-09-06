@@ -65,6 +65,17 @@ export type HopeBridgeAiContextPayload = {
     topLocations: { name: string; beneficiaries: number; programs: number }[];
   };
   attention: { title: string; detail: string; priority: string }[];
+  /** Canonical teams after seeded-duplicate normalization. */
+  teams: {
+    id: string;
+    name: string;
+    status: string;
+    department: string;
+    leadName: string;
+    memberCount: number;
+    capacity: number;
+    openAssignments: number;
+  }[];
 };
 
 export type AiChatSuccessResponse = {

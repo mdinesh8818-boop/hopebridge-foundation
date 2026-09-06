@@ -1,4 +1,3 @@
-import { getDocuments } from "./firestore";
 import {
   fetchImpactIntelligence,
   formatAnalyticsCurrency,
@@ -62,6 +61,17 @@ export type AiOrgContext = {
   briefing: AiBriefingCard[];
   coverage: AiDataCoverage[];
   liveMetrics: AiSnapshotMetric[];
+  /** Canonical teams after seeded-duplicate normalization (same as Teams module). */
+  teams: {
+    id: string;
+    name: string;
+    status: string;
+    department: string;
+    leadName: string;
+    memberCount: number;
+    capacity: number;
+    openAssignments: number;
+  }[];
   loadedAt: string;
 };
 
@@ -130,10 +140,10 @@ function buildCoverage(
     {
       module: "Teams",
       href: "/dashboard/teams",
-      state: coverageState(teamCount || snapshot.activeTeams),
+      state: coverageState(teamCount),
       detail:
-        (teamCount || snapshot.activeTeams) > 0
-          ? `${teamCount || snapshot.activeTeams} team record${(teamCount || snapshot.activeTeams) === 1 ? "" : "s"}`
+        teamCount > 0
+          ? `${snapshot.activeTeams} active · ${teamCount} team${teamCount === 1 ? "" : "s"}`
           : "No team records",
     },
     {
@@ -286,6 +296,12 @@ function buildLiveMetrics(
       available: true,
     },
     {
+      id: "active-teams",
+      label: "Active Teams",
+      value: formatAnalyticsNumber(snapshot.activeTeams),
+      available: true,
+    },
+    {
       id: "funds-raised",
       label: "Funds Raised",
       value: formatCurrency(snapshot.fundsRaised),
@@ -314,16 +330,21 @@ function buildLiveMetrics(
 
 export async function loadAiOrgContext(): Promise<AiOrgContext> {
   const { fetchDashboardOrganizationData } = await import("./organizationSnapshot");
+  const { loadNormalizedTeamsBundle } = await import("./teamsNormalization");
 
-  const [dashboard, impact, teams] = await Promise.all([
+  const [dashboard, impact, teamsBundle] = await Promise.all([
     fetchDashboardOrganizationData(),
     fetchImpactIntelligence(),
-    getDocuments("teams") as Promise<{ id: string; status?: string }[]>,
+    loadNormalizedTeamsBundle(),
   ]);
 
-  const snapshot = dashboard.snapshot;
+  // Prefer Teams integrity counts so AI never double-counts seeded duplicates.
+  const snapshot = {
+    ...dashboard.snapshot,
+    activeTeams: teamsBundle.activeTeams,
+  };
   const attention = dashboard.attentionItems;
-  const teamCount = teams.length;
+  const teamCount = teamsBundle.teamCount;
 
   return {
     snapshot,
@@ -332,6 +353,16 @@ export async function loadAiOrgContext(): Promise<AiOrgContext> {
     briefing: buildBriefing(snapshot, impact),
     coverage: buildCoverage(snapshot, impact, teamCount),
     liveMetrics: buildLiveMetrics(snapshot, impact),
+    teams: teamsBundle.canonicalTeams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      status: team.status,
+      department: team.department,
+      leadName: team.leadName,
+      memberCount: team.memberCount,
+      capacity: team.capacity,
+      openAssignments: team.openAssignments,
+    })),
     loadedAt: new Date().toISOString(),
   };
 }
@@ -349,6 +380,7 @@ type Intent =
   | "priorities"
   | "executive_summary"
   | "organization_summary"
+  | "teams"
   | "general"
   | "unknown";
 
@@ -485,6 +517,21 @@ function detectIntent(question: string): Intent {
   }
   if (q.includes("volunteer")) {
     return looksOrganizational(q) ? "volunteers" : "general";
+  }
+  if (
+    q.includes("how many teams") ||
+    q.includes("how many active teams") ||
+    q.includes("active teams") ||
+    q.includes("list each team") ||
+    q.includes("list the teams") ||
+    q.includes("list each team name") ||
+    (q.includes("team") &&
+      (q.includes("how many") ||
+        q.includes("list") ||
+        q.includes("names") ||
+        q.includes("total")))
+  ) {
+    return "teams";
   }
   if (
     q.includes("geographic") ||
@@ -1043,11 +1090,47 @@ function answerExecutiveSummary(ctx: AiOrgContext): AiAnswer {
   ]);
 }
 
+function answerTeams(ctx: AiOrgContext): AiAnswer {
+  const active = ctx.teams.filter((team) => team.status === "Active");
+  const list = active.length > 0 ? active : ctx.teams;
+
+  if (list.length === 0) {
+    return {
+      text: "No teams are currently recorded in HopeBridge.",
+      sections: [],
+    };
+  }
+
+  const lines = list.map(
+    (team, index) =>
+      `${index + 1}. ${team.name}${team.leadName ? ` — lead: ${team.leadName}` : ""}`,
+  );
+
+  // Simple factual answers stay conversational (no robotic FACT/OBSERVATION blocks).
+  const text = [
+    `There are currently ${list.length} active team${list.length === 1 ? "" : "s"}:`,
+    ...lines,
+    "",
+    `Total: ${list.length}.`,
+  ].join("\n");
+
+  return { text, sections: [] };
+}
+
 function answerOrganizationSummary(ctx: AiOrgContext): AiAnswer {
+  const teamNames = ctx.teams
+    .filter((team) => team.status === "Active")
+    .map((team) => team.name)
+    .filter(Boolean);
+  const teamClause =
+    teamNames.length > 0
+      ? `${teamNames.length} active teams (${teamNames.join(", ")})`
+      : `${ctx.snapshot.activeTeams} active teams`;
+
   return formatAnswer([
     {
       heading: "FACT",
-      body: `HopeBridge currently shows ${ctx.snapshot.activeCampaigns} active campaigns, ${ctx.snapshot.activePrograms} active/planning programs, ${ctx.snapshot.activeDonors} active donors, ${ctx.snapshot.volunteerCount} volunteers, ${ctx.snapshot.beneficiaryCount} beneficiaries, and ${ctx.snapshot.activeTeams} active teams. Funds raised: ${formatCurrency(ctx.snapshot.fundsRaised)}.`,
+      body: `HopeBridge currently shows ${ctx.snapshot.activeCampaigns} active campaigns, ${ctx.snapshot.activePrograms} active/planning programs, ${ctx.snapshot.activeDonors} active donors, ${ctx.snapshot.volunteerCount} volunteers, ${ctx.snapshot.beneficiaryCount} beneficiaries, and ${teamClause}. Funds raised: ${formatCurrency(ctx.snapshot.fundsRaised)}.`,
     },
     {
       heading: "OBSERVATION",
@@ -1055,7 +1138,7 @@ function answerOrganizationSummary(ctx: AiOrgContext): AiAnswer {
     },
     {
       heading: "AI RECOMMENDATION",
-      body: "Ask a focused question (campaigns, programs, beneficiaries, volunteers, priorities) or generate an executive summary. This is advisory only.",
+      body: "Ask a focused question (campaigns, programs, beneficiaries, volunteers, teams, priorities) or generate an executive summary. This is advisory only.",
     },
     {
       heading: "DATA CONSIDERED",
@@ -1094,6 +1177,8 @@ export function answerOrganizationalQuestion(
     ctx.snapshot.volunteerCount > 0 ||
     ctx.snapshot.fundsRaised > 0 ||
     ctx.snapshot.activeDonors > 0 ||
+    ctx.snapshot.activeTeams > 0 ||
+    ctx.teams.length > 0 ||
     ctx.impact.programs.length > 0;
 
   if (!hasData) {
@@ -1132,6 +1217,8 @@ export function answerOrganizationalQuestion(
       return answerPriorities(ctx);
     case "executive_summary":
       return answerExecutiveSummary(ctx);
+    case "teams":
+      return answerTeams(ctx);
     case "organization_summary":
       return answerOrganizationSummary(ctx);
     default:
@@ -1149,6 +1236,7 @@ export const SUGGESTED_QUESTIONS = [
   "Where is our community reach strongest?",
   "Summarize volunteer participation.",
   "What should leadership prioritize?",
+  "How many active teams do we currently have? List each team name and tell me the total.",
   "Compare funding with beneficiary impact.",
 ] as const;
 

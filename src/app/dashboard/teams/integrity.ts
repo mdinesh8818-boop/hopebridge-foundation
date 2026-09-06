@@ -475,7 +475,7 @@ function buildTeamIntelligence(
       teamName: "Teams",
       headline: "No team data available yet.",
       detail:
-        "Create a team or add assignments to unlock HopeBridge Team Intelligence.",
+        "Create a team or add assignments to see capacity and workload guidance.",
       capacity: 0,
       openAssignments: 0,
       overloadedCount: 0,

@@ -17,6 +17,7 @@ import {
   setDocument,
   updateDocument,
 } from "./firestore";
+import { loadNormalizedTeamsBundle } from "./teamsNormalization";
 
 const MISSION_VISION_DOC_ID = "foundation";
 const LEGACY_MISSION_KEY = "hopebridge-mission-vision";
@@ -307,10 +308,10 @@ async function loadStrategicGoals(): Promise<StrategicGoalRecord[]> {
 }
 
 async function loadLinkables() {
-  const [programs, campaigns, teams] = await Promise.all([
+  const [programs, campaigns, teamsBundle] = await Promise.all([
     getDocuments("programs") as Promise<{ id: string; name?: string }[]>,
     getDocuments("campaigns") as Promise<{ id: string; name?: string }[]>,
-    getDocuments("teams") as Promise<{ id: string; name?: string }[]>,
+    loadNormalizedTeamsBundle(),
   ]);
 
   return {
@@ -322,10 +323,10 @@ async function loadLinkables() {
       .filter((record) => record.name)
       .map((record) => ({ id: record.id, name: record.name! }))
       .sort((a, b) => a.name.localeCompare(b.name)),
-    teams: teams
-      .filter((record) => record.name)
-      .map((record) => ({ id: record.id, name: record.name! }))
-      .sort((a, b) => a.name.localeCompare(b.name)),
+    teams: teamsBundle.canonicalTeams.map((team) => ({
+      id: team.id,
+      name: team.name,
+    })),
   };
 }
 

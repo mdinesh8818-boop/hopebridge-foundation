@@ -13,6 +13,7 @@ import {
   buildDashboardNotifications,
   type DashboardNotification,
 } from "./notifications";
+import { loadNormalizedTeamsBundle } from "./teamsNormalization";
 
 export type { DashboardNotification };
 
@@ -690,7 +691,7 @@ export async function fetchDashboardOrganizationData(): Promise<DashboardOrganiz
     donors,
     volunteers,
     beneficiaries,
-    teams,
+    teamsBundle,
     donations,
     activities,
   ] = await Promise.all([
@@ -699,10 +700,17 @@ export async function fetchDashboardOrganizationData(): Promise<DashboardOrganiz
     getDocuments("donors") as Promise<DonorDoc[]>,
     getDocuments("volunteers") as Promise<VolunteerDoc[]>,
     getDocuments("beneficiaries") as Promise<BeneficiaryDoc[]>,
-    getDocuments("teams") as Promise<{ id: string; status?: string }[]>,
+    loadNormalizedTeamsBundle(),
     getDocuments("donations") as Promise<DonationDoc[]>,
     getDocuments("activities") as Promise<ActivityRecord[]>,
   ]);
+
+  // Use Teams integrity normalization so Dashboard/AI agree with /dashboard/teams.
+  const teams = teamsBundle.teams.map((team) => ({
+    id: team.id,
+    status: team.status,
+    name: team.name,
+  }));
 
   const snapshot = computeSnapshot(
     campaigns,
