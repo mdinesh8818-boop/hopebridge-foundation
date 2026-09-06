@@ -108,3 +108,50 @@ export function isKnownDemoActivityDescription(description?: string): boolean {
     description.includes(name),
   );
 }
+
+/** teams/data.ts INITIAL_TEAMS — opt-in cleanup / integrity fingerprints only */
+export const DEMO_TEAM_NAMES = new Set([
+  "Programs & Impact",
+  "Community Outreach",
+  "Fundraising & Partnerships",
+  "Operations",
+  "Finance & Compliance",
+  "Leadership",
+]);
+
+export const DEMO_TEAM_MEMBER_EMAILS = new Set([
+  "maya.patel@hopebridge.org",
+  "daniel.brooks@hopebridge.org",
+  "sarah.chen@hopebridge.org",
+  "james.okonkwo@hopebridge.org",
+  "priya.sharma@hopebridge.org",
+  "elena.vasquez@hopebridge.org",
+  "marcus.wright@hopebridge.org",
+  "aisha.rahman@hopebridge.org",
+]);
+
+export const DEMO_TEAM_ASSIGNMENT_TITLES = new Set([
+  "Q3 Impact Metrics Review",
+  "Food Distribution Coordination",
+  "Grant Proposal Draft — Riverside",
+  "August Beneficiary Follow-Up Review",
+  "Vendor Contract Renewal",
+]);
+
+export function isKnownDemoTeam(record: { name?: string }): boolean {
+  return Boolean(record.name && DEMO_TEAM_NAMES.has(record.name));
+}
+
+export function isKnownDemoTeamMember(record: {
+  name?: string;
+  email?: string;
+}): boolean {
+  if (record.email && DEMO_TEAM_MEMBER_EMAILS.has(record.email.toLowerCase())) {
+    return true;
+  }
+  return false;
+}
+
+export function isKnownDemoTeamAssignment(record: { title?: string }): boolean {
+  return Boolean(record.title && DEMO_TEAM_ASSIGNMENT_TITLES.has(record.title));
+}

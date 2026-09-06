@@ -1,3 +1,7 @@
+import {
+  isOpenAssignment,
+  normalizeAssignmentStatus,
+} from "./integrity";
 import type {
   DateInput,
   DirectoryFilters,
@@ -81,13 +85,13 @@ export function calculateKpis(
 ) {
   const activeTeams = teams.filter((t) => t.status === "Active").length;
   const teamMembers = members.length;
-  const openAssignments = assignments.filter((a) => a.status !== "Completed").length;
+  const openAssignments = assignments.filter((a) => isOpenAssignment(a)).length;
   const workloadAlerts = members.filter((m) => m.workload >= 85).length;
   return { activeTeams, teamMembers, openAssignments, workloadAlerts };
 }
 
 export function getTeamAssignmentCount(teamId: string, assignments: TeamAssignment[]) {
-  return assignments.filter((a) => a.teamId === teamId && a.status !== "Completed").length;
+  return assignments.filter((a) => a.teamId === teamId && isOpenAssignment(a)).length;
 }
 
 export function getCapacityClass(capacity: number) {
@@ -137,7 +141,7 @@ export function buildRebalanceSuggestions(
 ): RebalanceSuggestion[] {
   const teamMembers = members.filter((m) => team.memberIds.includes(m.id));
   const teamAssignments = assignments.filter(
-    (a) => a.teamId === team.id && a.status !== "Completed",
+    (a) => a.teamId === team.id && isOpenAssignment(a),
   );
   const overloaded = teamMembers.filter((m) => m.workload >= 80);
   const available = teamMembers.filter((m) => m.workload < 70);
@@ -191,7 +195,7 @@ export function recalculateMemberWorkload(
   members: TeamMember[],
 ): number {
   const count = assignments.filter(
-    (a) => a.ownerId === memberId && a.status !== "Completed",
+    (a) => a.ownerId === memberId && isOpenAssignment(a),
   ).length;
   const base = 40 + count * 8;
   return Math.min(98, base);
@@ -215,7 +219,7 @@ export function updateMembersWorkload(
   return members.map((m) => ({
     ...m,
     assignmentCount: assignments.filter(
-      (a) => a.ownerId === m.id && a.status !== "Completed",
+      (a) => a.ownerId === m.id && isOpenAssignment(a),
     ).length,
     workload: recalculateMemberWorkload(m.id, assignments, members),
   }));
@@ -251,9 +255,7 @@ function coerceTeamStatus(value: unknown): TeamStatus {
 }
 
 function coerceAssignmentStatus(value: unknown): AssignmentStatus {
-  const status = coerceString(value, "To Do");
-  const allowed: AssignmentStatus[] = ["To Do", "In Progress", "In Review", "Completed"];
-  return allowed.includes(status as AssignmentStatus) ? (status as AssignmentStatus) : "To Do";
+  return normalizeAssignmentStatus(value);
 }
 
 function coerceAssignmentPriority(value: unknown): AssignmentPriority {
