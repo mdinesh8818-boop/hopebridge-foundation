@@ -51,7 +51,6 @@ import type {
 } from "./types";
 import {
   buildRebalanceSuggestions,
-  calculateKpis,
   filterMembers,
   formatDate,
   formatRelativeTime,
@@ -67,9 +66,8 @@ import {
   searchTeams,
   sortActivity,
   toTeamWriteData,
-  updateMembersWorkload,
-  updateTeamsCapacity,
 } from "./utils";
+import { buildTeamsWorkspaceModel } from "./integrity";
 import { useModuleCreateAction } from "@/hooks/useModuleCreateAction";
 import "./teams.css";
 
@@ -233,22 +231,18 @@ export default function TeamsPage() {
     };
   }, [user]);
 
-  const membersWithWorkload = useMemo(
-    () => updateMembersWorkload(members, assignments),
-    [members, assignments],
+  const workspace = useMemo(
+    () => buildTeamsWorkspaceModel(teams, members, assignments),
+    [teams, members, assignments],
   );
 
-  const teamsWithCapacity = useMemo(
-    () => updateTeamsCapacity(teams, membersWithWorkload),
-    [teams, membersWithWorkload],
-  );
+  const membersWithWorkload = workspace.members;
+  const teamsWithCapacity = workspace.teams;
+  const normalizedAssignments = workspace.assignments;
+  const kpis = workspace.kpis;
+  const teamIntelligence = workspace.intelligence;
 
   useModuleCreateAction(useCallback(() => setIsCreateTeamOpen(true), []));
-
-  const kpis = useMemo(
-    () => calculateKpis(teamsWithCapacity, membersWithWorkload, assignments),
-    [teamsWithCapacity, membersWithWorkload, assignments],
-  );
 
   const filteredTeams = useMemo(() => {
     const list = searchTeams(teamsWithCapacity, membersWithWorkload, heroSearch);
@@ -263,10 +257,20 @@ export default function TeamsPage() {
   );
 
   const visibleActivity = showAllActivity ? activity : activity.slice(0, 5);
-  const outreachTeam = teamsWithCapacity.find((t) => t.name === "Community Outreach") ?? teamsWithCapacity[0];
+  const outreachTeam =
+    teamsWithCapacity.find((t) => t.id === teamIntelligence.teamId) ??
+    teamsWithCapacity.find((t) => t.name === teamIntelligence.teamName) ??
+    teamsWithCapacity[0];
   const rebalanceSuggestions = useMemo(
-    () => (outreachTeam ? buildRebalanceSuggestions(outreachTeam, membersWithWorkload, assignments) : []),
-    [outreachTeam, membersWithWorkload, assignments],
+    () =>
+      outreachTeam
+        ? buildRebalanceSuggestions(
+            outreachTeam,
+            membersWithWorkload,
+            normalizedAssignments,
+          )
+        : [],
+    [outreachTeam, membersWithWorkload, normalizedAssignments],
   );
 
   const scrollToWorkspace = useCallback(() => {
@@ -406,7 +410,7 @@ export default function TeamsPage() {
   async function handleDeleteTeam(teamId: string) {
     setSaving(true);
     try {
-      const teamAssignments = assignments.filter((assignment) => assignment.teamId === teamId);
+      const teamAssignments = normalizedAssignments.filter((assignment) => assignment.teamId === teamId);
       const teamDiscussions = discussions.filter((discussion) => discussion.teamId === teamId);
       const teamMeetings = meetings.filter((meeting) => meeting.teamId === teamId);
 
@@ -769,7 +773,7 @@ export default function TeamsPage() {
                           <h3 className="mt-1 font-serif text-lg font-bold text-[#022c22]">{team.name}</h3>
                           <p className="mt-2 text-sm text-[#65766e]">Lead: {team.leadName}</p>
                           <p className="text-sm text-[#65766e]">
-                            {team.memberIds.length} Members · {getTeamAssignmentCount(team.id, assignments)} Active Assignments
+                            {team.memberIds.length} Members · {getTeamAssignmentCount(team.id, normalizedAssignments)} Active Assignments
                           </p>
                           <p className="text-sm text-[#65766e]">Next Deadline: {formatDate(team.nextDeadline ?? "")}</p>
                           <div className="mt-3">
@@ -821,10 +825,9 @@ export default function TeamsPage() {
                         <BrainCircuit size={18} className="text-[#f1ce55]" />
                         <p className="text-[10px] font-extrabold tracking-[0.14em] text-[#f1ce55]">HOPEBRIDGE AI · TEAM INTELLIGENCE</p>
                       </div>
-                      <h3 className="mt-3 font-serif text-lg font-bold">Community Outreach is approaching capacity.</h3>
+                      <h3 className="mt-3 font-serif text-lg font-bold">{teamIntelligence.headline}</h3>
                       <p className="mt-2 text-sm text-[rgba(255,250,240,.72)]">
-                        Three team members currently hold 64% of the team&apos;s active assignments,
-                        while two members have available capacity.
+                        {teamIntelligence.detail}
                       </p>
                       <div className="mt-4 flex flex-wrap gap-2">
                         <button type="button" className="tm-gold-btn text-sm" onClick={() => { setWorkspaceTab("directory"); scrollToWorkspace(); }}>
@@ -918,7 +921,7 @@ export default function TeamsPage() {
                     </button>
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
-                    {assignments.map((a) => (
+                    {normalizedAssignments.map((a) => (
                       <div key={a.id} className="tm-assignment-card">
                         <div className="flex items-start justify-between gap-2">
                           <p className="font-semibold text-[#18392e]">{a.title}</p>
@@ -1050,7 +1053,7 @@ export default function TeamsPage() {
         <TeamDetailDrawer
           team={selectedTeam}
           members={membersWithWorkload}
-          assignments={assignments}
+          assignments={normalizedAssignments}
           discussions={discussions}
           meetings={meetings}
           onClose={() => setSelectedTeam(null)}
@@ -1070,7 +1073,7 @@ export default function TeamsPage() {
       {selectedMember && (
         <MemberProfileDrawer
           member={selectedMember}
-          assignments={assignments}
+          assignments={normalizedAssignments}
           teamNames={teamsWithCapacity.filter((t) => selectedMember.teamIds.includes(t.id)).map((t) => t.name)}
           onClose={() => setSelectedMember(null)}
         />
@@ -1123,7 +1126,7 @@ export default function TeamsPage() {
       {rebalanceTeam && (
         <RebalancePanel
           teamName={rebalanceTeam.name}
-          suggestions={buildRebalanceSuggestions(rebalanceTeam, membersWithWorkload, assignments)}
+          suggestions={buildRebalanceSuggestions(rebalanceTeam, membersWithWorkload, normalizedAssignments)}
           onClose={() => setRebalanceTeam(null)}
           onConfirm={handleRebalanceConfirm}
         />
