@@ -1,0 +1,204 @@
+rules_version = '2';
+
+// HopeBridge Foundation — organization access control
+// Deploy with Firebase CLI or Console after merge. Not applied automatically by Vercel.
+//
+// Model:
+// - Firebase Auth proves identity
+// - userProfiles/{uid} proves HopeBridge membership + status + role
+// - Operational data requires status == "active" and organizationId == "hopebridge"
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function hopebridgeOrgId() {
+      return "hopebridge";
+    }
+
+    function profilePath() {
+      return /databases/$(database)/documents/userProfiles/$(request.auth.uid);
+    }
+
+    function hasProfile() {
+      return isSignedIn() && exists(profilePath());
+    }
+
+    function profile() {
+      return get(profilePath()).data;
+    }
+
+    function isActiveMember() {
+      return hasProfile()
+        && profile().status == "active"
+        && profile().organizationId == hopebridgeOrgId();
+    }
+
+    function isAdmin() {
+      return isActiveMember() && profile().role == "admin";
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function accessControlMetaPath() {
+      return /databases/$(database)/documents/appMetadata/accessControl;
+    }
+
+    function hasAccessControlMeta() {
+      return exists(accessControlMetaPath());
+    }
+
+    function bootstrapAdminEmails() {
+      return hasAccessControlMeta()
+        ? get(accessControlMetaPath()).data.get("bootstrapAdminEmails", [])
+        : [];
+    }
+
+    function isBootstrapAdminEmail() {
+      return isSignedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email in bootstrapAdminEmails();
+    }
+
+    function validRole(role) {
+      return role in ["admin", "manager", "member"];
+    }
+
+    function validStatus(status) {
+      return status in ["pending", "active", "disabled"];
+    }
+
+    function pendingSelfCreate() {
+      return request.resource.data.uid == request.auth.uid
+        && request.resource.data.email is string
+        && request.resource.data.organizationId == hopebridgeOrgId()
+        && request.resource.data.role == "member"
+        && request.resource.data.status == "pending";
+    }
+
+    function legacyActiveSelfCreate() {
+      return request.resource.data.uid == request.auth.uid
+        && request.resource.data.email is string
+        && request.resource.data.organizationId == hopebridgeOrgId()
+        && validRole(request.resource.data.role)
+        && request.resource.data.status == "active"
+        && request.resource.data.legacyBackfill == true
+        && (
+          exists(/databases/$(database)/documents/userSettings/$(request.auth.uid))
+          || isBootstrapAdminEmail()
+        )
+        && (
+          request.resource.data.role != "admin"
+          || isBootstrapAdminEmail()
+        );
+    }
+
+    function protectedFieldsUnchanged() {
+      return request.resource.data.role == resource.data.role
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.organizationId == resource.data.organizationId
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.get("approvedAt", null) == resource.data.get("approvedAt", null)
+        && request.resource.data.get("approvedBy", null) == resource.data.get("approvedBy", null)
+        && request.resource.data.get("disabledAt", null) == resource.data.get("disabledAt", null)
+        && request.resource.data.get("disabledBy", null) == resource.data.get("disabledBy", null)
+        && request.resource.data.get("legacyBackfill", false) == resource.data.get("legacyBackfill", false);
+    }
+
+    // --- Access control ---
+
+    match /userProfiles/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId)
+        && (pendingSelfCreate() || legacyActiveSelfCreate());
+      allow update: if (isOwner(userId) && protectedFieldsUnchanged())
+        || (isAdmin()
+            && request.resource.data.uid == resource.data.uid
+            && request.resource.data.organizationId == hopebridgeOrgId()
+            && validRole(request.resource.data.role)
+            && validStatus(request.resource.data.status));
+      allow delete: if false;
+    }
+
+    match /userSettings/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if false;
+      allow create, update, delete: if isOwner(userId) && isActiveMember();
+    }
+
+    match /appMetadata/{docId} {
+      // accessControl bootstrap list is readable to signed-in users for first-admin backfill.
+      allow get: if isSignedIn() && docId == "accessControl";
+      allow get: if isActiveMember();
+      allow list: if isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /organizationProfile/{docId} {
+      allow get, list: if isActiveMember();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // --- Operational collections (active HopeBridge members only) ---
+
+    match /campaigns/{id} {
+      allow read, write: if isActiveMember();
+    }
+    match /programs/{id} {
+      allow read, write: if isActiveMember();
+    }
+    match /donors/{id} {
+      allow read, write: if isActiveMember();
+    }
+    match /donations/{id} {
+      allow read, write: if isActiveMember();
+    }
+    match /volunteers/{id} {
+      allow read, write: if isActiveMember();
+    }
+    match /beneficiaries/{id} {
+      allow read, write: if isActiveMember();
+    }
+    match /beneficiaryActivity/{id} {
+      allow read, write: if isActiveMember();
+    }
+    match /teams/{id} {
+      allow read, write: if isActiveMember();
+    }
+    match /teamMembers/{id} {
+      allow read, write: if isActiveMember();
+    }
+    match /teamAssignments/{id} {
+      allow read, write: if isActiveMember();
+    }
+    match /teamDiscussions/{id} {
+      allow read, write: if isActiveMember();
+    }
+    match /teamMeetings/{id} {
+      allow read, write: if isActiveMember();
+    }
+    match /teamActivity/{id} {
+      allow read, write: if isActiveMember();
+    }
+    match /activities/{id} {
+      allow read, write: if isActiveMember();
+    }
+    match /missionVision/{id} {
+      allow read, write: if isActiveMember();
+    }
+    match /coreValues/{id} {
+      allow read, write: if isActiveMember();
+    }
+    match /strategicGoals/{id} {
+      allow read, write: if isActiveMember();
+    }
+  }
+}

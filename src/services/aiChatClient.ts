@@ -5,6 +5,7 @@ import type {
   HopeBridgeAiContextPayload,
 } from "@/lib/ai/types";
 import { parseAssistantSections } from "@/lib/ai/parseSections";
+import { auth } from "@/app/lib/firebase";
 import type { AiAnswer } from "./aiIntelligence";
 
 export type AiChatClientResult =
@@ -30,17 +31,32 @@ export type AiChatClientResult =
       };
     };
 
+async function getAuthorizationHeaders(): Promise<HeadersInit> {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error("Your session has expired. Please sign in again.");
+  }
+  const idToken = await user.getIdToken();
+  return {
+    Authorization: `Bearer ${idToken}`,
+  };
+}
+
 export async function fetchAiAssistantStatus(options?: {
   verify?: boolean;
 }): Promise<AiAssistantStatusResponse> {
   const query = options?.verify ? "?verify=1" : "";
+  const authHeaders = await getAuthorizationHeaders();
   const response = await fetch(`/api/ai-assistant/chat${query}`, {
     method: "GET",
     credentials: "same-origin",
+    headers: authHeaders,
   });
 
-  if (response.status === 401) {
-    throw new Error("Your session has expired. Please sign in again.");
+  if (response.status === 401 || response.status === 403) {
+    throw new Error(
+      "Your HopeBridge account is not authorized for AI Assistant access.",
+    );
   }
 
   if (!response.ok) {
@@ -55,11 +71,13 @@ export async function requestHopeBridgeAiChat(input: {
   history: AiChatTurn[];
   context: HopeBridgeAiContextPayload;
 }): Promise<AiChatClientResult> {
+  const authHeaders = await getAuthorizationHeaders();
   const response = await fetch("/api/ai-assistant/chat", {
     method: "POST",
     credentials: "same-origin",
     headers: {
       "Content-Type": "application/json",
+      ...authHeaders,
     },
     body: JSON.stringify({
       question: input.question,
@@ -68,8 +86,10 @@ export async function requestHopeBridgeAiChat(input: {
     }),
   });
 
-  if (response.status === 401) {
-    throw new Error("Your session has expired. Please sign in again.");
+  if (response.status === 401 || response.status === 403) {
+    throw new Error(
+      "Your HopeBridge account is not authorized for AI Assistant access.",
+    );
   }
 
   const payload = (await response.json()) as AiChatResponse | { error?: string };
