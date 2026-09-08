@@ -16,7 +16,9 @@ import { searchOrganizationRecords, type SearchResult } from "@/services/dashboa
 import type { DashboardNotification } from "@/services/notifications";
 import { useAuth } from "@/providers/AuthProvider";
 import { OrganizationLabel } from "@/components/OrganizationLabel";
+import { useOrganizationOptional } from "@/providers/OrganizationProvider";
 import { isEmptyOperationalSnapshot } from "@/lib/emptyWorkspace";
+import { canManageUserAccess } from "@/lib/accessControl";
 import type { ActivityRecord } from "../../types/activity";
 import {
   LogOut,
@@ -95,7 +97,8 @@ const groups: { title: string; items: NavItem[] }[] = [
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, profile } = useAuth();
+  const organization = useOrganizationOptional();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -302,6 +305,11 @@ export default function DashboardPage() {
     router.push("/auth/login");
   };
 
+  const workspaceFallback =
+    organization?.displayName ||
+    profile?.organizationId ||
+    "Organization workspace";
+
   const Sidebar = () => (
     <>
       <div className="hb-brand">
@@ -311,8 +319,12 @@ export default function DashboardPage() {
         </div>
         <div>
           <div className="hb-brand-name">HOPEBRIDGE</div>
-          <div className="hb-brand-sub">FOUNDATION</div>
-          <div className="hb-brand-tag">Foundation Intelligence</div>
+          <div className="hb-brand-sub">
+            {organization?.organizationId === "hopebridge" ? "FOUNDATION" : "WORKSPACE"}
+          </div>
+          <div className="hb-brand-tag" title={organization?.displayName || workspaceFallback}>
+            <OrganizationLabel fallback={workspaceFallback} />
+          </div>
         </div>
         <button className="hb-mobile-close" onClick={() => setMobileOpen(false)} type="button">
           <X size={19} />
@@ -341,6 +353,18 @@ export default function DashboardPage() {
                 </button>
               );
             })}
+            {group.title === "ADMINISTRATION" && canManageUserAccess(profile) ? (
+              <button
+                key="/dashboard/access"
+                type="button"
+                className="hb-nav-item"
+                onClick={() => go("/dashboard/access")}
+              >
+                <span className="hb-nav-icon"><ShieldCheck size={16} /></span>
+                <span>User Access</span>
+                <ChevronRight size={14} className="hb-nav-arrow" />
+              </button>
+            ) : null}
           </div>
         ))}
       </div>
