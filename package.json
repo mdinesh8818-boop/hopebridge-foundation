@@ -16,6 +16,7 @@
     "test:ai-teams-context": "node --import tsx scripts/ai-teams-context-smoke.mjs",
     "test:access-control": "node --import tsx scripts/access-control-smoke.mjs",
     "test:org-isolation": "node --import tsx scripts/org-isolation-smoke.mjs",
+    "test:firestore-rules": "node scripts/firestore-rules-smoke.mjs",
     "migrate:organization-id": "node scripts/migrate-organization-id.mjs"
   },
   "dependencies": {

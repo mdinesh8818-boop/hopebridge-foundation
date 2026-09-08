@@ -609,11 +609,36 @@ export default function BeneficiariesPage() {
                   ) : filteredBeneficiaries.length === 0 ? (
                     <tr>
                       <td colSpan={10} className="px-6 py-14 text-center">
-                        <p className="font-medium text-[#18392e]">No beneficiaries match these filters.</p>
-                        <div className="mt-4 flex justify-center gap-3">
-                          <button type="button" className="bf-secondary-btn" onClick={clearFilters}>Clear Filters</button>
-                          <button type="button" className="bf-gold-btn" onClick={openAddForm}>Add Beneficiary</button>
-                        </div>
+                        {beneficiaries.length === 0 ? (
+                          <>
+                            <p className="font-medium text-[#18392e]">
+                              No beneficiary records yet.
+                            </p>
+                            <p className="mt-2 text-sm text-[#65766e]">
+                              Beneficiary information will appear here as your programs
+                              begin serving people.
+                            </p>
+                            <div className="mt-4 flex justify-center gap-3">
+                              <button type="button" className="bf-gold-btn" onClick={openAddForm}>
+                                Add Beneficiary
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <p className="font-medium text-[#18392e]">
+                              No beneficiaries match these filters.
+                            </p>
+                            <div className="mt-4 flex justify-center gap-3">
+                              <button type="button" className="bf-secondary-btn" onClick={clearFilters}>
+                                Clear Filters
+                              </button>
+                              <button type="button" className="bf-gold-btn" onClick={openAddForm}>
+                                Add Beneficiary
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </td>
                     </tr>
                   ) : (

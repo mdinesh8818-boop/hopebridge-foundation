@@ -44,7 +44,6 @@ import {
   fetchAiAssistantStatus,
   requestHopeBridgeAiChat,
 } from "@/services/aiChatClient";
-import { EMPTY_WORKSPACE_COPY } from "@/lib/emptyWorkspace";
 import "../analytics/analytics.css";
 import "./ai-assistant.css";
 

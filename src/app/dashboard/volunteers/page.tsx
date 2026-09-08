@@ -874,8 +874,18 @@ export default function VolunteersPage() {
                     <tr>
                       <td colSpan={8} className="px-6 py-14 text-center text-[#65766e]">
                         <Search size={32} className="mx-auto text-[#c2cbc6]" />
-                        <p className="mt-3 font-medium text-[#18392e]">No volunteers found</p>
-                        <p className="mt-1 text-sm">Adjust your search or filters.</p>
+                        <p className="mt-3 font-medium text-[#18392e]">
+                          {volunteers.length === 0
+                            ? "No volunteers yet."
+                            : "No volunteers found"}
+                        </p>
+                        {volunteers.length === 0 ? (
+                          <p className="mt-2 text-sm text-[#65766e]">
+                            Build your volunteer network by adding your first volunteer.
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-sm">Adjust your search or filters.</p>
+                        )}
                       </td>
                     </tr>
                   ) : (

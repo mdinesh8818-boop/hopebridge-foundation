@@ -36,7 +36,7 @@ export default function ImpactStoriesModal({
             <p className="pn-kicker">PROGRAM IMPACT INTELLIGENCE</p>
             <h2 className="pn-section-title mt-1">Impact Stories</h2>
             <p className="mt-1 text-sm text-[#607269]">
-              Real community outcomes from HopeBridge Foundation programs.
+              Real community outcomes from your programs.
             </p>
           </div>
           <button

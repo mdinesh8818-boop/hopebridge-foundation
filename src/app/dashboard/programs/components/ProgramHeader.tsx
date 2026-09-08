@@ -37,8 +37,8 @@ export default function ProgramHeader({
         </h1>
 
         <p className="pn-hero-desc">
-          Design, manage, monitor and optimize every HopeBridge Foundation
-          program through one centralized intelligent workspace.
+          Design, manage, monitor and optimize every program through one
+          centralized intelligent workspace.
         </p>
 
         <div className="pn-hero-actions-row">
