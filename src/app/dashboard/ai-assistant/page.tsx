@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 
 import HopeBridgeSidebar from "../components/HopeBridgeSidebar";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
+import { useOrganization } from "@/providers/OrganizationProvider";
 import {
   answerOrganizationalQuestion,
   isHopeBridgeOrganizationalQuestion,
@@ -42,6 +44,7 @@ import {
   fetchAiAssistantStatus,
   requestHopeBridgeAiChat,
 } from "@/services/aiChatClient";
+import { EMPTY_WORKSPACE_COPY } from "@/lib/emptyWorkspace";
 import "../analytics/analytics.css";
 import "./ai-assistant.css";
 
@@ -130,6 +133,7 @@ function MessageBody({
 
 export default function AiAssistantPage() {
   const router = useRouter();
+  const { organizationId, displayName } = useOrganization();
   const [ctx, setCtx] = useState<AiOrgContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -270,7 +274,10 @@ export default function AiAssistantPage() {
       const llmResult = await requestHopeBridgeAiChat({
         question,
         history,
-        context: buildHopeBridgeAiContextPayload(activeCtx),
+        context: buildHopeBridgeAiContextPayload(activeCtx, {
+          id: organizationId,
+          name: displayName,
+        }),
       });
 
       let answer = answerOrganizationalQuestion(question, activeCtx);
@@ -394,7 +401,7 @@ export default function AiAssistantPage() {
               className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]"
             >
               <Home size={14} className="text-[#0d5f44]" />
-              HopeBridge Foundation
+              <OrganizationLabel />
             </Link>
             <span>/</span>
             <strong className="text-[#112e24]">AI Assistant</strong>
@@ -407,7 +414,8 @@ export default function AiAssistantPage() {
             </h1>
             <p>
               Ask questions about campaigns, programs, fundraising, teams, and
-              operational risks. Answers draw from your connected HopeBridge modules.
+              operational risks for {displayName}. Answers use only this
+              organization&apos;s connected modules.
             </p>
 
             <div className="ai-status" role="status">

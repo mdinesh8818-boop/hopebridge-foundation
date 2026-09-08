@@ -15,6 +15,8 @@ import {
 import { searchOrganizationRecords, type SearchResult } from "@/services/dashboardData";
 import type { DashboardNotification } from "@/services/notifications";
 import { useAuth } from "@/providers/AuthProvider";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
+import { isEmptyOperationalSnapshot } from "@/lib/emptyWorkspace";
 import type { ActivityRecord } from "../../types/activity";
 import {
   LogOut,
@@ -376,7 +378,7 @@ export default function DashboardPage() {
                 <Menu size={19} />
               </button>
               <Home size={16} className="hb-home-icon" />
-              <span>HopeBridge Foundation</span>
+              <span><OrganizationLabel /></span>
               <b>/</b>
               <strong>Dashboard</strong>
             </div>
@@ -508,7 +510,7 @@ export default function DashboardPage() {
               <h1 
                    className="hb-main-heading">
                 <span className="hb-welcome">Welcome to</span>
-                <span className="hb-gold-title">HopeBridge Foundation</span>
+                <span className="hb-gold-title"><OrganizationLabel /></span>
               </h1>
 
               <p>
@@ -577,12 +579,69 @@ export default function DashboardPage() {
             </div>
           </section>
 
+          {!metricsLoading &&
+            isEmptyOperationalSnapshot({
+              campaigns: orgSnapshot?.activeCampaigns,
+              programs: orgSnapshot?.activePrograms,
+              donors: orgSnapshot?.activeDonors,
+              volunteers: orgSnapshot?.volunteerCount,
+              beneficiaries: orgSnapshot?.beneficiaryCount,
+              teams: orgSnapshot?.activeTeams,
+            }) && (
+              <section className="hb-section">
+                <div className="hb-section-head">
+                  <div>
+                    <span className="hb-eyebrow">GETTING STARTED</span>
+                    <h2>Set up your workspace</h2>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-[#e4dac6] bg-white p-6 shadow-sm">
+                  <ol className="space-y-3 text-sm text-[#2d493e]">
+                    <li>
+                      <button type="button" className="text-left hover:text-[#0d5f44]" onClick={() => go("/dashboard/organization")}>
+                        1. Complete your organization profile
+                      </button>
+                    </li>
+                    <li>
+                      <button type="button" className="text-left hover:text-[#0d5f44]" onClick={() => go("/dashboard/campaigns?action=create")}>
+                        2. Create your first campaign
+                      </button>
+                    </li>
+                    <li>
+                      <button type="button" className="text-left hover:text-[#0d5f44]" onClick={() => go("/dashboard/programs?action=create")}>
+                        3. Add your first program
+                      </button>
+                    </li>
+                    <li>
+                      <button type="button" className="text-left hover:text-[#0d5f44]" onClick={() => go("/dashboard/access")}>
+                        4. Invite your team
+                      </button>
+                    </li>
+                    <li>
+                      <button type="button" className="text-left hover:text-[#0d5f44]" onClick={() => go("/dashboard/donors?action=create")}>
+                        5. Add donors or volunteers when ready
+                      </button>
+                    </li>
+                    <li>
+                      <button type="button" className="text-left hover:text-[#0d5f44]" onClick={() => go("/dashboard/ai-assistant")}>
+                        6. Explore HopeBridge AI after data is available
+                      </button>
+                    </li>
+                  </ol>
+                  <p className="mt-4 text-xs text-[#65766e]">
+                    Your workspace starts empty on purpose. HopeBridge will not
+                    invent sample operational records for a new nonprofit.
+                  </p>
+                </div>
+              </section>
+            )}
+
           {/* KPI CARDS */}
           <section className="hb-section">
             <div className="hb-section-head">
               <div>
                 <span className="hb-eyebrow">ORGANIZATION OVERVIEW</span>
-                <h2>Foundation performance</h2>
+                <h2>Workspace performance</h2>
               </div>
               <button type="button" onClick={() => go("/dashboard/analytics")}>
                 View analytics <ArrowRight size={14}/>
@@ -615,7 +674,7 @@ export default function DashboardPage() {
               <div className="hb-panel-head">
                 <div>
                   <span className="hb-panel-kicker">ORGANIZATION OVERVIEW</span>
-                  <h3>Foundation performance</h3>
+                  <h3>Workspace performance</h3>
                 </div>
                 <button type="button" onClick={() => go("/dashboard/analytics")}>View analytics <ArrowRight size={13}/></button>
               </div>
@@ -852,7 +911,7 @@ export default function DashboardPage() {
           </section>
 
           <footer className="hb-footer">
-            <span>HopeBridge Foundation Platform</span>
+            <span>Powered by HopeBridge</span>
             <span>Nonprofit Intelligence · Prototype Version 1.0</span>
           </footer>
         </main>

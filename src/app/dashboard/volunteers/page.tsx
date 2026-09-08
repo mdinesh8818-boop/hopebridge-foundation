@@ -44,6 +44,7 @@ import {
   type VolunteerStatus,
 } from "./utils";
 import "./volunteers.css";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
 
 type Volunteer = VolunteerRecord;
 
@@ -241,7 +242,7 @@ export default function VolunteersPage() {
       {
         label: "Active Volunteers",
         value: String(active),
-        detail: total === 0 ? "No volunteers yet" : `${total} total registered`,
+        detail: total === 0 ? "No volunteers yet. Build your volunteer network by adding your first volunteer." : `${total} total registered`,
         icon: Users,
       },
       {
@@ -514,7 +515,7 @@ export default function VolunteersPage() {
               className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]"
             >
               <Home size={14} className="text-[#0d5f44]" />
-              HopeBridge Foundation
+              <OrganizationLabel />
             </Link>
             <span className="text-[#c2cbc6]">/</span>
             <strong>Volunteers</strong>

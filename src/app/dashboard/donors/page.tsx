@@ -63,6 +63,7 @@ import {
   type DonorRecord,
 } from "./utils";
 import "./donors.css";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
 
 type Donor = DonorRecord;
 
@@ -562,7 +563,7 @@ export default function DonorsPage() {
               className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]"
             >
               <Home size={14} className="text-[#0d5f44]" />
-              HopeBridge Foundation
+              <OrganizationLabel />
             </Link>
             <span className="text-[#c2cbc6]">/</span>
             <strong>Donors</strong>

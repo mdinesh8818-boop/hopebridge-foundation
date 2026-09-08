@@ -33,6 +33,7 @@ import {
 import { logActivity } from "../../../services/activity";
 import { useModuleCreateAction } from "@/hooks/useModuleCreateAction";
 import { useAuth } from "@/providers/AuthProvider";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
 
 type CampaignStatus =
   | "Active"
@@ -577,7 +578,7 @@ export default function CampaignsPage() {
           <nav className="hb-breadcrumb">
             <Link href="/dashboard" className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]">
               <Home size={14} className="text-[#0d5f44]" />
-              HopeBridge Foundation
+              <OrganizationLabel />
             </Link>
             <span className="text-[#c2cbc6]">/</span>
             <strong>Campaigns</strong>
@@ -901,10 +902,14 @@ export default function CampaignsPage() {
                 <div className="px-6 py-16 text-center sm:px-8">
                   <Search size={34} className="mx-auto text-[#c2cbc6]" />
                   <h3 className="cp-serif mt-4 text-lg font-semibold text-[#18392e]">
-                    No campaigns found
+                    {campaigns.length === 0
+                      ? "No campaigns yet."
+                      : "No campaigns found"}
                   </h3>
                   <p className="mt-2 text-sm text-[#607269]">
-                    Change your search or campaign filters.
+                    {campaigns.length === 0
+                      ? "Create your first campaign to start tracking fundraising progress."
+                      : "Change your search or campaign filters."}
                   </p>
                 </div>
               )}

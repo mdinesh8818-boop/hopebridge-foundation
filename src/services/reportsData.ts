@@ -68,7 +68,7 @@ export async function buildOrganizationReport(): Promise<OrganizationReport> {
   ];
 
   const csvRows: string[][] = [
-    ["HopeBridge Foundation — Organizational Report"],
+    ["Organizational Report"],
     ["Generated", generatedAt],
     [],
     ["Metric", "Value"],

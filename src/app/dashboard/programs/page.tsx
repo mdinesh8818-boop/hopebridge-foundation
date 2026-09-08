@@ -32,6 +32,7 @@ import "./programs.css";
 import { Program, ProgramFilters as ProgramFiltersType } from "./types";
 import { calculateStatistics, getVisiblePrograms } from "./utils";
 import { useModuleCreateAction } from "@/hooks/useModuleCreateAction";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
 
 const INITIAL_FILTERS: ProgramFiltersType = {
   search: "",
@@ -265,7 +266,7 @@ export default function ProgramsPage() {
               className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]"
             >
               <Home size={14} className="text-[#0d5f44]" />
-              HopeBridge Foundation
+              <OrganizationLabel />
             </Link>
             <span className="text-[#c2cbc6]">/</span>
             <strong>Programs</strong>

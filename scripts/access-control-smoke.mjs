@@ -13,7 +13,9 @@ import {
   buildPendingRegistrationProfile,
   canManageUserAccess,
   isActiveHopeBridgeMember,
+  isActiveOrganizationMember,
   isHopeBridgeAdmin,
+  needsOrganizationOnboarding,
 } from "../src/lib/accessControl.ts";
 import { isPreEnforcementAccount } from "../src/services/userProfile.ts";
 
@@ -25,9 +27,15 @@ function run() {
   });
   assert.equal(pending.status, "pending");
   assert.equal(pending.role, "member");
-  assert.equal(pending.organizationId, HOPEBRIDGE_ORGANIZATION_ID);
+  assert.equal(pending.organizationId, "");
+  assert.equal(pending.onboardingComplete, false);
   assert.equal(isActiveHopeBridgeMember(pending), false);
-  assert.equal(accessRedirectPath(pending), "/auth/pending");
+  assert.equal(isActiveOrganizationMember(pending), false);
+  assert.equal(needsOrganizationOnboarding(pending), true);
+  assert.equal(accessRedirectPath(pending), "/onboarding");
+
+  const awaitingInvite = { ...pending, onboardingComplete: true };
+  assert.equal(accessRedirectPath(awaitingInvite), "/auth/pending");
 
   const legacy = buildLegacyActiveProfile({
     uid: "u2",
@@ -36,6 +44,7 @@ function run() {
   });
   assert.equal(legacy.status, "active");
   assert.equal(legacy.legacyBackfill, true);
+  assert.equal(legacy.organizationId, HOPEBRIDGE_ORGANIZATION_ID);
   assert.equal(isActiveHopeBridgeMember(legacy), true);
   assert.equal(accessRedirectPath(legacy), "/dashboard");
 
@@ -46,6 +55,14 @@ function run() {
   assert.equal(isHopeBridgeAdmin(admin), true);
   assert.equal(canManageUserAccess(admin), true);
   assert.equal(canManageUserAccess(legacy), false);
+
+  const otherOrgAdmin = {
+    ...admin,
+    organizationId: "helping-hands-demo",
+  };
+  assert.equal(isActiveOrganizationMember(otherOrgAdmin), true);
+  assert.equal(isActiveHopeBridgeMember(otherOrgAdmin), false);
+  assert.equal(canManageUserAccess(otherOrgAdmin), true);
 
   const disabled = { ...legacy, status: "disabled" };
   assert.equal(accessRedirectPath(disabled), "/auth/disabled");
@@ -70,7 +87,6 @@ function run() {
   );
   assert.equal(isPreEnforcementAccount(undefined, "2026-09-08T00:00:00.000Z"), false);
 
-  // Unauthenticated / missing profile cannot access dashboard.
   assert.equal(accessRedirectPath(null), "/auth/pending");
   assert.equal(accessRedirectPath(undefined), "/auth/pending");
 
@@ -79,6 +95,7 @@ function run() {
     JSON.stringify(
       {
         pendingStatus: pending.status,
+        pendingRedirect: accessRedirectPath(pending),
         legacyActive: legacy.status,
         adminCanManage: canManageUserAccess(admin),
         memberCanManage: canManageUserAccess(legacy),

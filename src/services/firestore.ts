@@ -9,14 +9,109 @@ import {
   setDoc,
   serverTimestamp,
   onSnapshot,
+  query,
+  where,
   type DocumentData,
   type QuerySnapshot,
   type Unsubscribe,
 } from "firebase/firestore";
 
 import { db } from "../app/lib/firebase";
+import {
+  HOPEBRIDGE_ORGANIZATION_ID,
+  isOrganizationScopedCollection,
+} from "@/lib/organization";
 
-type FirestoreRecord = Record<string, unknown> & { id: string };
+type FirestoreRecord = Record<string, unknown> & { id: string};
+
+/**
+ * Active organization context for scoped reads/writes.
+ * Set by Auth/Org providers when the signed-in user's org is known.
+ */
+let activeOrganizationId: string | null = null;
+
+export function setFirestoreOrganizationContext(
+  organizationId: string | null | undefined,
+): void {
+  const next = typeof organizationId === "string" ? organizationId.trim() : "";
+  activeOrganizationId = next || null;
+}
+
+export function getFirestoreOrganizationContext(): string | null {
+  return activeOrganizationId;
+}
+
+function requireOrganizationContext(collectionName: string): string {
+  if (!isOrganizationScopedCollection(collectionName)) {
+    return "";
+  }
+  if (!activeOrganizationId) {
+    throw new Error(
+      `Organization context is required to access "${collectionName}".`,
+    );
+  }
+  return activeOrganizationId;
+}
+
+function withOrganizationId(
+  collectionName: string,
+  data: Record<string, unknown>,
+): Record<string, unknown> {
+  if (!isOrganizationScopedCollection(collectionName)) {
+    return data;
+  }
+  const organizationId = requireOrganizationContext(collectionName);
+  return {
+    ...data,
+    organizationId,
+  };
+}
+
+/**
+ * Soft-tag legacy HopeBridge docs that predate organizationId.
+ * Additive only — never overwrites an existing organizationId.
+ */
+async function softTagLegacyOrganizationId(
+  collectionName: string,
+  record: FirestoreRecord,
+): Promise<void> {
+  if (!isOrganizationScopedCollection(collectionName)) return;
+  if (activeOrganizationId !== HOPEBRIDGE_ORGANIZATION_ID) return;
+  if (typeof record.organizationId === "string" && record.organizationId.trim()) {
+    return;
+  }
+
+  try {
+    await updateDoc(doc(db, collectionName, record.id), {
+      organizationId: HOPEBRIDGE_ORGANIZATION_ID,
+      updatedAt: serverTimestamp(),
+    });
+    record.organizationId = HOPEBRIDGE_ORGANIZATION_ID;
+  } catch {
+    // Best-effort; rules or offline may block. Reads still allow soft match client-side.
+  }
+}
+
+function belongsToActiveOrganization(
+  collectionName: string,
+  record: FirestoreRecord,
+): boolean {
+  if (!isOrganizationScopedCollection(collectionName)) return true;
+  const orgId = activeOrganizationId;
+  if (!orgId) return false;
+
+  const recordOrg =
+    typeof record.organizationId === "string" ? record.organizationId.trim() : "";
+
+  if (recordOrg === orgId) return true;
+
+  // Transition: untagged legacy docs belong to HopeBridge Foundation only.
+  if (!recordOrg && orgId === HOPEBRIDGE_ORGANIZATION_ID) {
+    return true;
+  }
+
+  return false;
+}
 
 function sanitizeWriteData(data: Record<string, unknown>) {
   const cleaned: Record<string, unknown> = {};
@@ -36,12 +131,34 @@ function mapSnapshotDocs(snapshot: QuerySnapshot<DocumentData>): FirestoreRecord
   }));
 }
 
+async function filterAndSoftTag(
+  collectionName: string,
+  docs: FirestoreRecord[],
+): Promise<FirestoreRecord[]> {
+  if (!isOrganizationScopedCollection(collectionName)) {
+    return docs;
+  }
+
+  const scoped = docs.filter((record) =>
+    belongsToActiveOrganization(collectionName, record),
+  );
+
+  await Promise.all(
+    scoped.map((record) => softTagLegacyOrganizationId(collectionName, record)),
+  );
+
+  return scoped;
+}
+
 // Create
 export async function createDocument(
   collectionName: string,
   data: Record<string, unknown>,
 ) {
-  const payload = sanitizeWriteData(data);
+  const payload = withOrganizationId(
+    collectionName,
+    sanitizeWriteData(data),
+  );
   delete payload.createdAt;
   delete payload.updatedAt;
 
@@ -56,8 +173,43 @@ export async function createDocument(
 
 // Read
 export async function getDocuments(collectionName: string) {
-  const snapshot = await getDocs(collection(db, collectionName));
+  if (isOrganizationScopedCollection(collectionName)) {
+    const organizationId = requireOrganizationContext(collectionName);
+    const scopedQuery = query(
+      collection(db, collectionName),
+      where("organizationId", "==", organizationId),
+    );
 
+    try {
+      const snapshot = await getDocs(scopedQuery);
+      const docs = mapSnapshotDocs(snapshot);
+
+      // Transition: also surface untagged legacy HopeBridge docs.
+      if (organizationId === HOPEBRIDGE_ORGANIZATION_ID) {
+        const allSnapshot = await getDocs(collection(db, collectionName));
+        const legacy = mapSnapshotDocs(allSnapshot).filter((record) => {
+          const recordOrg =
+            typeof record.organizationId === "string"
+              ? record.organizationId.trim()
+              : "";
+          return !recordOrg;
+        });
+        const byId = new Map<string, FirestoreRecord>();
+        for (const record of [...docs, ...legacy]) {
+          byId.set(record.id, record);
+        }
+        return filterAndSoftTag(collectionName, [...byId.values()]);
+      }
+
+      return filterAndSoftTag(collectionName, docs);
+    } catch {
+      // Fallback if composite indexes are missing — still filter client-side.
+      const snapshot = await getDocs(collection(db, collectionName));
+      return filterAndSoftTag(collectionName, mapSnapshotDocs(snapshot));
+    }
+  }
+
+  const snapshot = await getDocs(collection(db, collectionName));
   return mapSnapshotDocs(snapshot);
 }
 
@@ -68,10 +220,23 @@ export async function getDocument(
 ): Promise<FirestoreRecord | null> {
   const snapshot = await getDoc(doc(db, collectionName, id));
   if (!snapshot.exists()) return null;
-  return {
+  const record: FirestoreRecord = {
     ...(snapshot.data() as Record<string, unknown>),
     id: snapshot.id,
   };
+
+  if (
+    isOrganizationScopedCollection(collectionName) &&
+    !belongsToActiveOrganization(collectionName, record)
+  ) {
+    return null;
+  }
+
+  if (isOrganizationScopedCollection(collectionName)) {
+    await softTagLegacyOrganizationId(collectionName, record);
+  }
+
+  return record;
 }
 
 export function subscribeDocuments(
@@ -79,6 +244,27 @@ export function subscribeDocuments(
   onData: (docs: FirestoreRecord[]) => void,
   onError?: (error: Error) => void,
 ): Unsubscribe {
+  if (isOrganizationScopedCollection(collectionName)) {
+    const organizationId = requireOrganizationContext(collectionName);
+    const scopedQuery = query(
+      collection(db, collectionName),
+      where("organizationId", "==", organizationId),
+    );
+
+    return onSnapshot(
+      scopedQuery,
+      (snapshot) => {
+        void filterAndSoftTag(collectionName, mapSnapshotDocs(snapshot)).then(
+          onData,
+          (error) => onError?.(error instanceof Error ? error : new Error(String(error))),
+        );
+      },
+      (error) => {
+        onError?.(error);
+      },
+    );
+  }
+
   return onSnapshot(
     collection(db, collectionName),
     (snapshot) => {
@@ -100,6 +286,12 @@ export async function updateDocument(
   delete payload.createdAt;
   delete payload.updatedAt;
 
+  // Never allow clients to reassign organization scope via generic updates.
+  if (isOrganizationScopedCollection(collectionName)) {
+    delete payload.organizationId;
+    requireOrganizationContext(collectionName);
+  }
+
   await updateDoc(doc(db, collectionName, id), {
     ...payload,
     updatedAt: serverTimestamp(),
@@ -108,6 +300,9 @@ export async function updateDocument(
 
 // Delete
 export async function deleteDocument(collectionName: string, id: string) {
+  if (isOrganizationScopedCollection(collectionName)) {
+    requireOrganizationContext(collectionName);
+  }
   await deleteDoc(doc(db, collectionName, id));
 }
 
@@ -117,7 +312,10 @@ export async function setDocument(
   id: string,
   data: Record<string, unknown>,
 ) {
-  const payload = sanitizeWriteData(data);
+  const payload = withOrganizationId(
+    collectionName,
+    sanitizeWriteData(data),
+  );
 
   await setDoc(
     doc(db, collectionName, id),

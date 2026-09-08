@@ -14,7 +14,9 @@
     "cleanup-demo-data": "node scripts/cleanup-demo-data.mjs",
     "test:teams-integrity": "node --import tsx scripts/teams-integrity-smoke.mjs",
     "test:ai-teams-context": "node --import tsx scripts/ai-teams-context-smoke.mjs",
-    "test:access-control": "node --import tsx scripts/access-control-smoke.mjs"
+    "test:access-control": "node --import tsx scripts/access-control-smoke.mjs",
+    "test:org-isolation": "node --import tsx scripts/org-isolation-smoke.mjs",
+    "migrate:organization-id": "node scripts/migrate-organization-id.mjs"
   },
   "dependencies": {
     "firebase": "^12.17.0",

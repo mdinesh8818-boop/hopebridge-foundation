@@ -677,7 +677,7 @@ function sortActivities(activities: ActivityRecord[]): ActivityRecord[] {
  * All metrics, alerts, deadlines, and performance derive from the same Firestore fetch.
  *
  * Multi-tenancy: records are not yet scoped by organizationId in queries.
- * When tenant support is added, filter all collection reads here by organizationId.
+ * Collection reads are organization-scoped via setFirestoreOrganizationContext.
  */
 export async function fetchDashboardOrganizationData(): Promise<DashboardOrganizationData> {
   const [cleanupReport, activityDedupeReport] = await Promise.all([

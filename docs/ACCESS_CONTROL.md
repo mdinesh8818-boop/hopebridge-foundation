@@ -1,127 +1,84 @@
 # HopeBridge access control
 
-HopeBridge is a **single-organization** workspace (`organizationId = hopebridge`). Firebase Authentication proves identity; a Firestore `userProfiles/{uid}` document grants organization access.
+HopeBridge is a **multi-organization** platform. Firebase Authentication proves identity; a Firestore `userProfiles/{uid}` document grants membership to **one** organization workspace.
+
+Canonical product docs for tenant model: `docs/ORGANIZATION_WORKSPACES.md`.
 
 ## Account lifecycle
 
 | Status | Meaning | Dashboard / org data |
 |--------|---------|----------------------|
-| `pending` | Self-registered; awaiting approval | Blocked |
-| `active` | Approved HopeBridge member | Allowed |
+| `pending` | Registered; no active org membership yet | Blocked (may complete onboarding) |
+| `active` | Member of an organization | Allowed for that `organizationId` only |
 | `disabled` | Explicitly revoked | Blocked |
 
-Roles (lightweight, not full enterprise RBAC):
+Roles (per organization):
 
-- `admin` — can approve/disable users and manage User Access
+- `admin` — manage User Access for **their** organization only; update org settings
 - `manager` — active operational access (reserved for future privilege splits)
 - `member` — standard active access
 
-## Registration flow
+## Registration / onboarding flow
 
-1. Visitor uses **Create one** → Firebase Auth account is created.
-2. App writes `userProfiles/{uid}` with `status: pending`, `role: member`, `organizationId: hopebridge`.
-3. User is sent to `/auth/pending` (not the dashboard).
-4. Pending users cannot read/write operational Firestore collections once rules are deployed.
-5. An admin activates the account from **Administration → User Access**.
+1. Visitor creates a Firebase Auth account.
+2. App writes `userProfiles/{uid}` with `status: pending`, empty `organizationId`, `onboardingComplete: false`.
+3. User is sent to `/onboarding`.
+4. **Create nonprofit:** creates `organizations/{id}`, activates user as `admin` of that org, empty operational data.
+5. **Join existing:** marks awaiting invite → `/auth/pending` until an org admin activates them into that admin’s organization only.
+6. Pending/disabled users cannot read/write operational collections once rules are deployed.
 
-## Existing production users (migration)
+## Existing HopeBridge Foundation users
 
-Existing Auth users are **not** deleted or recreated.
+Existing Auth users are **not** deleted. Legacy backfill keeps `organizationId = hopebridge`.
 
-On first login after this feature ships, `ensureUserProfile()` creates a profile if missing:
+On first login after access-control shipped, `ensureUserProfile()` creates a profile if missing:
 
 | Condition | Result |
 |-----------|--------|
-| `userSettings/{uid}` already exists | `active` / `member` (`legacyBackfill: true`) |
-| Auth `creationTime` &lt; `appMetadata/accessControl.enforceFrom` | `active` / `member` |
-| Email listed in `bootstrapAdminEmails` | `active` / `admin` |
-| Otherwise (new signup path) | `pending` / `member` |
-
-**Recommended deploy order**
-
-1. In Firebase Console → Firestore, create/update doc `appMetadata/accessControl`:
-
-```json
-{
-  "organizationId": "hopebridge",
-  "bootstrapAdminEmails": ["your-admin@example.com"],
-  "enforceFrom": "2026-09-08T12:00:00.000Z"
-}
-```
-
-Set `enforceFrom` to approximately **now (UTC)** before announcing the change so accounts created earlier auto-activate as members on next login.
-
-2. Deploy the application (Vercel).
-3. Have known users sign in once (creates active profiles).
-4. **Deploy Firestore rules** from `firestore.rules` (required — see below).
-5. Confirm admins can open `/dashboard/access` and approve any remaining pending users.
+| `userSettings/{uid}` already exists | `active` / `member` / `hopebridge` (`legacyBackfill: true`) |
+| Auth `creationTime` &lt; `appMetadata/accessControl.enforceFrom` | `active` / `member` / `hopebridge` |
+| Email listed in `bootstrapAdminEmails` | `active` / `admin` / `hopebridge` |
+| Otherwise (new signup path) | `pending` / no org → onboarding |
 
 ## Admin approval procedure
 
-1. Sign in as an **active admin**.
-2. Open **Administration → User Access** (`/dashboard/access`).
-3. Find the pending account → **Activate**.
-4. Optionally set role to `manager` or `admin`.
+1. Sign in as an **active admin** of an organization.
+2. Open **Administration → User Access**.
+3. Activate pending users (assigns them to **your** organization only).
+4. You cannot view or manage users belonging to other organizations.
 
-Users cannot change their own `status`, `role`, or `organizationId` (enforced in app helpers and Firestore rules).
+Users cannot change their own `status`, `role`, or `organizationId`.
 
-### First admin bootstrap
-
-If no admin exists yet:
+### First admin bootstrap (HopeBridge Foundation)
 
 1. Add your email to `appMetadata/accessControl.bootstrapAdminEmails`, **or**
-2. Manually set `userProfiles/{yourUid}` in Console: `status=active`, `role=admin`, `organizationId=hopebridge`, `uid`, `email`.
-
-Then use User Access for everyone else.
+2. Manually set `userProfiles/{yourUid}` in Console: `status=active`, `role=admin`, `organizationId=hopebridge`, `uid`, `email`, `onboardingComplete=true`.
 
 ## Firestore authorization model
 
-Canonical rules file: **`firestore.rules`** (also referenced by `firebase.json`).
+Canonical rules file: **`firestore.rules`**.
 
 Helpers:
 
 - `isSignedIn()`
-- `isActiveMember()` — profile status active + org `hopebridge`
+- `isActiveMember()` — profile status active + non-empty organizationId
+- `canAccessOrgDoc()` — doc `organizationId` matches member org (legacy untagged docs only for `hopebridge`)
 - `isAdmin()` — active + role admin
-
-Operational collections (`campaigns`, `programs`, `donors`, …) require `isActiveMember()`.
-
-`userProfiles`:
-
-- Self **create** only as pending/member, or legacy active backfill under constrained conditions
-- Self **update** cannot change authorization fields
-- Admins can update status/role for others
 
 ### CRITICAL: rules deployment
 
 Vercel does **not** deploy Firestore rules.
 
-After merging/releasing app code, an operator must deploy rules:
-
 ```bash
 firebase deploy --only firestore:rules
 ```
 
-or paste/upload `firestore.rules` in Firebase Console → Firestore → Rules.
-
-**Until rules are deployed, production security is incomplete** even if the UI shows pending screens.
+**Until rules are deployed, production security is incomplete.**
 
 ## AI / API authorization
 
-`/api/ai-assistant/chat` requires:
+`/api/ai-assistant/chat` requires an active organization member (any org). Context payloads include `organizationId` / `organizationName` and must only contain that org’s aggregates.
 
-1. `Authorization: Bearer <Firebase ID token>`
-2. Verified token identity
-3. Firestore `userProfiles/{uid}` with `status=active` and org `hopebridge`
+## Migration
 
-Pending/disabled tokens receive `401`. Client SDK org reads are also blocked by rules.
-
-## Rollback considerations
-
-- Revert the app deploy to restore previous UI/auth redirects.
-- Firestore rules rollback: restore previous rules in Console (keep a backup before deploy).
-- `userProfiles` documents can remain; they are additive and do not delete operational data.
-
-## Environment variables
-
-No new secrets required. Existing Firebase web config and `OPENAI_API_KEY` unchanged.
+See `docs/ORGANIZATION_WORKSPACES.md` and `scripts/migrate-organization-id.mjs` (dry-run default).

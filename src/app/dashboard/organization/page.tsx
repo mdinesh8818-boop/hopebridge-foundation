@@ -15,6 +15,7 @@ import {
   type OrganizationProfile,
 } from "@/services/organizationProfile";
 import "../module-pages.css";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
 
 const MONTHS = [
   "January",
@@ -95,7 +96,7 @@ export default function OrganizationPage() {
           <nav className="flex items-center gap-2 text-sm text-[#607269]">
             <Link href="/dashboard" className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]">
               <Home size={14} className="text-[#0d5f44]" />
-              HopeBridge Foundation
+              <OrganizationLabel />
             </Link>
             <span>/</span>
             <strong className="text-[#112e24]">Organization</strong>

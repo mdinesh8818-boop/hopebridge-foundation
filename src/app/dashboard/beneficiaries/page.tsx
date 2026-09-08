@@ -70,6 +70,7 @@ import {
   toBeneficiaryWriteData,
 } from "./utils";
 import "./beneficiaries.css";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
 
 const INITIAL_FILTERS: BeneficiaryFilters = {
   search: "",
@@ -451,7 +452,7 @@ export default function BeneficiariesPage() {
           <nav className="hb-breadcrumb">
             <Link href="/dashboard" className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]">
               <Home size={14} className="text-[#0d5f44]" />
-              HopeBridge Foundation
+              <OrganizationLabel />
             </Link>
             <span className="text-[#c2cbc6]">/</span>
             <strong>Beneficiaries</strong>

@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { AUTH_COOKIE_NAME, AUTH_COOKIE_VALUE } from "@/lib/auth";
 import {
   HOPEBRIDGE_ORGANIZATION_ID,
-  isActiveHopeBridgeMember,
+  isActiveOrganizationMember,
   type UserAccessStatus,
   type UserProfile,
   type UserRole,
@@ -78,8 +78,11 @@ async function fetchProfileWithUserToken(
   const fields = payload.fields ?? {};
   const status = fields.status?.stringValue;
   const role = fields.role?.stringValue;
-  const organizationId =
-    fields.organizationId?.stringValue ?? HOPEBRIDGE_ORGANIZATION_ID;
+  const organizationId = fields.organizationId?.stringValue ?? "";
+  const onboardingComplete =
+    typeof fields.onboardingComplete?.booleanValue === "boolean"
+      ? fields.onboardingComplete.booleanValue
+      : organizationId === HOPEBRIDGE_ORGANIZATION_ID;
 
   return {
     id: uid,
@@ -89,6 +92,7 @@ async function fetchProfileWithUserToken(
     organizationId,
     role: isUserRole(role) ? role : "member",
     status: isUserAccessStatus(status) ? status : "pending",
+    onboardingComplete,
     legacyBackfill: Boolean(fields.legacyBackfill?.booleanValue),
   };
 }
@@ -109,7 +113,7 @@ export async function isHopeBridgeSessionAuthenticated(): Promise<boolean> {
 }
 
 /**
- * Requires a Firebase ID token AND an active HopeBridge userProfiles record.
+ * Requires a Firebase ID token AND an active organization member profile.
  * Pending/disabled/missing profiles are rejected.
  */
 export async function requireActiveHopeBridgeSession(
@@ -122,7 +126,7 @@ export async function requireActiveHopeBridgeSession(
   if (!identity) return null;
 
   const profile = await fetchProfileWithUserToken(identity.uid, idToken);
-  if (!isActiveHopeBridgeMember(profile)) return null;
+  if (!isActiveOrganizationMember(profile)) return null;
 
   return {
     uid: identity.uid,

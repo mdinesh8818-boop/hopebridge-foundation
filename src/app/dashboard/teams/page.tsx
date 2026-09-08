@@ -70,6 +70,7 @@ import {
 import { buildTeamsWorkspaceModel } from "./integrity";
 import { useModuleCreateAction } from "@/hooks/useModuleCreateAction";
 import "./teams.css";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
 
 const INITIAL_DIRECTORY_FILTERS: DirectoryFilters = {
   search: "",
@@ -657,7 +658,7 @@ export default function TeamsPage() {
           <nav className="hb-breadcrumb">
             <Link href="/dashboard" className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]">
               <Home size={14} className="text-[#0d5f44]" />
-              HopeBridge Foundation
+              <OrganizationLabel />
             </Link>
             <span className="text-[#c2cbc6]">/</span>
             <strong>Teams</strong>

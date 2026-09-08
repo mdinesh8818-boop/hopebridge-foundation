@@ -54,6 +54,7 @@ import type {
 } from "./types";
 import { AnalyticsEmptyState } from "./components/AnalyticsEmptyState";
 import "./analytics.css";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
 
 const PERIOD_OPTIONS: { id: AnalyticsPeriodId; label: string }[] = [
   { id: "30d", label: "Last 30 Days" },
@@ -269,7 +270,7 @@ export default function AnalyticsPage() {
           <nav className="flex items-center gap-2 text-sm text-[#607269]">
             <Link href="/dashboard" className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]">
               <Home size={14} className="text-[#0d5f44]" />
-              HopeBridge Foundation
+              <OrganizationLabel />
             </Link>
             <span>/</span>
             <strong className="text-[#112e24]">Impact Analytics</strong>
@@ -476,8 +477,8 @@ export default function AnalyticsPage() {
 
           {!loading && !hasAnyOrgData ? (
             <AnalyticsEmptyState
-              title="No analytics available yet"
-              description="Impact analytics will appear as campaigns, programs, beneficiaries, donors, and volunteers are recorded across HopeBridge."
+              title="Impact insights will appear as your organization begins adding data."
+              description="Impact insights will appear as your organization begins adding program, fundraising, and beneficiary data."
               actionHref="/dashboard/programs"
               actionLabel="Create Program"
               icon={BarChart3}

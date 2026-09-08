@@ -1,14 +1,15 @@
 # HopeBridge Firestore Collections
 
-This document describes Firestore collections used by HopeBridge Foundation and the expected access model. **Security rules are not deployed from this repository** — review and apply in the Firebase console or via your own rules deployment pipeline.
+This document describes Firestore collections used by HopeBridge and the expected access model. **Security rules are not deployed from this repository** — review and apply in the Firebase console or via your own rules deployment pipeline.
 
 ## Access model (current application)
 
-HopeBridge uses Firebase Authentication **plus** Firestore `userProfiles/{uid}` with `status` / `role` / `organizationId`.
+HopeBridge is a **multi-organization** platform. Firebase Authentication proves identity; Firestore `userProfiles/{uid}` grants membership to one `organizationId`.
 
-- Operational reads/writes require an **active** HopeBridge profile (`docs/ACCESS_CONTROL.md`).
+- Operational reads/writes require an **active** org member whose `organizationId` matches the document (see `docs/ACCESS_CONTROL.md`, `docs/ORGANIZATION_WORKSPACES.md`).
 - Canonical rules: `firestore.rules` (must be deployed manually — Vercel does not publish them).
-- Collection `userProfiles` stores account lifecycle state (`pending` | `active` | `disabled`).
+- Collection `organizations/{organizationId}` stores workspace identity.
+- Legacy HopeBridge Foundation documents without `organizationId` are soft-tagged / readable only for `organizationId = hopebridge` during migration.
 
 ## Collections
 
@@ -16,25 +17,27 @@ HopeBridge uses Firebase Authentication **plus** Firestore `userProfiles/{uid}` 
 
 | Collection | Purpose | Typical access |
 |------------|---------|----------------|
-| `campaigns` | Fundraising campaigns | Active HopeBridge members |
-| `programs` | Community programs | Active HopeBridge members |
-| `donors` | Donor records | Active HopeBridge members |
-| `donations` | Gift ledger | Active HopeBridge members |
-| `volunteers` | Volunteer records | Active HopeBridge members |
-| `beneficiaries` | Beneficiary records | Active HopeBridge members |
-| `beneficiaryActivity` | Beneficiary activity log | Active HopeBridge members |
-| `teams` | Team records | Active HopeBridge members |
-| `teamMembers` | Team member directory | Active HopeBridge members |
-| `teamAssignments` | Team tasks | Active HopeBridge members |
-| `teamDiscussions` | Discussion threads | Active HopeBridge members |
-| `teamMeetings` | Scheduled meetings | Active HopeBridge members |
-| `teamActivity` | Team activity log | Active HopeBridge members |
-| `activities` | Organization-wide activity feed | Active HopeBridge members |
-| `missionVision` | Mission/vision doc (`foundation`) | Active HopeBridge members |
-| `coreValues` | Core values | Active HopeBridge members |
-| `strategicGoals` | Strategic goals | Active HopeBridge members |
+| `organizations` | Nonprofit workspace identity | Members of that org; create during onboarding |
+| `campaigns` | Fundraising campaigns | Active members of matching org |
+| `programs` | Community programs | Active members of matching org |
+| `donors` | Donor records | Active members of matching org |
+| `donations` | Gift ledger | Active members of matching org |
+| `volunteers` | Volunteer records | Active members of matching org |
+| `beneficiaries` | Beneficiary records | Active members of matching org |
+| `beneficiaryActivity` | Beneficiary activity log | Active members of matching org |
+| `teams` | Team records | Active members of matching org |
+| `teamMembers` | Team member directory | Active members of matching org |
+| `teamAssignments` | Team tasks | Active members of matching org |
+| `teamDiscussions` | Discussion threads | Active members of matching org |
+| `teamMeetings` | Scheduled meetings | Active members of matching org |
+| `teamActivity` | Team activity log | Active members of matching org |
+| `activities` | Organization-wide activity feed | Active members of matching org |
+| `missionVision` | Mission/vision docs | Active members of matching org |
+| `coreValues` | Core values | Active members of matching org |
+| `strategicGoals` | Strategic goals | Active members of matching org |
+| `organizationProfile` | Org settings profile (`{organizationId}` doc; legacy `foundation` for HopeBridge) | Active members; admin writes |
 | `appMetadata` | Internal flags + access-control bootstrap | Signed-in get for `accessControl`; admin writes |
-| `userProfiles` | Authz profiles (`pending`/`active`/`disabled`) | Own get; admin list/manage |
+| `userProfiles` | Authz profiles (`pending`/`active`/`disabled`) | Own get; org admin list/manage own org (+ pending unassigned) |
 
 ### Product-completion collections (new)
 

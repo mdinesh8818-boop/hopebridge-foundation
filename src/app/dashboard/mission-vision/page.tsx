@@ -50,8 +50,9 @@ import {
   isResourcesUrlConfigured,
   type OrganizationProfile,
 } from "@/services/organizationProfile";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
 import {
-  CORE_VALUE_ACCENT_OPTIONS,
+CORE_VALUE_ACCENT_OPTIONS,
   CORE_VALUE_ICON_MAP,
   CORE_VALUE_ICON_OPTIONS,
   getValueMedallionClass,
@@ -708,7 +709,7 @@ export default function MissionVisionPage() {
               className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]"
             >
               <Home size={14} className="text-[#0d5f44]" />
-              HopeBridge Foundation
+              <OrganizationLabel />
             </Link>
             <span className="text-[#c2cbc6]">/</span>
             <strong>Mission & Vision</strong>

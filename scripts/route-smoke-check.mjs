@@ -28,6 +28,7 @@ const routes = [
   "/dashboard/help",
   "/auth/pending",
   "/auth/disabled",
+  "/onboarding",
 ];
 
 const root = process.cwd();

@@ -15,7 +15,7 @@ import {
 } from "@/lib/accessControl";
 import {
   adminSetUserAccess,
-  listUserProfiles,
+  listUserProfilesForOrganization,
 } from "@/services/userProfile";
 
 export default function AccessManagementPage() {
@@ -29,14 +29,14 @@ export default function AccessManagementPage() {
   const allowed = canManageUserAccess(profile);
 
   const load = useCallback(async () => {
-    if (!allowed) {
+    if (!allowed || !profile) {
       setLoading(false);
       return;
     }
     setLoading(true);
     setError("");
     try {
-      const rows = await listUserProfiles();
+      const rows = await listUserProfilesForOrganization(profile);
       setProfiles(rows);
     } catch (err) {
       setError(
@@ -47,7 +47,7 @@ export default function AccessManagementPage() {
     } finally {
       setLoading(false);
     }
-  }, [allowed]);
+  }, [allowed, profile]);
 
   useEffect(() => {
     // Async profile list load for admins; mirrors other dashboard modules.
