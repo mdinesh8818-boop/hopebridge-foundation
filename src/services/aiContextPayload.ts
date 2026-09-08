@@ -96,5 +96,15 @@ export function buildHopeBridgeAiContextPayload(
       detail: item.detail,
       priority: item.priority,
     })),
+    teams: (ctx.teams ?? []).map((team) => ({
+      id: team.id,
+      name: team.name,
+      status: team.status,
+      department: team.department,
+      leadName: team.leadName,
+      memberCount: team.memberCount,
+      capacity: team.capacity,
+      openAssignments: team.openAssignments,
+    })),
   };
 }

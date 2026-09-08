@@ -714,8 +714,8 @@ export default function DonorsPage() {
             <article className="dn-intelligence-panel">
               <div className="relative z-[1] flex items-start justify-between">
                 <div>
-                  <p className="dn-intelligence-kicker">AI Fundraising Advisor</p>
-                  <h2 className="dn-intelligence-title">Donor Opportunity</h2>
+                  <p className="dn-intelligence-kicker">Fundraising insight</p>
+                  <h2 className="dn-intelligence-title">Donor opportunity</h2>
                 </div>
 
                 <div className="dn-intelligence-icon">

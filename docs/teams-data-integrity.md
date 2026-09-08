@@ -40,3 +40,14 @@ A future cleanup can use `DEMO_TEAM_*` fingerprints in `src/data/demo-record-reg
 - Prefer `setDocument(stableLogicalId, …)` for any future seed/demo writers.
 - Use `findMissingSeedRecords` + `matchSeed*` helpers so re-running seed is idempotent.
 - Do not re-introduce hard-coded AI metrics.
+
+## Cross-module consistency (AI / Dashboard / search)
+
+`src/services/teamsNormalization.ts` wraps the Teams integrity layer and is the shared read path for:
+
+- Dashboard organization snapshot (`activeTeams`)
+- AI Assistant context, Connected Data Sources coverage, and offline team answers
+- Dashboard global search team hits
+- Mission & Vision team linkables
+
+AI must never count raw Firestore team documents. Coverage detail uses normalized `teamCount` / `activeTeams`. Deterministic regression: `npm run test:ai-teams-context`.

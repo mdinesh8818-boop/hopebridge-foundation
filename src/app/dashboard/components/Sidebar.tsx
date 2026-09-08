@@ -315,7 +315,7 @@ export default function Sidebar() {
               </p>
 
               <p className="text-xs text-zinc-500">
-                Strategic assistant online
+                Assistant available
               </p>
             </div>
 

@@ -73,14 +73,9 @@ function nextMessageId(prefix: string) {
 const WELCOME_MESSAGE: ChatMessage = {
   id: "welcome",
   role: "assistant",
-  text: "Welcome to HopeBridge Intelligence. Ask about campaigns, fundraising, programs, beneficiaries, volunteers, geographic reach, risks, or request an executive summary. Answers are grounded in your live HopeBridge organizational data.",
+  text: "Welcome. Ask about campaigns, fundraising, programs, beneficiaries, volunteers, teams, risks, or request an executive summary. Answers use your current HopeBridge records.",
   time: "Now",
-  sections: [
-    {
-      heading: "OBSERVATION",
-      body: "Welcome to HopeBridge Intelligence. Ask about campaigns, fundraising, programs, beneficiaries, volunteers, geographic reach, risks, or request an executive summary. Answers are grounded in your live HopeBridge organizational data.",
-    },
-  ],
+  sections: [],
 };
 
 function formatClock(date = new Date()) {
@@ -406,14 +401,13 @@ export default function AiAssistantPage() {
           </nav>
 
           <header className="ia-hero">
-            <p className="ia-hero-kicker">HOPEBRIDGE INTELLIGENCE</p>
+            <p className="ia-hero-kicker">HOPEBRIDGE ASSISTANT</p>
             <h1>
               HopeBridge AI <em className="not-italic text-[#efd062]">Assistant</em>
             </h1>
             <p>
-              HopeBridge AI analyzes your organization&apos;s connected data to provide
-              grounded nonprofit intelligence on campaigns, programs, fundraising,
-              community impact, and operational risks.
+              Ask questions about campaigns, programs, fundraising, teams, and
+              operational risks. Answers draw from your connected HopeBridge modules.
             </p>
 
             <div className="ai-status" role="status">
@@ -519,15 +513,15 @@ export default function AiAssistantPage() {
           </section>
 
           <div className="ai-workspace">
-            {/* Strategic Conversation */}
-            <section className="ia-panel ai-chat-shell" aria-label="Strategic conversation">
+            {/* Conversation */}
+            <section className="ia-panel ai-chat-shell" aria-label="Conversation">
               <div className="ia-panel-header">
                 <div>
-                  <p className="ia-kicker">STRATEGIC CONVERSATION</p>
-                  <h2>Strategic Conversation</h2>
+                  <p className="ia-kicker">CONVERSATION</p>
+                  <h2>Ask HopeBridge AI</h2>
                   <p>
-                    Ask questions grounded in HopeBridge campaigns, programs, donors,
-                    volunteers, beneficiaries, teams, and impact data.
+                    Ask about campaigns, programs, donors, volunteers, beneficiaries,
+                    teams, and impact metrics from your live records.
                   </p>
                 </div>
                 <button
@@ -544,10 +538,10 @@ export default function AiAssistantPage() {
                 {messages.length === 0 ? (
                   <div className="ai-empty-chat">
                     <BrainCircuit className="mx-auto text-[#0d5f44]" size={28} />
-                    <h3>Start with a nonprofit intelligence question</h3>
+                    <h3>Try a question to get started</h3>
                     <p>
-                      Use a suggested question below, or type your own. HopeBridge AI
-                      answers from connected organizational records — never invented totals.
+                      Use a suggestion below, or type your own. Answers use connected
+                      HopeBridge records and will not invent missing totals.
                     </p>
                   </div>
                 ) : null}
@@ -746,11 +740,10 @@ export default function AiAssistantPage() {
           <section className="ia-panel" aria-label="Quick analysis actions">
             <div className="ia-panel-header">
               <div>
-                <p className="ia-kicker">QUICK ANALYSIS</p>
-                <h2>Nonprofit Intelligence Actions</h2>
+                <p className="ia-kicker">QUICK ACTIONS</p>
+                <h2>Common questions</h2>
                 <p>
-                  Each action asks HopeBridge AI a grounded nonprofit intelligence
-                  question.
+                  Shortcuts that ask HopeBridge AI a focused question about your data.
                 </p>
               </div>
               <Sparkles className="text-[#d4af37]" size={20} />

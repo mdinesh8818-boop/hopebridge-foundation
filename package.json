@@ -12,7 +12,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "cleanup-demo-data": "node scripts/cleanup-demo-data.mjs",
-    "test:teams-integrity": "node --import tsx scripts/teams-integrity-smoke.mjs"
+    "test:teams-integrity": "node --import tsx scripts/teams-integrity-smoke.mjs",
+    "test:ai-teams-context": "node --import tsx scripts/ai-teams-context-smoke.mjs"
   },
   "dependencies": {
     "firebase": "^12.17.0",
