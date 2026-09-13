@@ -3,6 +3,8 @@
  * Safe to import from client components; all native calls are guarded.
  */
 
+import { getSiteUrl } from "@/lib/site";
+
 export function isProbablyNativeShell(): boolean {
   if (typeof window === "undefined") return false;
   const capacitor = (
@@ -29,11 +31,7 @@ export function getAppBaseUrl(): string {
   if (typeof window !== "undefined" && window.location?.origin) {
     return window.location.origin;
   }
-  return (
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.CAPACITOR_SERVER_URL ||
-    "https://hopebridge-foundation.vercel.app"
-  ).replace(/\/$/, "");
+  return getSiteUrl();
 }
 
 export function isExternalHttpUrl(href: string): boolean {

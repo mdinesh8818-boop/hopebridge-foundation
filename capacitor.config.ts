@@ -18,7 +18,8 @@ import { KeyboardResize } from "@capacitor/keyboard";
 const serverUrl = (
   process.env.CAPACITOR_SERVER_URL ||
   process.env.NEXT_PUBLIC_APP_URL ||
-  "https://hopebridge-foundation.vercel.app"
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "https://hopebridge-foundation-five.vercel.app"
 ).replace(/\/$/, "");
 
 const config: CapacitorConfig = {
@@ -30,6 +31,7 @@ const config: CapacitorConfig = {
     cleartext: false,
     androidScheme: "https",
     allowNavigation: [
+      "hopebridge-foundation-five.vercel.app",
       "hopebridge-foundation.vercel.app",
       "*.vercel.app",
       "*.googleapis.com",

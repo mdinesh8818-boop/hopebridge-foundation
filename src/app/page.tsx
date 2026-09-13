@@ -12,6 +12,17 @@ import {
   Target,
   Users,
 } from "lucide-react";
+import { HomeJsonLd } from "@/components/SeoJsonLd";
+import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildPageMetadata({
+  title: "HopeBridge | Nonprofit Management & Intelligence Platform",
+  description:
+    "HopeBridge helps nonprofit organizations manage campaigns, programs, donors, volunteers, beneficiaries, teams, reporting, impact analytics, and organizational insights in one connected platform.",
+  path: "/",
+  index: true,
+});
 
 const features = [
   {
@@ -102,6 +113,7 @@ const footerLinkMap: Record<string, string> = {
 export default function Home() {
   return (
     <div className="min-h-screen bg-[#faf7ef] text-[#18392e]">
+      <HomeJsonLd />
       <header className="sticky top-0 z-50 border-b border-[#e8decb] bg-[#fffdf6]/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
           <div className="flex items-center gap-3">
@@ -152,13 +164,13 @@ export default function Home() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[#efd786] bg-[#fffaf0] px-4 py-1.5 text-xs font-bold tracking-[0.14em] text-[#9e7b24]">
               <Sparkles size={14} />
-              NONPROFIT INTELLIGENCE PLATFORM
+              NONPROFIT MANAGEMENT PLATFORM
             </div>
             <h1
               className="mt-6 text-5xl font-bold leading-[1.02] sm:text-6xl"
               style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
             >
-              Technology for good.
+              Nonprofit software
               <br />
               <span
                 style={{
@@ -169,13 +181,15 @@ export default function Home() {
                   color: "transparent",
                 }}
               >
-                Built for greater impact.
+                built for greater impact.
               </span>
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-[#607269]">
-              Bring campaigns, programs, donors, volunteers, reporting, and
-              nonprofit intelligence together in one connected platform designed
-              to help organizations turn resources into measurable impact.
+              HopeBridge is a nonprofit management and intelligence platform that
+              brings campaign management, program delivery, donor stewardship,
+              volunteer coordination, beneficiary records, teams, reporting, and
+              impact analytics together — with organizational AI to help leaders
+              turn information into action.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link

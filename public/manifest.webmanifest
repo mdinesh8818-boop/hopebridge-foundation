@@ -1,14 +1,17 @@
 {
   "name": "HopeBridge",
   "short_name": "HopeBridge",
-  "description": "Nonprofit intelligence and management platform for campaigns, programs, donors, volunteers, teams, analytics, and AI assistance.",
+  "description": "HopeBridge nonprofit management and intelligence platform for campaigns, programs, donors, volunteers, beneficiaries, teams, reporting, and impact analytics.",
   "start_url": "/auth/login",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#0d5f44",
   "theme_color": "#0d5f44",
-  "categories": ["business", "productivity"],
+  "categories": [
+    "business",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "/icon.svg",
@@ -22,5 +25,6 @@
       "type": "image/svg+xml",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "id": "/"
 }

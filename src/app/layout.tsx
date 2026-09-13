@@ -4,6 +4,8 @@ import "./globals.css";
 import { AuthProvider } from "../providers/AuthProvider";
 import { OrganizationProvider } from "../providers/OrganizationProvider";
 import { NativeAppProviders } from "@/components/NativeAppProviders";
+import { buildPageMetadata } from "@/lib/seo";
+import { getSiteUrl } from "@/lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,9 +17,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const googleVerification = process.env.GOOGLE_SITE_VERIFICATION?.trim();
+
 export const metadata: Metadata = {
-  title: "HopeBridge",
-  description: "Nonprofit intelligence and management platform",
+  ...buildPageMetadata({ path: "/", index: true }),
+  metadataBase: new URL(getSiteUrl()),
+  title: {
+    default: "HopeBridge | Nonprofit Management & Intelligence Platform",
+    template: "%s | HopeBridge",
+  },
+  description:
+    "HopeBridge helps nonprofit organizations manage campaigns, programs, donors, volunteers, beneficiaries, teams, reporting, impact analytics, and organizational insights in one connected platform.",
   applicationName: "HopeBridge",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
@@ -28,9 +38,16 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icon.svg" }],
+  },
   other: {
     "mobile-web-app-capable": "yes",
   },
+  ...(googleVerification
+    ? { verification: { google: googleVerification } }
+    : {}),
 };
 
 export const viewport: Viewport = {

@@ -36,7 +36,7 @@ A separate RN app would duplicate modules, auth, Firestore scoping, and AI conte
 |-------|-------|-------|
 | App name | HopeBridge | Product name |
 | appId / Bundle ID | `com.hopebridge.app` | **Temporary development ID** — confirm final commercial Bundle ID / applicationId before store submission |
-| Launch URL | `CAPACITOR_SERVER_URL` or `NEXT_PUBLIC_APP_URL` or `https://hopebridge-foundation.vercel.app` | Must be HTTPS production/stable deploy |
+| Launch URL | `CAPACITOR_SERVER_URL` / `NEXT_PUBLIC_APP_URL` / `NEXT_PUBLIC_SITE_URL` / `https://hopebridge-foundation-five.vercel.app` | Must be HTTPS production/stable deploy |
 
 ## Native launch behavior
 
