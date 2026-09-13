@@ -1,4 +1,5 @@
 import type { CapacitorConfig } from "@capacitor/cli";
+import { KeyboardResize } from "@capacitor/keyboard";
 
 /**
  * Capacitor uses a remote-hosted Next.js backend (not static export).
@@ -52,7 +53,7 @@ const config: CapacitorConfig = {
       backgroundColor: "#0d5f44",
     },
     Keyboard: {
-      resize: "body",
+      resize: KeyboardResize.Body,
       resizeOnFullScreen: true,
     },
   },
