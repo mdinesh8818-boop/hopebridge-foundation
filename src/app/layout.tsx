@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "../providers/AuthProvider";
 import { OrganizationProvider } from "../providers/OrganizationProvider";
+import { NativeAppProviders } from "@/components/NativeAppProviders";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,15 +18,26 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "HopeBridge",
   description: "Nonprofit intelligence and management platform",
+  applicationName: "HopeBridge",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     title: "HopeBridge",
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
   },
 };
 
 export const viewport: Viewport = {
   themeColor: "#0d5f44",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -40,7 +52,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider>
-          <OrganizationProvider>{children}</OrganizationProvider>
+          <OrganizationProvider>
+            <NativeAppProviders>{children}</NativeAppProviders>
+          </OrganizationProvider>
         </AuthProvider>
       </body>
     </html>

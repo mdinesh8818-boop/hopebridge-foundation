@@ -51,10 +51,10 @@ export default function ReportsPage() {
     };
   }, [refreshToken]);
 
-  function handleExport() {
+  async function handleExport() {
     if (!report) return;
     const stamp = new Date(report.generatedAt).toISOString().slice(0, 10);
-    downloadCsv(`hopebridge-report-${stamp}.csv`, report.csvRows);
+    await downloadCsv(`hopebridge-report-${stamp}.csv`, report.csvRows);
   }
 
   return (
