@@ -497,7 +497,7 @@ export default function DonorsPage() {
     }
   }
 
-  function exportDonors() {
+  async function exportDonors() {
     const rows = [
       ["Name", "Email", "Amount", "Campaign", "Date", "Status"],
       ...filteredDonors.map((donor) => [
@@ -518,13 +518,8 @@ export default function DonorsPage() {
       )
       .join("\n");
 
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "hopebridge-donors.csv";
-    link.click();
-    URL.revokeObjectURL(url);
+    const { downloadOrShareTextFile } = await import("@/lib/fileExport");
+    await downloadOrShareTextFile("hopebridge-donors.csv", csv);
   }
 
   function openEmailDonors() {

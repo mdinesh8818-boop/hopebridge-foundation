@@ -335,18 +335,25 @@ export default function AiAssistantPage() {
       });
     } catch (err) {
       console.error("Unable to answer organizational question.", err);
-      setChatError("Unable to generate a response from HopeBridge data. Please try again.");
+      const offline =
+        typeof navigator !== "undefined" && navigator.onLine === false;
+      const friendly = offline
+        ? "You appear to be offline. Reconnect to use HopeBridge AI."
+        : "Unable to generate a response from HopeBridge data. Please try again.";
+      setChatError(friendly);
       setMessages((prev) => [
         ...prev,
         {
           id: nextMessageId("assistant-error"),
           role: "assistant",
-          text: "A temporary error occurred while analyzing organizational data.",
+          text: friendly,
           time: formatClock(),
           sections: [
             {
               heading: "OBSERVATION",
-              body: "A temporary error occurred while analyzing organizational data. Please retry your question.",
+              body: offline
+                ? "HopeBridge AI needs a network connection to reach the secure backend. No stack details are shown."
+                : "A temporary error occurred while analyzing organizational data. Please retry your question.",
             },
           ],
         },

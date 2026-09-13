@@ -92,7 +92,10 @@ export async function buildOrganizationReport(): Promise<OrganizationReport> {
   return { generatedAt, sections, csvRows };
 }
 
-export function downloadCsv(filename: string, rows: string[][]): void {
+export async function downloadCsv(
+  filename: string,
+  rows: string[][],
+): Promise<void> {
   const csv = rows
     .map((row) =>
       row
@@ -104,11 +107,6 @@ export function downloadCsv(filename: string, rows: string[][]): void {
     )
     .join("\n");
 
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
+  const { downloadOrShareTextFile } = await import("@/lib/fileExport");
+  await downloadOrShareTextFile(filename, csv);
 }

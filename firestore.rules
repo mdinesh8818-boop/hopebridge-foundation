@@ -1,14 +1,14 @@
 rules_version = '2';
 
 // HopeBridge — multi-organization SaaS access control
-// Deploy with Firebase CLI or Console after merge. Not applied automatically by Vercel.
+// Deploy with Firebase Console or CLI. Not applied automatically by Vercel.
 //
 // Model:
 // - Firebase Auth proves identity
 // - userProfiles/{uid} proves membership + status + role + organizationId
 // - Operational data requires active status AND matching organizationId
 // - Legacy HopeBridge docs without organizationId are readable/writable only by
-//   active hopebridge members during migration (soft-tag to organizationId=hopebridge)
+//   active hopebridge members during migration
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -106,7 +106,6 @@ service cloud.firestore {
         );
     }
 
-    // Self-serve nonprofit onboarding completion (create own org as active admin).
     function onboardingActivationUpdate() {
       return isOwner(request.auth.uid)
         && resource.data.status == "pending"
@@ -122,7 +121,6 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/organizations/$(request.resource.data.organizationId)).data.createdBy == request.auth.uid;
     }
 
-    // Mark "join existing org" without granting data access.
     function awaitInviteUpdate() {
       return isOwner(request.auth.uid)
         && resource.data.status == "pending"
@@ -135,7 +133,6 @@ service cloud.firestore {
         && request.resource.data.onboardingComplete == true;
     }
 
-    // Resume create-organization onboarding from the pending screen.
     function resumeOnboardingUpdate() {
       return isOwner(request.auth.uid)
         && resource.data.status == "pending"
@@ -170,7 +167,6 @@ service cloud.firestore {
       return request.resource.data.get("organizationId", "");
     }
 
-    // Same-org match, or legacy untagged HopeBridge Foundation docs.
     function canAccessOrgDoc() {
       return isActiveMember() && (
         docOrgId() == memberOrgId()
@@ -182,7 +178,7 @@ service cloud.firestore {
       return isActiveMember()
         && writeOrgId() == memberOrgId()
         && (
-          !resource.keys().hasAll(["organizationId"])
+          !("organizationId" in resource.data)
           || docOrgId() == ""
           || docOrgId() == memberOrgId()
         );
@@ -191,8 +187,6 @@ service cloud.firestore {
     function canCreateOrgDoc() {
       return isActiveMember() && writeOrgId() == memberOrgId();
     }
-
-    // --- Access control ---
 
     match /userProfiles/{userId} {
       allow get: if isOwner(userId)
@@ -259,8 +253,6 @@ service cloud.firestore {
       allow update: if canWriteOrgDoc() && isAdmin();
       allow delete: if false;
     }
-
-    // --- Operational collections (active members of matching organization) ---
 
     match /campaigns/{id} {
       allow read: if canAccessOrgDoc();

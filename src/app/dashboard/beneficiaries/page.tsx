@@ -414,7 +414,7 @@ export default function BeneficiariesPage() {
     setDraftFilters(next);
   }
 
-  function exportReport() {
+  async function exportReport() {
     const rows = [
       ["ID", "Name", "Program", "Region", "Support", "Status", "Coordinator"],
       ...filteredBeneficiaries.map((b) => [
@@ -427,14 +427,11 @@ export default function BeneficiariesPage() {
         b.coordinator,
       ]),
     ];
-    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "hopebridge-beneficiaries.csv";
-    link.click();
-    URL.revokeObjectURL(url);
+    const csv = rows
+      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const { downloadOrShareTextFile } = await import("@/lib/fileExport");
+    await downloadOrShareTextFile("hopebridge-beneficiaries.csv", csv);
   }
 
   function focusFollowUps() {

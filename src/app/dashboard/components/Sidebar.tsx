@@ -93,6 +93,10 @@ const navigationSections: NavigationSection[] = [
         label: "Calendar",
         icon: CalendarDays,
       },
+      {
+        label: "Activity",
+        icon: Gauge,
+      },
     ],
   },
   {
@@ -146,6 +150,7 @@ export default function Sidebar() {
       "AI Assistant": "/dashboard/ai-assistant",
       Reports: "/dashboard/reports",
       Calendar: "/dashboard/calendar",
+      Activity: "/dashboard/activity",
       "Organization Setup": "/dashboard/organization",
       Settings: "/dashboard/settings",
       Help: "/dashboard/help",
@@ -332,12 +337,16 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile menu button */}
+      {/* Mobile menu button — safe-area aware for notch / status bar */}
       <button
         type="button"
         aria-label="Open navigation"
         onClick={() => setMobileOpen(true)}
-        className="fixed left-4 top-4 z-40 flex h-11 w-11 items-center justify-center rounded-xl border border-amber-400/20 bg-zinc-950/90 text-amber-300 shadow-xl backdrop-blur-xl lg:hidden"
+        className="hb-mobile-menu-btn fixed z-40 flex h-11 w-11 items-center justify-center rounded-xl border border-amber-400/20 bg-zinc-950/90 text-amber-300 shadow-xl backdrop-blur-xl lg:hidden"
+        style={{
+          top: "max(1rem, env(safe-area-inset-top, 0px))",
+          left: "max(1rem, env(safe-area-inset-left, 0px))",
+        }}
       >
         <Menu size={21} />
       </button>
