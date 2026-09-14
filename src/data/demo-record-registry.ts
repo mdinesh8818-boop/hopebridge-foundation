@@ -138,6 +138,19 @@ export const DEMO_TEAM_ASSIGNMENT_TITLES = new Set([
   "Vendor Contract Renewal",
 ]);
 
+/** teams/data.ts INITIAL_DISCUSSIONS — opt-in cleanup / integrity fingerprints only */
+export const DEMO_TEAM_DISCUSSION_TITLES = new Set([
+  "Q3 Community Outreach Planning",
+  "Program KPI Alignment",
+]);
+
+/** teams/data.ts INITIAL_MEETINGS — fingerprints reserved; UI not wired unless QA confirms dupes */
+export const DEMO_TEAM_MEETING_TITLES = new Set([
+  "Programs Weekly Sync",
+  "Fundraising Review",
+  "Community Outreach Planning",
+]);
+
 export function isKnownDemoTeam(record: { name?: string }): boolean {
   return Boolean(record.name && DEMO_TEAM_NAMES.has(record.name));
 }
@@ -154,4 +167,12 @@ export function isKnownDemoTeamMember(record: {
 
 export function isKnownDemoTeamAssignment(record: { title?: string }): boolean {
   return Boolean(record.title && DEMO_TEAM_ASSIGNMENT_TITLES.has(record.title));
+}
+
+export function isKnownDemoTeamDiscussion(record: { title?: string }): boolean {
+  return Boolean(record.title && DEMO_TEAM_DISCUSSION_TITLES.has(record.title));
+}
+
+export function isKnownDemoTeamMeeting(record: { title?: string }): boolean {
+  return Boolean(record.title && DEMO_TEAM_MEETING_TITLES.has(record.title));
 }

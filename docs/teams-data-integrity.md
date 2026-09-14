@@ -51,3 +51,33 @@ A future cleanup can use `DEMO_TEAM_*` fingerprints in `src/data/demo-record-reg
 - Mission & Vision team linkables
 
 AI must never count raw Firestore team documents. Coverage detail uses normalized `teamCount` / `activeTeams`. Deterministic regression: `npm run test:ai-teams-context`.
+
+## Production QA follow-up — Discussions duplicates (post PR #13)
+
+After PR #13/#14, Teams Overview, Directory, and Assignments matched production expectations (6 active teams, 8 members, 4 open / 5 total assignments, 0 workload alerts). A remaining UI symptom remained on **Teams → Discussions**:
+
+- 4 discussion cards rendered for **2** logical seeded threads
+- `"Q3 Community Outreach Planning"` (Community Outreach) shown twice
+- `"Program KPI Alignment"` (Programs & Impact) shown twice
+
+### Root cause
+
+Same historical class as PR #13: seeded/demo discussion documents were written more than once with Firestore auto-ids. PR #13 normalized teams/members/assignments in `buildTeamsWorkspaceModel`, but the Discussions tab still subscribed to raw Firestore docs and rendered them without seeded-fingerprint dedupe.
+
+### Fix
+
+- Extend `integrity.ts` with `normalizeSeededDiscussions` (fingerprint: normalized seed title + teamName).
+- Prefer the richer duplicate (more messages → more participants → higher unread → stable id).
+- Remap `teamId` onto canonical Teams workspace ids by `teamName` so drawer/team filters stay consistent.
+- Wire Discussions UI / drawer props through the normalized list only.
+- Do **not** delete production Firestore discussion documents.
+
+Legitimate user-created discussions (titles outside the known seed set) are never collapsed, even when titles collide with each other.
+
+### Meetings audit
+
+`INITIAL_MEETINGS` has the same historical seed shape and is therefore vulnerable to the same duplicate class. `normalizeSeededMeetings` exists for parity and smoke coverage, but the Meetings tab is **not** wired to it until production QA confirms duplicate meeting cards. No production evidence of meeting duplicates was reported in this QA pass.
+
+### Regression
+
+`npm run test:teams-integrity` covers duplicate discussion collapse, richer-thread preference, teamId remap, preservation of user-created same-title discussions, and meetings helper collapse.

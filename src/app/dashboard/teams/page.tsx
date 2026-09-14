@@ -67,7 +67,7 @@ import {
   sortActivity,
   toTeamWriteData,
 } from "./utils";
-import { buildTeamsWorkspaceModel } from "./integrity";
+import { buildTeamsWorkspaceModel, normalizeSeededDiscussions } from "./integrity";
 import { useModuleCreateAction } from "@/hooks/useModuleCreateAction";
 import "./teams.css";
 
@@ -242,6 +242,12 @@ export default function TeamsPage() {
   const kpis = workspace.kpis;
   const teamIntelligence = workspace.intelligence;
 
+  const normalizedDiscussions = useMemo(
+    () =>
+      normalizeSeededDiscussions(discussions, teamsWithCapacity).discussions,
+    [discussions, teamsWithCapacity],
+  );
+
   useModuleCreateAction(useCallback(() => setIsCreateTeamOpen(true), []));
 
   const filteredTeams = useMemo(() => {
@@ -411,7 +417,7 @@ export default function TeamsPage() {
     setSaving(true);
     try {
       const teamAssignments = normalizedAssignments.filter((assignment) => assignment.teamId === teamId);
-      const teamDiscussions = discussions.filter((discussion) => discussion.teamId === teamId);
+      const teamDiscussions = normalizedDiscussions.filter((discussion) => discussion.teamId === teamId);
       const teamMeetings = meetings.filter((meeting) => meeting.teamId === teamId);
 
       await Promise.all([
@@ -521,7 +527,7 @@ export default function TeamsPage() {
   }
 
   async function handleReplyDiscussion(discussionId: string, body: string) {
-    const disc = discussions.find((d) => d.id === discussionId);
+    const disc = normalizedDiscussions.find((d) => d.id === discussionId);
     if (!disc) return;
     const msg = {
       id: `msg-${Date.now()}`,
@@ -953,7 +959,7 @@ export default function TeamsPage() {
                     </button>
                   </div>
                   <div className="space-y-2">
-                    {discussions.map((d) => (
+                    {normalizedDiscussions.map((d) => (
                       <button key={d.id} type="button" className="w-full rounded-xl border border-[#e4dac6] px-4 py-3 text-left hover:border-[#d4af37]/40" onClick={() => setSelectedDiscussion(d)}>
                         <div className="flex justify-between">
                           <p className="font-semibold text-[#18392e]">{d.title}</p>
@@ -1054,13 +1060,13 @@ export default function TeamsPage() {
           team={selectedTeam}
           members={membersWithWorkload}
           assignments={normalizedAssignments}
-          discussions={discussions}
+          discussions={normalizedDiscussions}
           meetings={meetings}
           onClose={() => setSelectedTeam(null)}
           onAddMember={() => { setWorkspaceTab("directory"); setSelectedTeam(null); scrollToWorkspace(); }}
           onCreateAssignment={() => { setAssignmentModal({ teamId: selectedTeam.id }); setSelectedTeam(null); }}
           onScheduleMeeting={() => { setMeetingModal({ teamId: selectedTeam.id }); setSelectedTeam(null); }}
-          onStartDiscussion={() => { setSelectedDiscussion(discussions.find((d) => d.teamId === selectedTeam.id) ?? discussions[0] ?? null); setSelectedTeam(null); }}
+          onStartDiscussion={() => { setSelectedDiscussion(normalizedDiscussions.find((d) => d.teamId === selectedTeam.id) ?? normalizedDiscussions[0] ?? null); setSelectedTeam(null); }}
           onEditTeam={() => {
             setEditingTeam(selectedTeam);
             setSelectedTeam(null);
