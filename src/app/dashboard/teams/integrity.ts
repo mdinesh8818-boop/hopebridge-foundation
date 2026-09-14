@@ -16,6 +16,8 @@
 
 import {
   INITIAL_ASSIGNMENTS,
+  INITIAL_DISCUSSIONS,
+  INITIAL_MEETINGS,
   INITIAL_MEMBERS,
   INITIAL_TEAMS,
 } from "./data";
@@ -23,6 +25,8 @@ import type {
   AssignmentStatus,
   Team,
   TeamAssignment,
+  TeamDiscussion,
+  TeamMeeting,
   TeamMember,
 } from "./types";
 
@@ -81,6 +85,21 @@ export const SEEDED_MEMBER_NAMES = new Set(
 export const SEEDED_ASSIGNMENT_TITLES = new Set(
   INITIAL_ASSIGNMENTS.map((assignment) => normalizeText(assignment.title)),
 );
+
+export const SEEDED_DISCUSSION_TITLES = new Set(
+  INITIAL_DISCUSSIONS.map((discussion) => normalizeText(discussion.title)),
+);
+
+export const SEEDED_MEETING_TITLES = new Set(
+  INITIAL_MEETINGS.map((meeting) => normalizeText(meeting.title)),
+);
+
+/**
+ * Optional title drift map for seeded discussions.
+ * Production QA titles currently match INITIAL_DISCUSSIONS exactly; keep this
+ * table for near-identical copy drift (same pattern as assignment aliases).
+ */
+const SEEDED_DISCUSSION_TITLE_ALIASES: Record<string, string> = {};
 
 /** Near-identical production titles that drifted from seed copy. */
 const SEEDED_ASSIGNMENT_TITLE_ALIASES: Record<string, string> = {
@@ -558,3 +577,155 @@ function buildTeamIntelligence(
     availableCount: best.available.length,
   };
 }
+
+function seededDiscussionTitleKey(title: string): string | null {
+  const normalized = normalizeText(title);
+  if (SEEDED_DISCUSSION_TITLES.has(normalized)) return normalized;
+  return SEEDED_DISCUSSION_TITLE_ALIASES[normalized] ?? null;
+}
+
+function seededMeetingTitleKey(title: string): string | null {
+  const normalized = normalizeText(title);
+  if (SEEDED_MEETING_TITLES.has(normalized)) return normalized;
+  return null;
+}
+
+function isSeededDiscussion(
+  discussion: Pick<TeamDiscussion, "title">,
+): boolean {
+  return seededDiscussionTitleKey(discussion.title) != null;
+}
+
+function isSeededMeeting(meeting: Pick<TeamMeeting, "title">): boolean {
+  return seededMeetingTitleKey(meeting.title) != null;
+}
+
+function preferDiscussion(a: TeamDiscussion, b: TeamDiscussion): TeamDiscussion {
+  if (a.messages.length !== b.messages.length) {
+    return a.messages.length >= b.messages.length ? a : b;
+  }
+  if (a.participantIds.length !== b.participantIds.length) {
+    return a.participantIds.length >= b.participantIds.length ? a : b;
+  }
+  if (a.unreadCount !== b.unreadCount) {
+    return a.unreadCount >= b.unreadCount ? a : b;
+  }
+  return preferRecord(a, b);
+}
+
+function discussionFingerprint(
+  discussion: Pick<TeamDiscussion, "title" | "teamName">,
+): string | null {
+  const titleKey = seededDiscussionTitleKey(discussion.title);
+  if (!titleKey) return null;
+  return `${titleKey}::${normalizeText(discussion.teamName)}`;
+}
+
+function meetingFingerprint(
+  meeting: Pick<TeamMeeting, "title" | "teamName" | "date" | "time">,
+): string | null {
+  const titleKey = seededMeetingTitleKey(meeting.title);
+  if (!titleKey) return null;
+  return `${titleKey}::${normalizeText(meeting.teamName)}::${normalizeText(meeting.date)}::${normalizeText(meeting.time)}`;
+}
+
+export function matchSeedDiscussion(
+  existing: TeamDiscussion[],
+  seed: TeamDiscussion,
+): boolean {
+  const key = discussionFingerprint(seed);
+  if (!key) return false;
+  return existing.some((discussion) => discussionFingerprint(discussion) === key);
+}
+
+export function matchSeedMeeting(
+  existing: TeamMeeting[],
+  seed: TeamMeeting,
+): boolean {
+  const key = meetingFingerprint(seed);
+  if (!key) return false;
+  return existing.some((meeting) => meetingFingerprint(meeting) === key);
+}
+
+/**
+ * Collapse known seeded/demo discussion duplicates at the read layer.
+ * User-created discussions (non-seed titles) pass through unchanged — even when
+ * titles collide. Optionally remaps teamId onto canonical Teams workspace ids.
+ */
+export function normalizeSeededDiscussions(
+  rawDiscussions: TeamDiscussion[],
+  canonicalTeams: Pick<Team, "id" | "name">[] = [],
+): {
+  discussions: TeamDiscussion[];
+  duplicateDiscussionKeys: string[];
+} {
+  const best = new Map<string, TeamDiscussion>();
+  const passthrough: TeamDiscussion[] = [];
+  const seenCounts = new Map<string, number>();
+
+  for (const discussion of rawDiscussions) {
+    if (!isSeededDiscussion(discussion)) {
+      passthrough.push(discussion);
+      continue;
+    }
+    const key = discussionFingerprint(discussion);
+    if (!key) {
+      passthrough.push(discussion);
+      continue;
+    }
+    seenCounts.set(key, (seenCounts.get(key) ?? 0) + 1);
+    const existing = best.get(key);
+    best.set(
+      key,
+      existing ? preferDiscussion(existing, discussion) : discussion,
+    );
+  }
+
+  const teamIdByName = new Map(
+    canonicalTeams.map((team) => [normalizeText(team.name), team.id] as const),
+  );
+
+  const unique = [...passthrough, ...best.values()].map((discussion) => {
+    const byName = teamIdByName.get(normalizeText(discussion.teamName));
+    if (!byName || byName === discussion.teamId) return discussion;
+    return { ...discussion, teamId: byName };
+  });
+
+  const duplicateDiscussionKeys = [...seenCounts.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([key]) => key);
+
+  return { discussions: unique, duplicateDiscussionKeys };
+}
+
+/**
+ * Same seeded-demo collapse pattern for meetings.
+ * Not wired into the Teams UI unless production confirms meeting duplicates.
+ */
+export function normalizeSeededMeetings(
+  rawMeetings: TeamMeeting[],
+  canonicalTeams: Pick<Team, "id" | "name">[] = [],
+): {
+  meetings: TeamMeeting[];
+  duplicateMeetingKeys: string[];
+} {
+  const result = dedupeByKey(rawMeetings, (meeting) =>
+    isSeededMeeting(meeting) ? meetingFingerprint(meeting) : null,
+  );
+
+  const teamIdByName = new Map(
+    canonicalTeams.map((team) => [normalizeText(team.name), team.id] as const),
+  );
+
+  const meetings = result.unique.map((meeting) => {
+    const byName = teamIdByName.get(normalizeText(meeting.teamName));
+    if (!byName || byName === meeting.teamId) return meeting;
+    return { ...meeting, teamId: byName };
+  });
+
+  return {
+    meetings,
+    duplicateMeetingKeys: result.duplicateKeys,
+  };
+}
+

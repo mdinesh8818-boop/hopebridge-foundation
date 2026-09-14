@@ -7,6 +7,8 @@ import assert from "node:assert/strict";
 
 import {
   INITIAL_ASSIGNMENTS,
+  INITIAL_DISCUSSIONS,
+  INITIAL_MEETINGS,
   INITIAL_MEMBERS,
   INITIAL_TEAMS,
 } from "../src/app/dashboard/teams/data.ts";
@@ -15,9 +17,13 @@ import {
   findMissingSeedRecords,
   isOpenAssignment,
   matchSeedAssignment,
+  matchSeedDiscussion,
+  matchSeedMeeting,
   matchSeedMember,
   matchSeedTeam,
   normalizeAssignmentStatus,
+  normalizeSeededDiscussions,
+  normalizeSeededMeetings,
 } from "../src/app/dashboard/teams/integrity.ts";
 
 function cloneWithAutoId(record, prefix, index) {
@@ -224,6 +230,123 @@ function run() {
     "Legitimate user-created same-name teams must not be collapsed",
   );
 
+  // --- Discussions: production QA duplicate cards (PR #13 class) ---
+  const duplicatedDiscussions = [
+    ...INITIAL_DISCUSSIONS.map((discussion, index) =>
+      cloneWithAutoId(discussion, "disc", index),
+    ),
+    ...INITIAL_DISCUSSIONS.map((discussion, index) =>
+      cloneWithAutoId(
+        {
+          ...discussion,
+          unreadCount: discussion.unreadCount + 1,
+          messages: discussion.messages.slice(0, 1),
+        },
+        "disc",
+        index + 100,
+      ),
+    ),
+  ];
+  assert.equal(duplicatedDiscussions.length, INITIAL_DISCUSSIONS.length * 2);
+
+  const discussionNorm = normalizeSeededDiscussions(
+    duplicatedDiscussions,
+    model.teams,
+  );
+  assert.equal(
+    discussionNorm.discussions.length,
+    INITIAL_DISCUSSIONS.length,
+    "Seeded discussion duplicates must collapse to one card per logical thread",
+  );
+  assert.equal(discussionNorm.duplicateDiscussionKeys.length, 2);
+  assert.equal(
+    findMissingSeedRecords({
+      existing: discussionNorm.discussions,
+      seed: INITIAL_DISCUSSIONS,
+      match: matchSeedDiscussion,
+    }).length,
+    0,
+  );
+
+  // Prefer the richer message thread when collapsing duplicates.
+  const outreachDiscussion = discussionNorm.discussions.find(
+    (discussion) => discussion.title === "Q3 Community Outreach Planning",
+  );
+  assert.ok(outreachDiscussion);
+  assert.equal(outreachDiscussion.messages.length, 3);
+  assert.equal(outreachDiscussion.participantIds.length, 3);
+
+  // Remap discussion teamId onto canonical Teams workspace ids by teamName.
+  const outreachTeamForDiscussion = model.teams.find(
+    (team) => team.name === "Community Outreach",
+  );
+  assert.ok(outreachTeamForDiscussion);
+  assert.equal(outreachDiscussion.teamId, outreachTeamForDiscussion.id);
+
+  // User-created discussions must never collapse — even with matching titles.
+  const userDiscussions = [
+    {
+      id: "user-disc-1",
+      title: "Board Update Draft",
+      teamId: "user-team-1",
+      teamName: "Special Projects Alpha",
+      participantIds: ["user-1"],
+      lastMessage: "First draft ready",
+      lastActivityAt: "2026-09-01T10:00:00",
+      unreadCount: 0,
+      resolved: false,
+      messages: [],
+    },
+    {
+      id: "user-disc-2",
+      title: "Board Update Draft",
+      teamId: "user-team-1",
+      teamName: "Special Projects Alpha",
+      participantIds: ["user-1", "user-2"],
+      lastMessage: "Second thread",
+      lastActivityAt: "2026-09-02T10:00:00",
+      unreadCount: 1,
+      resolved: false,
+      messages: [],
+    },
+  ];
+  const mixedDiscussions = normalizeSeededDiscussions(
+    [...duplicatedDiscussions, ...userDiscussions],
+    model.teams,
+  );
+  assert.equal(
+    mixedDiscussions.discussions.filter(
+      (discussion) => discussion.title === "Board Update Draft",
+    ).length,
+    2,
+    "Legitimate user-created same-title discussions must not be collapsed",
+  );
+  assert.equal(
+    mixedDiscussions.discussions.length,
+    INITIAL_DISCUSSIONS.length + 2,
+  );
+
+  // Meetings helper: same seed-dupe class; UI unwired until production confirms.
+  const duplicatedMeetings = [
+    ...INITIAL_MEETINGS.map((meeting, index) =>
+      cloneWithAutoId(meeting, "mtg", index),
+    ),
+    ...INITIAL_MEETINGS.map((meeting, index) =>
+      cloneWithAutoId(meeting, "mtg", index + 100),
+    ),
+  ];
+  const meetingNorm = normalizeSeededMeetings(duplicatedMeetings, model.teams);
+  assert.equal(meetingNorm.meetings.length, INITIAL_MEETINGS.length);
+  assert.equal(meetingNorm.duplicateMeetingKeys.length, INITIAL_MEETINGS.length);
+  assert.equal(
+    findMissingSeedRecords({
+      existing: meetingNorm.meetings,
+      seed: INITIAL_MEETINGS,
+      match: matchSeedMeeting,
+    }).length,
+    0,
+  );
+
   console.log("teams-integrity-smoke: PASS");
   console.log(
     JSON.stringify(
@@ -235,6 +358,9 @@ function run() {
         outreachOpen: outreachOpen.length,
         outreachCapacity: outreach.capacity,
         intelligence: model.intelligence.headline,
+        discussionsAfterDedupe: discussionNorm.discussions.length,
+        discussionDuplicateKeys: discussionNorm.duplicateDiscussionKeys.length,
+        meetingsAfterDedupe: meetingNorm.meetings.length,
       },
       null,
       2,
