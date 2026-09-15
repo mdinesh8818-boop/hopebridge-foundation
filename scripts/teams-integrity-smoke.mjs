@@ -326,18 +326,35 @@ function run() {
     INITIAL_DISCUSSIONS.length + 2,
   );
 
-  // Meetings helper: same seed-dupe class; UI unwired until production confirms.
+  // --- Meetings: production QA duplicate cards (post PR #18) ---
   const duplicatedMeetings = [
     ...INITIAL_MEETINGS.map((meeting, index) =>
       cloneWithAutoId(meeting, "mtg", index),
     ),
     ...INITIAL_MEETINGS.map((meeting, index) =>
-      cloneWithAutoId(meeting, "mtg", index + 100),
+      cloneWithAutoId(
+        {
+          ...meeting,
+          attendeeIds: meeting.attendeeIds.slice(0, Math.max(0, meeting.attendeeIds.length - 1)),
+          agenda: meeting.agenda.slice(0, 8),
+        },
+        "mtg",
+        index + 100,
+      ),
     ),
   ];
+  assert.equal(duplicatedMeetings.length, INITIAL_MEETINGS.length * 2);
+
   const meetingNorm = normalizeSeededMeetings(duplicatedMeetings, model.teams);
-  assert.equal(meetingNorm.meetings.length, INITIAL_MEETINGS.length);
-  assert.equal(meetingNorm.duplicateMeetingKeys.length, INITIAL_MEETINGS.length);
+  assert.equal(
+    meetingNorm.meetings.length,
+    INITIAL_MEETINGS.length,
+    "Seeded meeting duplicates must collapse to one card per logical meeting",
+  );
+  assert.equal(
+    meetingNorm.duplicateMeetingKeys.length,
+    INITIAL_MEETINGS.length,
+  );
   assert.equal(
     findMissingSeedRecords({
       existing: meetingNorm.meetings,
@@ -345,6 +362,98 @@ function run() {
       match: matchSeedMeeting,
     }).length,
     0,
+  );
+
+  // Prefer the richer attendee list / agenda when collapsing duplicates.
+  const outreachMeeting = meetingNorm.meetings.find(
+    (meeting) => meeting.title === "Community Outreach Planning",
+  );
+  assert.ok(outreachMeeting);
+  assert.equal(outreachMeeting.attendeeIds.length, 3);
+  assert.ok(outreachMeeting.agenda.includes("Field schedule"));
+
+  // Remap meeting teamId onto canonical Teams workspace ids by teamName.
+  const outreachTeamForMeeting = model.teams.find(
+    (team) => team.name === "Community Outreach",
+  );
+  assert.ok(outreachTeamForMeeting);
+  assert.equal(outreachMeeting.teamId, outreachTeamForMeeting.id);
+
+  // Production QA titles must each appear once after dedupe.
+  for (const title of [
+    "Programs Weekly Sync",
+    "Community Outreach Planning",
+    "Fundraising Review",
+  ]) {
+    assert.equal(
+      meetingNorm.meetings.filter((meeting) => meeting.title === title).length,
+      1,
+      `${title} must render once`,
+    );
+  }
+
+  // Distinct seeded meetings with different schedules stay separate even if
+  // titles collide after normalization aliases (fingerprint includes date/time).
+  const sameTitleDifferentSlot = normalizeSeededMeetings(
+    [
+      {
+        ...INITIAL_MEETINGS[0],
+        id: "mtg-slot-a",
+      },
+      {
+        ...INITIAL_MEETINGS[0],
+        id: "mtg-slot-b",
+        date: "2026-09-01",
+        time: "9:00 AM",
+      },
+    ],
+    model.teams,
+  );
+  assert.equal(
+    sameTitleDifferentSlot.meetings.length,
+    2,
+    "Same seeded title on different date/time must remain distinct",
+  );
+
+  // User-created meetings must never collapse — even with matching titles.
+  const userMeetings = [
+    {
+      id: "user-mtg-1",
+      title: "Volunteer Kickoff",
+      teamId: "user-team-1",
+      teamName: "Special Projects Alpha",
+      date: "2026-09-10",
+      time: "11:00 AM",
+      attendeeIds: ["user-1"],
+      agenda: "Kickoff agenda",
+      completed: false,
+    },
+    {
+      id: "user-mtg-2",
+      title: "Volunteer Kickoff",
+      teamId: "user-team-1",
+      teamName: "Special Projects Alpha",
+      date: "2026-09-10",
+      time: "11:00 AM",
+      attendeeIds: ["user-1", "user-2"],
+      agenda: "Second kickoff thread",
+      completed: false,
+    },
+  ];
+  const mixedMeetings = normalizeSeededMeetings(
+    [...duplicatedMeetings, ...userMeetings],
+    model.teams,
+  );
+  assert.equal(
+    mixedMeetings.meetings.filter(
+      (meeting) => meeting.title === "Volunteer Kickoff",
+    ).length,
+    2,
+    "Legitimate user-created same-title meetings must not be collapsed",
+  );
+  assert.equal(
+    mixedMeetings.meetings.length,
+    INITIAL_MEETINGS.length + 2,
   );
 
   console.log("teams-integrity-smoke: PASS");
@@ -361,6 +470,7 @@ function run() {
         discussionsAfterDedupe: discussionNorm.discussions.length,
         discussionDuplicateKeys: discussionNorm.duplicateDiscussionKeys.length,
         meetingsAfterDedupe: meetingNorm.meetings.length,
+        meetingDuplicateKeys: meetingNorm.duplicateMeetingKeys.length,
       },
       null,
       2,

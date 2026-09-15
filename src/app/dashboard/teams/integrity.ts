@@ -613,6 +613,20 @@ function preferDiscussion(a: TeamDiscussion, b: TeamDiscussion): TeamDiscussion 
   return preferRecord(a, b);
 }
 
+function preferMeeting(a: TeamMeeting, b: TeamMeeting): TeamMeeting {
+  if (a.attendeeIds.length !== b.attendeeIds.length) {
+    return a.attendeeIds.length >= b.attendeeIds.length ? a : b;
+  }
+  if (a.agenda.length !== b.agenda.length) {
+    return a.agenda.length >= b.agenda.length ? a : b;
+  }
+  // Prefer the incomplete (upcoming) copy when a completed duplicate exists.
+  if (a.completed !== b.completed) {
+    return a.completed ? b : a;
+  }
+  return preferRecord(a, b);
+}
+
 function discussionFingerprint(
   discussion: Pick<TeamDiscussion, "title" | "teamName">,
 ): string | null {
@@ -699,8 +713,9 @@ export function normalizeSeededDiscussions(
 }
 
 /**
- * Same seeded-demo collapse pattern for meetings.
- * Not wired into the Teams UI unless production confirms meeting duplicates.
+ * Collapse known seeded/demo meeting duplicates at the read layer.
+ * User-created meetings (non-seed titles) pass through unchanged — even when
+ * titles collide. Optionally remaps teamId onto canonical Teams workspace ids.
  */
 export function normalizeSeededMeetings(
   rawMeetings: TeamMeeting[],
@@ -709,23 +724,39 @@ export function normalizeSeededMeetings(
   meetings: TeamMeeting[];
   duplicateMeetingKeys: string[];
 } {
-  const result = dedupeByKey(rawMeetings, (meeting) =>
-    isSeededMeeting(meeting) ? meetingFingerprint(meeting) : null,
-  );
+  const best = new Map<string, TeamMeeting>();
+  const passthrough: TeamMeeting[] = [];
+  const seenCounts = new Map<string, number>();
+
+  for (const meeting of rawMeetings) {
+    if (!isSeededMeeting(meeting)) {
+      passthrough.push(meeting);
+      continue;
+    }
+    const key = meetingFingerprint(meeting);
+    if (!key) {
+      passthrough.push(meeting);
+      continue;
+    }
+    seenCounts.set(key, (seenCounts.get(key) ?? 0) + 1);
+    const existing = best.get(key);
+    best.set(key, existing ? preferMeeting(existing, meeting) : meeting);
+  }
 
   const teamIdByName = new Map(
     canonicalTeams.map((team) => [normalizeText(team.name), team.id] as const),
   );
 
-  const meetings = result.unique.map((meeting) => {
+  const unique = [...passthrough, ...best.values()].map((meeting) => {
     const byName = teamIdByName.get(normalizeText(meeting.teamName));
     if (!byName || byName === meeting.teamId) return meeting;
     return { ...meeting, teamId: byName };
   });
 
-  return {
-    meetings,
-    duplicateMeetingKeys: result.duplicateKeys,
-  };
+  const duplicateMeetingKeys = [...seenCounts.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([key]) => key);
+
+  return { meetings: unique, duplicateMeetingKeys };
 }
 

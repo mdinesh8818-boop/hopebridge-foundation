@@ -67,7 +67,11 @@ import {
   sortActivity,
   toTeamWriteData,
 } from "./utils";
-import { buildTeamsWorkspaceModel, normalizeSeededDiscussions } from "./integrity";
+import {
+  buildTeamsWorkspaceModel,
+  normalizeSeededDiscussions,
+  normalizeSeededMeetings,
+} from "./integrity";
 import { useModuleCreateAction } from "@/hooks/useModuleCreateAction";
 import "./teams.css";
 
@@ -248,6 +252,11 @@ export default function TeamsPage() {
     [discussions, teamsWithCapacity],
   );
 
+  const normalizedMeetings = useMemo(
+    () => normalizeSeededMeetings(meetings, teamsWithCapacity).meetings,
+    [meetings, teamsWithCapacity],
+  );
+
   useModuleCreateAction(useCallback(() => setIsCreateTeamOpen(true), []));
 
   const filteredTeams = useMemo(() => {
@@ -418,7 +427,7 @@ export default function TeamsPage() {
     try {
       const teamAssignments = normalizedAssignments.filter((assignment) => assignment.teamId === teamId);
       const teamDiscussions = normalizedDiscussions.filter((discussion) => discussion.teamId === teamId);
-      const teamMeetings = meetings.filter((meeting) => meeting.teamId === teamId);
+      const teamMeetings = normalizedMeetings.filter((meeting) => meeting.teamId === teamId);
 
       await Promise.all([
         ...teamAssignments.map((assignment) => deleteDocument("teamAssignments", assignment.id)),
@@ -982,7 +991,7 @@ export default function TeamsPage() {
                     </button>
                   </div>
                   <div className="space-y-3">
-                    {meetings.filter((m) => !m.completed).map((m) => (
+                    {normalizedMeetings.filter((m) => !m.completed).map((m) => (
                       <div key={m.id} className="rounded-xl border border-[#e4dac6] bg-white px-4 py-4">
                         <p className="font-semibold text-[#18392e]">{m.title}</p>
                         <p className="text-sm text-[#65766e]">{m.teamName}</p>
@@ -1061,7 +1070,7 @@ export default function TeamsPage() {
           members={membersWithWorkload}
           assignments={normalizedAssignments}
           discussions={normalizedDiscussions}
-          meetings={meetings}
+          meetings={normalizedMeetings}
           onClose={() => setSelectedTeam(null)}
           onAddMember={() => { setWorkspaceTab("directory"); setSelectedTeam(null); scrollToWorkspace(); }}
           onCreateAssignment={() => { setAssignmentModal({ teamId: selectedTeam.id }); setSelectedTeam(null); }}
