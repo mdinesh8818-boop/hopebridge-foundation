@@ -25,6 +25,7 @@ import {
 
 import HopeBridgeSidebar from "../components/HopeBridgeSidebar";
 import "../styles/hopebridge.css";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
 
 type HelpTopic = {
   id: string;
@@ -251,12 +252,12 @@ const helpTopics: HelpTopic[] = [
     title: "Security & Data",
     section: "Security & Data",
     icon: ShieldCheck,
-    summary: "Understand how HopeBridge handles authentication and data persistence.",
+    summary: "Understand how HopeBridge handles authentication and organization access.",
     steps: [
-      "Sign in using your organization credentials through Firebase Authentication.",
-      "Operational records — campaigns, programs, donors, volunteers, beneficiaries, teams, and mission data — are stored in Firestore.",
-      "HopeBridge requires a signed-in account to read or write organizational records.",
-      "Contact your administrator for access control and account recovery.",
+      "Create an account or sign in with email and password.",
+      "New self-registered accounts stay pending until a HopeBridge administrator activates them.",
+      "Only active accounts can open the dashboard and organization records.",
+      "Administrators manage approvals from Administration → User Access.",
     ],
     tips: [
       "Do not share login credentials. Sign out on shared devices.",
@@ -315,7 +316,7 @@ export default function HelpCenterPage() {
         <nav className="flex flex-wrap items-center gap-2 text-xs text-[#65766e]">
           <Link href="/dashboard" className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]">
             <Home size={14} className="text-[#0d5f44]" />
-            HopeBridge Foundation
+            <OrganizationLabel />
           </Link>
           <span className="text-[#c2cbc6]">/</span>
           <span className="font-medium text-[#18392e]">Help Center</span>

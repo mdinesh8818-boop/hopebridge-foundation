@@ -13,6 +13,8 @@ export type AiChatRequestBody = {
 
 export type HopeBridgeAiContextPayload = {
   loadedAt: string;
+  organizationId?: string;
+  organizationName?: string;
   snapshot: {
     activeCampaigns: number;
     activePrograms: number;

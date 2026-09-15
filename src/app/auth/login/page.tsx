@@ -3,7 +3,11 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { getAuthErrorMessage, getSafeDashboardPath, redirectAfterAuth } from "@/lib/auth";
+import {
+  getAuthErrorMessage,
+  getSafeDashboardPath,
+  redirectForAccessStatus,
+} from "@/lib/auth";
 import { useAuth } from "@/providers/AuthProvider";
 
 export default function LoginPage() {
@@ -28,8 +32,11 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login(email, password);
-      redirectAfterAuth(searchParams.get("next"));
+      const result = await login(email, password);
+      redirectForAccessStatus(result.profile.status, searchParams.get("next"), {
+        organizationId: result.profile.organizationId,
+        onboardingComplete: result.profile.onboardingComplete,
+      });
     } catch (err: unknown) {
       setError(getAuthErrorMessage(err));
     } finally {

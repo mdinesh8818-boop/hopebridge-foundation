@@ -12,6 +12,7 @@ import {
   Sparkles,
   TrendingUp,
 } from "lucide-react";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
 
 type ModulePageProps = {
   eyebrow: string;
@@ -88,7 +89,7 @@ export default function ModulePage({
             className="inline-flex items-center gap-1.5 transition hover:text-[#0d5f44]"
           >
             <Home size={14} className="text-[#0d5f44]" />
-            HopeBridge Foundation
+            <OrganizationLabel />
           </Link>
           {modulePath && (
             <>

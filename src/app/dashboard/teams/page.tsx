@@ -74,6 +74,7 @@ import {
 } from "./integrity";
 import { useModuleCreateAction } from "@/hooks/useModuleCreateAction";
 import "./teams.css";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
 
 const INITIAL_DIRECTORY_FILTERS: DirectoryFilters = {
   search: "",
@@ -672,7 +673,7 @@ export default function TeamsPage() {
           <nav className="hb-breadcrumb">
             <Link href="/dashboard" className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]">
               <Home size={14} className="text-[#0d5f44]" />
-              HopeBridge Foundation
+              <OrganizationLabel />
             </Link>
             <span className="text-[#c2cbc6]">/</span>
             <strong>Teams</strong>
@@ -780,7 +781,18 @@ export default function TeamsPage() {
                       </div>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
-                      {filteredTeams.map((team) => (
+                      {filteredTeams.length === 0 ? (
+                        <div className="sm:col-span-2 rounded-2xl border border-[#e4dac6] bg-white px-6 py-10 text-center">
+                          <h3 className="text-lg font-semibold text-[#18392e]">
+                            No teams yet.
+                          </h3>
+                          <p className="mt-2 text-sm text-[#65766e]">
+                            Create your first team and assign members when your
+                            organization is ready.
+                          </p>
+                        </div>
+                      ) : (
+                        filteredTeams.map((team) => (
                         <article key={team.id} className="tm-team-card">
                           <p className="text-[10px] font-extrabold tracking-[0.12em] text-[#9f7b24]">
                             {team.department.toUpperCase()}
@@ -807,7 +819,8 @@ export default function TeamsPage() {
                             Open Team
                           </button>
                         </article>
-                      ))}
+                      ))
+                      )}
                     </div>
                   </div>
 

@@ -3,7 +3,11 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { getAuthErrorMessage, getSafeDashboardPath, redirectAfterAuth } from "@/lib/auth";
+import {
+  getAuthErrorMessage,
+  getSafeDashboardPath,
+  redirectToPendingAccess,
+} from "@/lib/auth";
 import { useAuth } from "@/providers/AuthProvider";
 
 export default function SignupPage() {
@@ -41,7 +45,8 @@ export default function SignupPage() {
 
     try {
       await signup(email, password);
-      redirectAfterAuth(searchParams.get("next"));
+      // New accounts set up their own nonprofit (or request to join an existing org).
+      redirectToPendingAccess();
     } catch (err: unknown) {
       setError(getAuthErrorMessage(err));
     } finally {

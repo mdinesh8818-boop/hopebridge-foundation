@@ -14,6 +14,7 @@ import {
   type UserSettings,
 } from "@/services/userSettings";
 import "../module-pages.css";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -83,7 +84,7 @@ export default function SettingsPage() {
           <nav className="flex items-center gap-2 text-sm text-[#607269]">
             <Link href="/dashboard" className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]">
               <Home size={14} className="text-[#0d5f44]" />
-              HopeBridge Foundation
+              <OrganizationLabel />
             </Link>
             <span>/</span>
             <strong className="text-[#112e24]">Settings</strong>

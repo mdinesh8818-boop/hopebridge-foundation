@@ -339,6 +339,7 @@ export async function loadAiOrgContext(): Promise<AiOrgContext> {
   ]);
 
   // Prefer Teams integrity counts so AI never double-counts seeded duplicates.
+  // All underlying collection reads are organization-scoped via firestore context.
   const snapshot = {
     ...dashboard.snapshot,
     activeTeams: teamsBundle.activeTeams,
@@ -1184,12 +1185,12 @@ export function answerOrganizationalQuestion(
   if (!hasData) {
     return formatAnswer([
       {
-        heading: "FACT",
-        body: "HopeBridge does not yet have enough operational records to answer organizational questions.",
+        heading: "OBSERVATION",
+        body: "Your workspace is still getting started. Once you add campaigns, programs, donors, volunteers, beneficiaries, or teams, I can help analyze that information.",
       },
       {
         heading: "AI RECOMMENDATION",
-        body: "Create campaigns, programs, donors, volunteers, or beneficiaries to enable intelligence.",
+        body: "Create your first campaign, program, or team from the dashboard Getting Started checklist. I will not invent sample insights.",
       },
     ]);
   }

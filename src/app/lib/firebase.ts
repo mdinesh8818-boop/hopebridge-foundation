@@ -2,9 +2,8 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-
-const firebaseConfig = {
-    apiKey: "AIzaSyC4-2khxnKFJMFA8SGCvjNo7XsQdP-MOHc",
+export const firebaseWebConfig = {
+  apiKey: "AIzaSyC4-2khxnKFJMFA8SGCvjNo7XsQdP-MOHc",
   authDomain: "hopebridge-foundation-70490.firebaseapp.com",
   projectId: "hopebridge-foundation-70490",
   storageBucket: "hopebridge-foundation-70490.firebasestorage.app",
@@ -13,10 +12,10 @@ const firebaseConfig = {
 };
 
 const app = !getApps().length
-  ? initializeApp(firebaseConfig)
+  ? initializeApp(firebaseWebConfig)
   : getApp();
 
-  export const auth = getAuth(app);
-  export const db = getFirestore(app);
-  
-  export default app;
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+
+export default app;

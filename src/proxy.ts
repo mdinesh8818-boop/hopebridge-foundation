@@ -10,8 +10,16 @@ function isProtectedPath(pathname: string) {
   return pathname === "/dashboard" || pathname.startsWith("/dashboard/");
 }
 
-function isAuthPath(pathname: string) {
+function isGuestAuthPath(pathname: string) {
   return pathname === "/auth/login" || pathname === "/auth/signup";
+}
+
+function isAccessStatusPath(pathname: string) {
+  return pathname === "/auth/pending" || pathname === "/auth/disabled";
+}
+
+function isOnboardingPath(pathname: string) {
+  return pathname === "/onboarding" || pathname.startsWith("/onboarding/");
 }
 
 export function proxy(request: NextRequest) {
@@ -27,7 +35,15 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAuthPath(pathname) && hasSession) {
+  if ((isAccessStatusPath(pathname) || isOnboardingPath(pathname)) && !hasSession) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/auth/login";
+    loginUrl.search = "";
+    return NextResponse.redirect(loginUrl);
+  }
+
+  if (isGuestAuthPath(pathname) && hasSession) {
+    // Status-aware routing continues in GuestRoute / ProtectedRoute.
     const destination = getSafeDashboardPath(
       request.nextUrl.searchParams.get("next"),
     );
@@ -38,5 +54,14 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard", "/dashboard/:path*", "/auth/login", "/auth/signup"],
+  matcher: [
+    "/dashboard",
+    "/dashboard/:path*",
+    "/auth/login",
+    "/auth/signup",
+    "/auth/pending",
+    "/auth/disabled",
+    "/onboarding",
+    "/onboarding/:path*",
+  ],
 };

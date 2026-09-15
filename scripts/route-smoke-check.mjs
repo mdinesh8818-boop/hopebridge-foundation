@@ -23,8 +23,12 @@ const routes = [
   "/dashboard/calendar",
   "/dashboard/activity",
   "/dashboard/organization",
+  "/dashboard/access",
   "/dashboard/settings",
   "/dashboard/help",
+  "/auth/pending",
+  "/auth/disabled",
+  "/onboarding",
 ];
 
 const root = process.cwd();

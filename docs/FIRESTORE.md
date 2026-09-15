@@ -1,12 +1,15 @@
 # HopeBridge Firestore Collections
 
-This document describes Firestore collections used by HopeBridge Foundation and the expected access model. **Security rules are not deployed from this repository** — review and apply in the Firebase console or via your own rules deployment pipeline.
+This document describes Firestore collections used by HopeBridge and the expected access model. **Security rules are not deployed from this repository** — review and apply in the Firebase console or via your own rules deployment pipeline.
 
 ## Access model (current application)
 
-- All operational modules use the **client Firebase SDK** with `request.auth != null` as the practical gate.
-- HopeBridge is currently **single-tenant**: records are not scoped by `organizationId` in application code.
-- New collections introduced in the product-completion pass follow the same pattern unless noted.
+HopeBridge is a **multi-organization** platform. Firebase Authentication proves identity; Firestore `userProfiles/{uid}` grants membership to one `organizationId`.
+
+- Operational reads/writes require an **active** org member whose `organizationId` matches the document (see `docs/ACCESS_CONTROL.md`, `docs/ORGANIZATION_WORKSPACES.md`).
+- Canonical rules: `firestore.rules` (must be deployed manually — Vercel does not publish them).
+- Collection `organizations/{organizationId}` stores workspace identity.
+- Legacy HopeBridge Foundation documents without `organizationId` are soft-tagged / readable only for `organizationId = hopebridge` during migration.
 
 ## Collections
 
@@ -14,31 +17,34 @@ This document describes Firestore collections used by HopeBridge Foundation and 
 
 | Collection | Purpose | Typical access |
 |------------|---------|----------------|
-| `campaigns` | Fundraising campaigns | Authenticated read/write |
-| `programs` | Community programs | Authenticated read/write |
-| `donors` | Donor records | Authenticated read/write |
-| `donations` | Gift ledger | Authenticated read/write |
-| `volunteers` | Volunteer records | Authenticated read/write |
-| `beneficiaries` | Beneficiary records | Authenticated read/write |
-| `beneficiaryActivity` | Beneficiary activity log | Authenticated read/write |
-| `teams` | Team records | Authenticated read/write |
-| `teamMembers` | Team member directory | Authenticated read/write |
-| `teamAssignments` | Team tasks | Authenticated read/write |
-| `teamDiscussions` | Discussion threads | Authenticated read/write |
-| `teamMeetings` | Scheduled meetings | Authenticated read/write |
-| `teamActivity` | Team activity log | Authenticated read/write |
-| `activities` | Organization-wide activity feed | Authenticated read/write |
-| `missionVision` | Mission/vision doc (`foundation`) | Authenticated read/write |
-| `coreValues` | Core values | Authenticated read/write |
-| `strategicGoals` | Strategic goals | Authenticated read/write |
-| `appMetadata` | Internal flags (demo cleanup, etc.) | Authenticated read/write |
+| `organizations` | Nonprofit workspace identity | Members of that org; create during onboarding |
+| `campaigns` | Fundraising campaigns | Active members of matching org |
+| `programs` | Community programs | Active members of matching org |
+| `donors` | Donor records | Active members of matching org |
+| `donations` | Gift ledger | Active members of matching org |
+| `volunteers` | Volunteer records | Active members of matching org |
+| `beneficiaries` | Beneficiary records | Active members of matching org |
+| `beneficiaryActivity` | Beneficiary activity log | Active members of matching org |
+| `teams` | Team records | Active members of matching org |
+| `teamMembers` | Team member directory | Active members of matching org |
+| `teamAssignments` | Team tasks | Active members of matching org |
+| `teamDiscussions` | Discussion threads | Active members of matching org |
+| `teamMeetings` | Scheduled meetings | Active members of matching org |
+| `teamActivity` | Team activity log | Active members of matching org |
+| `activities` | Organization-wide activity feed | Active members of matching org |
+| `missionVision` | Mission/vision docs | Active members of matching org |
+| `coreValues` | Core values | Active members of matching org |
+| `strategicGoals` | Strategic goals | Active members of matching org |
+| `organizationProfile` | Org settings profile (`{organizationId}` doc; legacy `foundation` for HopeBridge) | Active members; admin writes |
+| `appMetadata` | Internal flags + access-control bootstrap | Signed-in get for `accessControl`; admin writes |
+| `userProfiles` | Authz profiles (`pending`/`active`/`disabled`) | Own get; org admin list/manage own org (+ pending unassigned) |
 
 ### Product-completion collections (new)
 
 | Collection | Document ID | Purpose | Recommended access |
 |------------|-------------|---------|-------------------|
-| `organizationProfile` | `foundation` (fixed) | Legal/contact profile, fiscal year, timezone, **Core Strategy Resources URL** | Authenticated read; write limited to admins in production |
-| `userSettings` | Firebase Auth `uid` | Per-user notification and workspace preferences | Authenticated read/write **only for matching `uid`** |
+| `organizationProfile` | `foundation` (fixed) | Legal/contact profile, fiscal year, timezone, **Core Strategy Resources URL** | Active members read; admin write |
+| `userSettings` | Firebase Auth `uid` | Per-user notification and workspace preferences | Owner + active member |
 
 ## `organizationProfile` fields
 
@@ -53,26 +59,16 @@ This document describes Firestore collections used by HopeBridge Foundation and 
 - `emailNotifications`, `weeklyDigest`, `compactTables` (booleans)
 - `timezone`, `defaultLandingModule` (string)
 
-## Suggested rules snippet (for review only)
+## Suggested rules
 
-See `firestore.rules.example` in the repository root. **Do not weaken production rules** to pass tests. E2E tests should run against a dedicated Firebase project with appropriate test credentials.
-
-### Product-completion collections — minimum authenticated access
+Canonical production rules are maintained in **`firestore.rules`**. See `docs/ACCESS_CONTROL.md` for deployment and approval procedures.
 
 ```
-match /organizationProfile/{docId} {
-  allow get, list: if request.auth != null;
-  allow create, update: if request.auth != null;
-  allow delete: if false;
-}
-
-match /userSettings/{userId} {
-  allow get, create, update, delete: if request.auth != null && request.auth.uid == userId;
-  // list is optional; the app now reads by document id (getDocument)
-}
+// Deploy after reviewing:
+// firebase deploy --only firestore:rules
 ```
 
-The application now uses **document get by id** (`getDocument`) for both collections rather than listing the whole collection. If Preview saves appear to succeed but refresh resets values, confirm these rules (or equivalent) are deployed in the Firebase console.
+Do **not** weaken production rules to pass tests. E2E tests should run against a dedicated Firebase project with appropriate test credentials.
 
 ## Team file storage
 

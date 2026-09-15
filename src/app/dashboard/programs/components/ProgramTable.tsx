@@ -55,11 +55,11 @@ export default function ProgramTable({
           <FolderOpen size={28} />
         </div>
         <h2 className="pn-section-title mt-5">
-          {portfolioEmpty ? "No programs yet" : "No programs found"}
+          {portfolioEmpty ? "No programs yet." : "No programs found"}
         </h2>
         <p className="mx-auto mt-2 max-w-md text-sm text-[#607269]">
           {portfolioEmpty
-            ? "Your program portfolio is empty. Create the first program to populate analytics, impact reporting, and this table."
+            ? "Add your first program to begin tracking delivery and outcomes."
             : "No programs match the current search or filter settings. Adjust the filters or create a new program."}
         </p>
         {onCreate && (

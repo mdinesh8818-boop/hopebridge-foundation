@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { isHopeBridgeSessionAuthenticated } from "@/lib/ai/auth";
+import { requireActiveHopeBridgeSession } from "@/lib/ai/auth";
 import { getAiProviderConfig } from "@/lib/ai/config";
 import {
   generateOpenAiAssistantReply,
@@ -38,10 +38,23 @@ function sanitizeHistory(history: unknown): AiChatTurn[] {
     .slice(-MAX_HISTORY_TURNS);
 }
 
-export async function GET(request: Request) {
-  if (!(await isHopeBridgeSessionAuthenticated())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+async function unauthorizedOrForbidden(request: Request) {
+  const session = await requireActiveHopeBridgeSession(request);
+  if (!session) {
+    return NextResponse.json(
+      {
+        error:
+          "Unauthorized. Sign in with an approved HopeBridge account to use this feature.",
+      },
+      { status: 401 },
+    );
   }
+  return session;
+}
+
+export async function GET(request: Request) {
+  const session = await unauthorizedOrForbidden(request);
+  if (session instanceof NextResponse) return session;
 
   const config = getAiProviderConfig();
   const verify = new URL(request.url).searchParams.get("verify") === "1";
@@ -64,9 +77,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!(await isHopeBridgeSessionAuthenticated())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const session = await unauthorizedOrForbidden(request);
+  if (session instanceof NextResponse) return session;
 
   let payload: AiChatRequestBody;
 
@@ -101,7 +113,17 @@ export async function POST(request: Request) {
   const history = sanitizeHistory(payload.history);
 
   try {
-    const systemPrompt = buildHopeBridgeSystemPrompt(payload.context);
+    const organizationName =
+      typeof (payload.context as { organizationName?: unknown }).organizationName ===
+      "string"
+        ? (payload.context as { organizationName?: string }).organizationName
+        : session.profile.organizationId === "hopebridge"
+          ? "HopeBridge Foundation"
+          : "your organization";
+    const systemPrompt = buildHopeBridgeSystemPrompt(
+      payload.context,
+      organizationName || "your organization",
+    );
     const text = await generateOpenAiAssistantReply(
       systemPrompt,
       history,

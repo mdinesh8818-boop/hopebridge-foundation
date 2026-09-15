@@ -70,6 +70,7 @@ import {
   toBeneficiaryWriteData,
 } from "./utils";
 import "./beneficiaries.css";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
 
 const INITIAL_FILTERS: BeneficiaryFilters = {
   search: "",
@@ -451,7 +452,7 @@ export default function BeneficiariesPage() {
           <nav className="hb-breadcrumb">
             <Link href="/dashboard" className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]">
               <Home size={14} className="text-[#0d5f44]" />
-              HopeBridge Foundation
+              <OrganizationLabel />
             </Link>
             <span className="text-[#c2cbc6]">/</span>
             <strong>Beneficiaries</strong>
@@ -608,11 +609,36 @@ export default function BeneficiariesPage() {
                   ) : filteredBeneficiaries.length === 0 ? (
                     <tr>
                       <td colSpan={10} className="px-6 py-14 text-center">
-                        <p className="font-medium text-[#18392e]">No beneficiaries match these filters.</p>
-                        <div className="mt-4 flex justify-center gap-3">
-                          <button type="button" className="bf-secondary-btn" onClick={clearFilters}>Clear Filters</button>
-                          <button type="button" className="bf-gold-btn" onClick={openAddForm}>Add Beneficiary</button>
-                        </div>
+                        {beneficiaries.length === 0 ? (
+                          <>
+                            <p className="font-medium text-[#18392e]">
+                              No beneficiary records yet.
+                            </p>
+                            <p className="mt-2 text-sm text-[#65766e]">
+                              Beneficiary information will appear here as your programs
+                              begin serving people.
+                            </p>
+                            <div className="mt-4 flex justify-center gap-3">
+                              <button type="button" className="bf-gold-btn" onClick={openAddForm}>
+                                Add Beneficiary
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <p className="font-medium text-[#18392e]">
+                              No beneficiaries match these filters.
+                            </p>
+                            <div className="mt-4 flex justify-center gap-3">
+                              <button type="button" className="bf-secondary-btn" onClick={clearFilters}>
+                                Clear Filters
+                              </button>
+                              <button type="button" className="bf-gold-btn" onClick={openAddForm}>
+                                Add Beneficiary
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </td>
                     </tr>
                   ) : (

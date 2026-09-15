@@ -63,6 +63,8 @@ import {
   type DonorRecord,
 } from "./utils";
 import "./donors.css";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
+import { useOrganizationOptional } from "@/providers/OrganizationProvider";
 
 type Donor = DonorRecord;
 
@@ -167,6 +169,8 @@ function DonationTooltip({
 
 export default function DonorsPage() {
   const { user } = useAuth();
+  const organization = useOrganizationOptional();
+  const orgName = organization?.displayName || "our organization";
   const [donors, setDonors] = useState<Donor[]>([]);
   const [campaignRecords, setCampaignRecords] = useState<
     { id: string; name: string; goal?: number; raised?: number }[]
@@ -525,9 +529,9 @@ export default function DonorsPage() {
 
   function openEmailDonors() {
     setEmailForm({
-      subject: "Thank you for supporting HopeBridge Foundation",
+      subject: `Thank you for supporting ${orgName}`,
       message:
-        "Dear donor,\n\nWe appreciate your continued support and wanted to share an update on the impact your generosity is making across our campaigns.\n\nWarm regards,\nHopeBridge Foundation Team",
+        `Dear donor,\n\nWe appreciate your continued support and wanted to share an update on the impact your generosity is making across our campaigns.\n\nWarm regards,\n${orgName} Team`,
     });
     setModalMode("email");
   }
@@ -540,8 +544,8 @@ export default function DonorsPage() {
       subject: "We miss you — rejoin our mission today",
       message:
         lapsed > 0
-          ? `Dear valued supporter,\n\nWe would love to welcome you back. ${lapsed} lapsed donor${lapsed === 1 ? "" : "s"} may be ready for re-engagement.\n\nThank you,\nHopeBridge Foundation`
-          : "Dear valued supporter,\n\nWe appreciate your past support and wanted to share an update on our current initiatives.\n\nThank you,\nHopeBridge Foundation",
+          ? `Dear valued supporter,\n\nWe would love to welcome you back. ${lapsed} lapsed donor${lapsed === 1 ? "" : "s"} may be ready for re-engagement.\n\nThank you,\n${orgName}`
+          : `Dear valued supporter,\n\nWe appreciate your past support and wanted to share an update on our current initiatives.\n\nThank you,\n${orgName}`,
     });
     setModalMode("reengage");
   }
@@ -562,7 +566,7 @@ export default function DonorsPage() {
               className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]"
             >
               <Home size={14} className="text-[#0d5f44]" />
-              HopeBridge Foundation
+              <OrganizationLabel />
             </Link>
             <span className="text-[#c2cbc6]">/</span>
             <strong>Donors</strong>
@@ -991,7 +995,17 @@ export default function DonorsPage() {
                   {filteredDonors.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-10 text-center text-[#5f7268]">
-                        No donors match your current search or filters.
+                        {donors.length === 0 ? (
+                          <>
+                            <p className="font-medium text-[#112e24]">No donors yet.</p>
+                            <p className="mt-2 text-sm">
+                              Add or import donors when you&apos;re ready to start managing
+                              supporter relationships.
+                            </p>
+                          </>
+                        ) : (
+                          "No donors match your current search or filters."
+                        )}
                       </td>
                     </tr>
                   ) : (
