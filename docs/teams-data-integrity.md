@@ -81,3 +81,29 @@ Legitimate user-created discussions (titles outside the known seed set) are neve
 ### Regression
 
 `npm run test:teams-integrity` covers duplicate discussion collapse, richer-thread preference, teamId remap, preservation of user-created same-title discussions, and meetings helper collapse.
+
+## Production QA follow-up — Meetings duplicates (post PR #18)
+
+After PR #18 fixed Discussions, production QA confirmed Discussions renders 2 unique threads, but **Teams → Meetings** still showed each seeded meeting twice:
+
+- `"Programs Weekly Sync"` (Programs & Impact — Aug 21, 2:00 PM)
+- `"Community Outreach Planning"` (Community Outreach — Aug 23, 1:00 PM)
+- `"Fundraising Review"` (Fundraising & Partnerships — Aug 22, 10:30 AM)
+
+### Root cause
+
+Same historical seeded Firestore auto-id duplicates. `normalizeSeededMeetings` already existed after the Discussions work, but the Meetings tab still rendered the raw subscribed list.
+
+### Fix
+
+- Wire Meetings UI / drawer / team-delete meeting filters through `normalizeSeededMeetings`.
+- Fingerprint: normalized seed title + teamName + date + time (keeps same-title meetings on different slots distinct).
+- Prefer richer duplicate (more attendees → longer agenda → incomplete over completed → stable id).
+- Remap `teamId` onto canonical Teams workspace ids by `teamName`.
+- Do **not** delete production Firestore meeting documents.
+
+Legitimate user-created meetings (titles outside the known seed set) are never collapsed, even when titles/schedules collide.
+
+### Regression
+
+`npm run test:teams-integrity` covers duplicate meeting collapse, richer preference, teamId remap, distinct date/time slots, and preservation of user-created same-title meetings.
