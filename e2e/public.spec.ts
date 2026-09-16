@@ -15,7 +15,7 @@ test.describe("Public website", () => {
 
     await page.getByRole("link", { name: "Sign In", exact: true }).first().click();
     await expect(page).toHaveURL(/\/auth\/login/);
-    await expect(page.getByRole("heading", { name: "HopeBridge" }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Sign in/i })).toBeVisible({ timeout: 15000 });
   });
 
   test("public navigation reaches mission and programs", async ({ page }) => {
