@@ -8,8 +8,10 @@ import {
   buildPendingRegistrationProfile,
   canManageUserAccess,
   isHopeBridgeAdmin,
+  isListedBootstrapAdminEmail,
   isUserAccessStatus,
   isUserRole,
+  shouldPromoteToBootstrapAdmin,
   type UserAccessStatus,
   type UserProfile,
   type UserRole,
@@ -88,15 +90,6 @@ async function fetchAccessControlMetadata(): Promise<AccessControlMetadata> {
   };
 }
 
-function isBootstrapAdminEmail(
-  email: string,
-  metadata: AccessControlMetadata,
-): boolean {
-  const normalized = email.trim().toLowerCase();
-  if (!normalized) return false;
-  return (metadata.bootstrapAdminEmails ?? []).includes(normalized);
-}
-
 export function isPreEnforcementAccount(
   creationTime: string | undefined,
   enforceFrom: string | undefined,
@@ -108,23 +101,58 @@ export function isPreEnforcementAccount(
   return created < cutoff;
 }
 
+async function promoteBootstrapAdminProfile(
+  uid: string,
+): Promise<UserProfile> {
+  await updateDocument(USER_PROFILES_COLLECTION, uid, {
+    role: "admin",
+    status: "active",
+    organizationId: HOPEBRIDGE_ORGANIZATION_ID,
+    approvedAt: new Date().toISOString(),
+    approvedBy: uid,
+    disabledAt: null,
+    disabledBy: null,
+  });
+  const promoted = await fetchUserProfile(uid);
+  if (!promoted) {
+    throw new Error("Unable to promote HopeBridge bootstrap administrator.");
+  }
+  return promoted;
+}
+
 /**
  * Ensures a Firestore userProfiles/{uid} document exists.
  *
  * - New self-registration → pending / member
  * - Pre-existing users (have userSettings) → active / member (or admin if bootstrap email)
+ * - Known bootstrap admin emails are elevated to active/admin even if an earlier
+ *   login already created an active/member legacy profile
  * - Never silently grants admin to all authenticated accounts
  */
 export async function ensureUserProfile(user: User): Promise<UserProfile> {
-  const existing = await fetchUserProfile(user.uid);
-  if (existing) return existing;
-
   const email = (user.email ?? "").trim().toLowerCase();
   const displayName = user.displayName ?? "";
-  const settings = await getDocument("userSettings", user.uid);
   const metadata = await fetchAccessControlMetadata();
+  const bootstrapAdmin = isListedBootstrapAdminEmail(
+    email,
+    metadata.bootstrapAdminEmails,
+  );
 
-  const bootstrapAdmin = isBootstrapAdminEmail(email, metadata);
+  const existing = await fetchUserProfile(user.uid);
+  if (existing) {
+    if (
+      shouldPromoteToBootstrapAdmin(
+        existing,
+        email,
+        metadata.bootstrapAdminEmails,
+      )
+    ) {
+      return promoteBootstrapAdminProfile(user.uid);
+    }
+    return existing;
+  }
+
+  const settings = await getDocument("userSettings", user.uid);
   const preEnforcement = isPreEnforcementAccount(
     user.metadata?.creationTime,
     metadata.enforceFrom,

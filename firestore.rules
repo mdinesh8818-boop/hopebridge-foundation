@@ -58,10 +58,20 @@ service cloud.firestore {
         : [];
     }
 
+    // Keep in sync with DEFAULT_BOOTSTRAP_ADMIN_EMAILS in src/lib/accessControl.ts
+    function isKnownBootstrapAdminEmail() {
+      return isSignedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == "mdinesh8818@gmail.com";
+    }
+
     function isBootstrapAdminEmail() {
       return isSignedIn()
-        && request.auth.token.email != null
-        && request.auth.token.email in bootstrapAdminEmails();
+        && request.auth.token.email is string
+        && (
+          isKnownBootstrapAdminEmail()
+          || request.auth.token.email.lower() in bootstrapAdminEmails()
+        );
     }
 
     function validRole(role) {
@@ -97,6 +107,21 @@ service cloud.firestore {
         );
     }
 
+    // Allows the known bootstrap admin to elevate a stale active/member
+    // (or pending) legacy profile to active/admin without Console surgery.
+    function bootstrapSelfAdminPromote(userId) {
+      return isOwner(userId)
+        && isBootstrapAdminEmail()
+        && resource.data.organizationId == hopebridgeOrgId()
+        && request.resource.data.organizationId == hopebridgeOrgId()
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.role == "admin"
+        && request.resource.data.status == "active"
+        && validRole(request.resource.data.role)
+        && validStatus(request.resource.data.status);
+    }
+
     function protectedFieldsUnchanged() {
       return request.resource.data.role == resource.data.role
         && request.resource.data.status == resource.data.status
@@ -118,6 +143,7 @@ service cloud.firestore {
       allow create: if isOwner(userId)
         && (pendingSelfCreate() || legacyActiveSelfCreate());
       allow update: if (isOwner(userId) && protectedFieldsUnchanged())
+        || bootstrapSelfAdminPromote(userId)
         || (isAdmin()
             && request.resource.data.uid == resource.data.uid
             && request.resource.data.organizationId == hopebridgeOrgId()

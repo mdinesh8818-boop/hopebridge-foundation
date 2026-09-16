@@ -7,6 +7,59 @@ export const HOPEBRIDGE_ORGANIZATION_ID = "hopebridge" as const;
 
 export const USER_PROFILES_COLLECTION = "userProfiles" as const;
 
+/**
+ * Deterministic HopeBridge production/demo administrators.
+ * Merged with `appMetadata/accessControl.bootstrapAdminEmails` at runtime.
+ * Keep in sync with `firestore.rules` `isKnownBootstrapAdminEmail()`.
+ */
+export const DEFAULT_BOOTSTRAP_ADMIN_EMAILS = [
+  "mdinesh8818@gmail.com",
+] as const;
+
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/** Union of hardcoded demo admins + configured metadata emails (lowercased). */
+export function mergeBootstrapAdminEmails(
+  configured: readonly string[] | null | undefined,
+): string[] {
+  const emails = new Set<string>(
+    DEFAULT_BOOTSTRAP_ADMIN_EMAILS.map((email) => normalizeEmail(email)),
+  );
+  for (const entry of configured ?? []) {
+    if (typeof entry !== "string") continue;
+    const normalized = normalizeEmail(entry);
+    if (normalized) emails.add(normalized);
+  }
+  return [...emails];
+}
+
+export function isListedBootstrapAdminEmail(
+  email: string,
+  configured?: readonly string[] | null,
+): boolean {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return false;
+  return mergeBootstrapAdminEmails(configured).includes(normalized);
+}
+
+/**
+ * True when an existing HopeBridge profile should be elevated to active admin
+ * because the signed-in email is a known bootstrap administrator.
+ * Does not apply to unrelated members or non-HopeBridge orgs.
+ */
+export function shouldPromoteToBootstrapAdmin(
+  profile: Pick<UserProfile, "role" | "status" | "organizationId">,
+  email: string,
+  configured?: readonly string[] | null,
+): boolean {
+  if (!isListedBootstrapAdminEmail(email, configured)) return false;
+  if (profile.organizationId !== HOPEBRIDGE_ORGANIZATION_ID) return false;
+  if (profile.role === "admin" && profile.status === "active") return false;
+  return true;
+}
+
 export type UserAccessStatus = "pending" | "active" | "disabled";
 export type UserRole = "admin" | "manager" | "member";
 

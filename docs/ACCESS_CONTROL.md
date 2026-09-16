@@ -34,8 +34,17 @@ On first login after this feature ships, `ensureUserProfile()` creates a profile
 |-----------|--------|
 | `userSettings/{uid}` already exists | `active` / `member` (`legacyBackfill: true`) |
 | Auth `creationTime` &lt; `appMetadata/accessControl.enforceFrom` | `active` / `member` |
-| Email listed in `bootstrapAdminEmails` | `active` / `admin` |
+| Email listed in bootstrap admins (hardcoded defaults **or** `bootstrapAdminEmails`) | `active` / `admin` |
 | Otherwise (new signup path) | `pending` / `member` |
+
+### Preview QA finding (admin stuck as member)
+
+If the existing HopeBridge operator (`mdinesh8818@gmail.com`) signed in **before** bootstrap metadata existed, `ensureUserProfile()` created an `active` / `member` legacy profile and then returned it forever. Dashboard access worked (status-only gate), but:
+
+- **User Access** stayed hidden in the Administration sidebar (`role !== admin`)
+- `/dashboard/access` could not list `userProfiles` (admin-only Firestore `list`)
+
+**Fix:** `DEFAULT_BOOTSTRAP_ADMIN_EMAILS` always includes `mdinesh8818@gmail.com`. On every login, `ensureUserProfile()` promotes matching HopeBridge profiles to `active` / `admin`. Firestore rules allow that one-time `bootstrapSelfAdminPromote` update. Ordinary members and new pending signups are never auto-promoted.
 
 **Recommended deploy order**
 
@@ -44,17 +53,17 @@ On first login after this feature ships, `ensureUserProfile()` creates a profile
 ```json
 {
   "organizationId": "hopebridge",
-  "bootstrapAdminEmails": ["your-admin@example.com"],
+  "bootstrapAdminEmails": ["mdinesh8818@gmail.com"],
   "enforceFrom": "2026-09-08T12:00:00.000Z"
 }
 ```
 
-Set `enforceFrom` to approximately **now (UTC)** before announcing the change so accounts created earlier auto-activate as members on next login.
+Emails in `bootstrapAdminEmails` must be **lowercase**. The known demo admin is also hardcoded in app + rules, so promotion still works if this doc is missing.
 
 2. Deploy the application (Vercel).
-3. Have known users sign in once (creates active profiles).
-4. **Deploy Firestore rules** from `firestore.rules` (required — see below).
-5. Confirm admins can open `/dashboard/access` and approve any remaining pending users.
+3. **Deploy Firestore rules** from `firestore.rules` (required — see below). Promotion and admin list reads fail until rules are live.
+4. Sign in as `mdinesh8818@gmail.com` once (elevates stale member → admin).
+5. Confirm **Administration → User Access** appears and pending users can be activated.
 
 ## Admin approval procedure
 
@@ -63,16 +72,15 @@ Set `enforceFrom` to approximately **now (UTC)** before announcing the change so
 3. Find the pending account → **Activate**.
 4. Optionally set role to `manager` or `admin`.
 
-Users cannot change their own `status`, `role`, or `organizationId` (enforced in app helpers and Firestore rules).
+Users cannot change their own `status`, `role`, or `organizationId` (enforced in app helpers and Firestore rules), except the constrained bootstrap self-promote path for known bootstrap admin emails.
 
 ### First admin bootstrap
 
-If no admin exists yet:
+1. Known demo admin email is baked into `DEFAULT_BOOTSTRAP_ADMIN_EMAILS` / rules, **or**
+2. Add additional emails to `appMetadata/accessControl.bootstrapAdminEmails`, **or**
+3. Manually set `userProfiles/{yourUid}` in Console: `status=active`, `role=admin`, `organizationId=hopebridge`, `uid`, `email`.
 
-1. Add your email to `appMetadata/accessControl.bootstrapAdminEmails`, **or**
-2. Manually set `userProfiles/{yourUid}` in Console: `status=active`, `role=admin`, `organizationId=hopebridge`, `uid`, `email`.
-
-Then use User Access for everyone else.
+Then use User Access for everyone else. Non-admins who open `/dashboard/access` are redirected to `/dashboard`.
 
 ## Firestore authorization model
 
