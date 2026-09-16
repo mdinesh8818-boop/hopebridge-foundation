@@ -1,0 +1,188 @@
+/* HopeBridge public nonprofit site — extends emerald / gold / ivory identity */
+
+.pub-page {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(13, 95, 68, 0.05), transparent 32%),
+    radial-gradient(circle at 92% 8%, rgba(212, 162, 40, 0.07), transparent 28%),
+    #faf7ef;
+  color: #18392e;
+}
+
+.pub-serif {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.pub-container {
+  width: min(1120px, calc(100% - 2rem));
+  margin-inline: auto;
+}
+
+.pub-container-wide {
+  width: min(1280px, calc(100% - 2rem));
+  margin-inline: auto;
+}
+
+.pub-kicker {
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #0d5f44;
+}
+
+.pub-demo-banner {
+  border-bottom: 1px solid #e8decb;
+  background: #fff8e8;
+  color: #5c4a1f;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.pub-hero {
+  position: relative;
+  min-height: min(88vh, 760px);
+  display: grid;
+  align-items: end;
+  overflow: hidden;
+  color: #fffdf6;
+  background: #003f2f;
+}
+
+.pub-hero-media {
+  position: absolute;
+  inset: 0;
+}
+
+.pub-hero-media img {
+  object-fit: cover;
+  object-position: center;
+}
+
+.pub-hero-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(0, 42, 32, 0.88) 0%, rgba(0, 52, 39, 0.62) 42%, rgba(0, 52, 39, 0.28) 100%),
+    linear-gradient(0deg, rgba(0, 32, 24, 0.72) 0%, transparent 48%);
+}
+
+.pub-hero-content {
+  position: relative;
+  z-index: 1;
+  padding: clamp(4.5rem, 10vw, 7rem) 0 clamp(3rem, 6vw, 4.5rem);
+}
+
+.pub-progress {
+  height: 0.45rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(24, 57, 46, 0.1);
+}
+
+.pub-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0d5f44, #d4a228);
+}
+
+.pub-split {
+  display: grid;
+  gap: 2.5rem;
+}
+
+@media (min-width: 900px) {
+  .pub-split {
+    grid-template-columns: 1.05fr 0.95fr;
+    align-items: center;
+    gap: 3.5rem;
+  }
+
+  .pub-split-reverse {
+    direction: rtl;
+  }
+
+  .pub-split-reverse > * {
+    direction: ltr;
+  }
+}
+
+.pub-media-frame {
+  position: relative;
+  overflow: hidden;
+  min-height: 320px;
+  background: #0d5f44;
+}
+
+.pub-media-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pub-section {
+  padding: clamp(3.5rem, 7vw, 5.5rem) 0;
+}
+
+.pub-section-tight {
+  padding: clamp(2.5rem, 5vw, 3.5rem) 0;
+}
+
+.pub-rule {
+  height: 1px;
+  background: #e8decb;
+  border: 0;
+}
+
+.pub-cta-band {
+  background:
+    radial-gradient(circle at 85% 20%, rgba(255, 224, 121, 0.14), transparent 30%),
+    linear-gradient(135deg, #003f2f 0%, #005b40 100%);
+  color: #fffdf6;
+}
+
+.pub-focus-ring:focus-visible {
+  outline: 3px solid rgba(212, 162, 40, 0.55);
+  outline-offset: 2px;
+}
+
+.pub-nav-link {
+  color: #3f564c;
+  transition: color 0.15s ease;
+}
+
+.pub-nav-link:hover,
+.pub-nav-link[aria-current="page"] {
+  color: #0d5f44;
+}
+
+.pub-mega {
+  border: 1px solid #e8decb;
+  background: #fffdf6;
+  box-shadow: 0 18px 40px rgba(24, 57, 46, 0.08);
+}
+
+@keyframes pub-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pub-animate-rise {
+    animation: pub-rise 0.7s ease both;
+  }
+
+  .pub-animate-rise-delay {
+    animation: pub-rise 0.8s ease 0.12s both;
+  }
+
+  .pub-animate-rise-delay-2 {
+    animation: pub-rise 0.85s ease 0.22s both;
+  }
+}

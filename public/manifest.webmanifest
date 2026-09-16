@@ -1,7 +1,7 @@
 {
   "name": "HopeBridge Foundation",
   "short_name": "HopeBridge",
-  "description": "Nonprofit intelligence and management platform",
+  "description": "HopeBridge Foundation public website and nonprofit operating platform",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#faf7ef",

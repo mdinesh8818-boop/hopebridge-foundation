@@ -1,22 +1,37 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Public website", () => {
-  test("landing page loads with working section navigation", async ({ page }) => {
+  test("nonprofit homepage loads with working primary actions", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByRole("heading", { name: /Technology for good/i })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /Building bridges of hope in every community/i }),
+    ).toBeVisible();
 
-    const productLink = page.getByRole("link", { name: "Product", exact: true });
-    await expect(productLink).toHaveAttribute("href", "#product");
+    await expect(page.getByRole("link", { name: "Donate", exact: true }).first()).toHaveAttribute(
+      "href",
+      "/donate",
+    );
 
-    await page.getByRole("link", { name: "Sign In", exact: true }).click();
+    await page.getByRole("link", { name: "Sign In", exact: true }).first().click();
     await expect(page).toHaveURL(/\/auth\/login/);
   });
 
-  test("signup page is reachable from Get Started", async ({ page }) => {
-    await page.goto("/");
+  test("public navigation reaches mission and programs", async ({ page }) => {
+    await page.goto("/mission");
+    await expect(page.getByRole("heading", { name: /Dignity, opportunity/i })).toBeVisible();
+
+    await page.goto("/programs");
+    await expect(page.getByRole("heading", { name: /Causes with clarity/i })).toBeVisible();
+
+    await page.goto("/donate");
+    await expect(page.getByRole("heading", { name: /Your gift fuels community programs/i })).toBeVisible();
+  });
+
+  test("signup page is reachable from platform get started", async ({ page }) => {
+    await page.goto("/platform");
     await page.getByRole("link", { name: "Get Started" }).first().click();
     await expect(page).toHaveURL(/\/auth\/signup/);
-    await expect(page.getByText(/Create your nonprofit workspace account/i)).toBeVisible();
+    await expect(page.getByText(/Create your nonprofit workspace account|Create account/i)).toBeVisible();
   });
 });
