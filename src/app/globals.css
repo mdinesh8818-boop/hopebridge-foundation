@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./dashboard/styles/hopebridge.css";
+@import "./styles/public-site.css";
 
 :root {
   --background: #ffffff;

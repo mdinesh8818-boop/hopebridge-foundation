@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -12,6 +13,12 @@ import {
   Target,
   Users,
 } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Platform",
+  description:
+    "HopeBridge Foundation operating platform for nonprofit campaigns, programs, donors, volunteers, analytics, and AI assistance.",
+};
 
 const features = [
   {
@@ -91,36 +98,37 @@ const footerLinkMap: Record<string, string> = {
   "Help Center": "/auth/login?next=%2Fdashboard%2Fhelp",
   "Getting Started": "/auth/signup",
   "Product Guide": "/auth/login?next=%2Fdashboard%2Fhelp",
-  About: "#product",
-  Contact: "/auth/signup",
-  Careers: "#product",
-  Privacy: "#security",
-  Terms: "#security",
-  Support: "/auth/login?next=%2Fdashboard%2Fhelp",
+  About: "/about",
+  Contact: "/contact",
+  Careers: "/contact",
+  Privacy: "/privacy",
+  Terms: "/terms",
+  Support: "/contact",
 };
 
-export default function Home() {
+export default function PlatformPage() {
   return (
     <div className="min-h-screen bg-[#faf7ef] text-[#18392e]">
       <header className="sticky top-0 z-50 border-b border-[#e8decb] bg-[#fffdf6]/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
-          <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#efd786] bg-gradient-to-br from-[#fff1a3] to-[#c28a17] text-sm font-black text-[#073b2f]">
               H
             </div>
             <div>
               <p className="text-sm font-bold tracking-wide">HopeBridge</p>
-              <p className="text-[10px] text-[#65766e]">Foundation</p>
+              <p className="text-[10px] text-[#65766e]">Platform</p>
             </div>
-          </div>
+          </Link>
 
           <nav className="hidden items-center gap-6 text-sm text-[#65766e] md:flex">
+            <Link href="/" className="hover:text-[#0d5f44]">Foundation site</Link>
             <a href="#product" className="hover:text-[#0d5f44]">Product</a>
             <a href="#features" className="hover:text-[#0d5f44]">Features</a>
             <a href="#impact" className="hover:text-[#0d5f44]">Impact</a>
             <a href="#security" className="hover:text-[#0d5f44]">Security</a>
             <a href="#pricing" className="hover:text-[#0d5f44]">Pricing</a>
-            <Link href="/auth/login?next=%2Fdashboard%2Fhelp" className="hover:text-[#0d5f44]">Resources</Link>
+            <Link href="/resources" className="hover:text-[#0d5f44]">Resources</Link>
           </nav>
 
           <div className="flex items-center gap-3">

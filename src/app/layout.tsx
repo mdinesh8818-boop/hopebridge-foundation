@@ -14,13 +14,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HopeBridge Foundation",
-  description: "Nonprofit intelligence and management platform",
+  title: {
+    default: "HopeBridge Foundation",
+    template: "%s · HopeBridge Foundation",
+  },
+  description:
+    "HopeBridge Foundation — public nonprofit website and authenticated operating platform for campaigns, programs, donors, volunteers, impact, and AI-assisted insights.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     title: "HopeBridge",
+    statusBarStyle: "default",
   },
+  applicationName: "HopeBridge Foundation",
 };
 
 export const viewport: Viewport = {
