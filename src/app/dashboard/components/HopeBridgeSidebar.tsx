@@ -22,15 +22,17 @@ import {
   Megaphone,
   Menu,
   Settings,
+  ShieldCheck,
   Target,
   UserRound,
   Users,
   X,
 } from "lucide-react";
+import { canManageUserAccess } from "@/lib/accessControl";
 
 type NavItem = { label: string; href: string; icon: ElementType };
 
-const navGroups: { title: string; items: NavItem[] }[] = [
+const navGroupsBase: { title: string; items: NavItem[] }[] = [
   {
     title: "FOUNDATION",
     items: [
@@ -75,8 +77,27 @@ type HopeBridgeSidebarProps = {
 
 export default function HopeBridgeSidebar({ activePath }: HopeBridgeSidebarProps) {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, profile, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const navGroups = navGroupsBase.map((group) => {
+    if (group.title !== "ADMINISTRATION" || !canManageUserAccess(profile)) {
+      return group;
+    }
+    return {
+      ...group,
+      items: [
+        { label: "Organization", href: "/dashboard/organization", icon: Home },
+        {
+          label: "User Access",
+          href: "/dashboard/access",
+          icon: ShieldCheck,
+        },
+        { label: "Settings", href: "/dashboard/settings", icon: Settings },
+        { label: "Help Center", href: "/dashboard/help", icon: HelpCircle },
+      ],
+    };
+  });
 
   const displayName =
     user?.displayName?.trim() ||

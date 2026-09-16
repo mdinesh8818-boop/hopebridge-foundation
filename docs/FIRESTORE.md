@@ -4,9 +4,11 @@ This document describes Firestore collections used by HopeBridge Foundation and 
 
 ## Access model (current application)
 
-- All operational modules use the **client Firebase SDK** with `request.auth != null` as the practical gate.
-- HopeBridge is currently **single-tenant**: records are not scoped by `organizationId` in application code.
-- New collections introduced in the product-completion pass follow the same pattern unless noted.
+HopeBridge uses Firebase Authentication **plus** Firestore `userProfiles/{uid}` with `status` / `role` / `organizationId`.
+
+- Operational reads/writes require an **active** HopeBridge profile (`docs/ACCESS_CONTROL.md`).
+- Canonical rules: `firestore.rules` (must be deployed manually — Vercel does not publish them).
+- Collection `userProfiles` stores account lifecycle state (`pending` | `active` | `disabled`).
 
 ## Collections
 
@@ -14,31 +16,32 @@ This document describes Firestore collections used by HopeBridge Foundation and 
 
 | Collection | Purpose | Typical access |
 |------------|---------|----------------|
-| `campaigns` | Fundraising campaigns | Authenticated read/write |
-| `programs` | Community programs | Authenticated read/write |
-| `donors` | Donor records | Authenticated read/write |
-| `donations` | Gift ledger | Authenticated read/write |
-| `volunteers` | Volunteer records | Authenticated read/write |
-| `beneficiaries` | Beneficiary records | Authenticated read/write |
-| `beneficiaryActivity` | Beneficiary activity log | Authenticated read/write |
-| `teams` | Team records | Authenticated read/write |
-| `teamMembers` | Team member directory | Authenticated read/write |
-| `teamAssignments` | Team tasks | Authenticated read/write |
-| `teamDiscussions` | Discussion threads | Authenticated read/write |
-| `teamMeetings` | Scheduled meetings | Authenticated read/write |
-| `teamActivity` | Team activity log | Authenticated read/write |
-| `activities` | Organization-wide activity feed | Authenticated read/write |
-| `missionVision` | Mission/vision doc (`foundation`) | Authenticated read/write |
-| `coreValues` | Core values | Authenticated read/write |
-| `strategicGoals` | Strategic goals | Authenticated read/write |
-| `appMetadata` | Internal flags (demo cleanup, etc.) | Authenticated read/write |
+| `campaigns` | Fundraising campaigns | Active HopeBridge members |
+| `programs` | Community programs | Active HopeBridge members |
+| `donors` | Donor records | Active HopeBridge members |
+| `donations` | Gift ledger | Active HopeBridge members |
+| `volunteers` | Volunteer records | Active HopeBridge members |
+| `beneficiaries` | Beneficiary records | Active HopeBridge members |
+| `beneficiaryActivity` | Beneficiary activity log | Active HopeBridge members |
+| `teams` | Team records | Active HopeBridge members |
+| `teamMembers` | Team member directory | Active HopeBridge members |
+| `teamAssignments` | Team tasks | Active HopeBridge members |
+| `teamDiscussions` | Discussion threads | Active HopeBridge members |
+| `teamMeetings` | Scheduled meetings | Active HopeBridge members |
+| `teamActivity` | Team activity log | Active HopeBridge members |
+| `activities` | Organization-wide activity feed | Active HopeBridge members |
+| `missionVision` | Mission/vision doc (`foundation`) | Active HopeBridge members |
+| `coreValues` | Core values | Active HopeBridge members |
+| `strategicGoals` | Strategic goals | Active HopeBridge members |
+| `appMetadata` | Internal flags + access-control bootstrap | Signed-in get for `accessControl`; admin writes |
+| `userProfiles` | Authz profiles (`pending`/`active`/`disabled`) | Own get; admin list/manage |
 
 ### Product-completion collections (new)
 
 | Collection | Document ID | Purpose | Recommended access |
 |------------|-------------|---------|-------------------|
-| `organizationProfile` | `foundation` (fixed) | Legal/contact profile, fiscal year, timezone, **Core Strategy Resources URL** | Authenticated read; write limited to admins in production |
-| `userSettings` | Firebase Auth `uid` | Per-user notification and workspace preferences | Authenticated read/write **only for matching `uid`** |
+| `organizationProfile` | `foundation` (fixed) | Legal/contact profile, fiscal year, timezone, **Core Strategy Resources URL** | Active members read; admin write |
+| `userSettings` | Firebase Auth `uid` | Per-user notification and workspace preferences | Owner + active member |
 
 ## `organizationProfile` fields
 
@@ -53,26 +56,16 @@ This document describes Firestore collections used by HopeBridge Foundation and 
 - `emailNotifications`, `weeklyDigest`, `compactTables` (booleans)
 - `timezone`, `defaultLandingModule` (string)
 
-## Suggested rules snippet (for review only)
+## Suggested rules
 
-See `firestore.rules.example` in the repository root. **Do not weaken production rules** to pass tests. E2E tests should run against a dedicated Firebase project with appropriate test credentials.
-
-### Product-completion collections — minimum authenticated access
+Canonical production rules are maintained in **`firestore.rules`**. See `docs/ACCESS_CONTROL.md` for deployment and approval procedures.
 
 ```
-match /organizationProfile/{docId} {
-  allow get, list: if request.auth != null;
-  allow create, update: if request.auth != null;
-  allow delete: if false;
-}
-
-match /userSettings/{userId} {
-  allow get, create, update, delete: if request.auth != null && request.auth.uid == userId;
-  // list is optional; the app now reads by document id (getDocument)
-}
+// Deploy after reviewing:
+// firebase deploy --only firestore:rules
 ```
 
-The application now uses **document get by id** (`getDocument`) for both collections rather than listing the whole collection. If Preview saves appear to succeed but refresh resets values, confirm these rules (or equivalent) are deployed in the Firebase console.
+Do **not** weaken production rules to pass tests. E2E tests should run against a dedicated Firebase project with appropriate test credentials.
 
 ## Team file storage
 
