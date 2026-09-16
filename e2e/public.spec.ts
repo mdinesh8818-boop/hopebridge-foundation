@@ -15,6 +15,7 @@ test.describe("Public website", () => {
 
     await page.getByRole("link", { name: "Sign In", exact: true }).first().click();
     await expect(page).toHaveURL(/\/auth\/login/);
+    await expect(page.getByRole("heading", { name: "HopeBridge" }).first()).toBeVisible();
   });
 
   test("public navigation reaches mission and programs", async ({ page }) => {
@@ -26,12 +27,17 @@ test.describe("Public website", () => {
 
     await page.goto("/donate");
     await expect(page.getByRole("heading", { name: /Your gift fuels community programs/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /payment provider pending/i })).toBeVisible();
   });
 
   test("signup page is reachable from platform get started", async ({ page }) => {
     await page.goto("/platform");
-    await page.getByRole("link", { name: "Get Started" }).first().click();
+    const getStarted = page.getByRole("link", { name: "Get Started" }).first();
+    await expect(getStarted).toHaveAttribute("href", "/auth/signup");
+    await getStarted.click();
     await expect(page).toHaveURL(/\/auth\/signup/);
-    await expect(page.getByText(/Create your nonprofit workspace account|Create account/i)).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Create account/i })).toBeVisible({
+      timeout: 20000,
+    });
   });
 });

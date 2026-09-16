@@ -91,13 +91,15 @@ export function SiteHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [mobileSection, setMobileSection] = useState<string | null>(null);
+  const [navPathname, setNavPathname] = useState(pathname);
   const headerRef = useRef<HTMLElement>(null);
 
-  useEffect(() => {
+  if (pathname !== navPathname) {
+    setNavPathname(pathname);
     setMobileOpen(false);
     setOpenGroup(null);
     setMobileSection(null);
-  }, [pathname]);
+  }
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {

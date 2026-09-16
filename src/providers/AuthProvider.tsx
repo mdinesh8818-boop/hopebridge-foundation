@@ -33,7 +33,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let settled = false;
+
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      settled = true;
       setUser(firebaseUser);
       if (firebaseUser) {
         setAuthCookie();
@@ -43,7 +46,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    return unsubscribe;
+    // Prevent guest/auth screens from hanging indefinitely if the auth
+    // listener is delayed by network conditions in some environments.
+    const timeoutId = window.setTimeout(() => {
+      if (!settled) {
+        setLoading(false);
+      }
+    }, 6000);
+
+    return () => {
+      unsubscribe();
+      window.clearTimeout(timeoutId);
+    };
   }, []);
 
   const value = useMemo<AuthContextType>(
