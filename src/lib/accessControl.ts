@@ -139,6 +139,16 @@ export function canManageUserAccess(
   return isHopeBridgeAdmin(actor);
 }
 
+/**
+ * Admin-only dashboard side-effects (appMetadata list/create, demo cleanup).
+ * Active members must never run these — Firestore rules deny appMetadata writes.
+ */
+export function shouldRunAdminOnlyCleanup(
+  profile: Pick<UserProfile, "status" | "organizationId" | "role"> | null | undefined,
+): boolean {
+  return canManageUserAccess(profile);
+}
+
 export function accessRedirectPath(
   profile: Pick<UserProfile, "status"> | null | undefined,
 ): "/dashboard" | "/auth/pending" | "/auth/disabled" {

@@ -114,6 +114,14 @@ or paste/upload `firestore.rules` in Firebase Console → Firestore → Rules.
 
 **Until rules are deployed, production security is incomplete** even if the UI shows pending screens.
 
+## Dashboard cleanup isolation
+
+`fetchDashboardOrganizationData()` may attempt demo/activity cleanup side-effects, but:
+
+- Cleanup that lists/creates `appMetadata` is **admin-only** (matches Firestore rules).
+- Active members skip those operations.
+- Cleanup failures are isolated and must never block organization collection reads.
+
 ## AI / API authorization
 
 `/api/ai-assistant/chat` requires:

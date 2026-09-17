@@ -18,6 +18,7 @@ import {
   isListedBootstrapAdminEmail,
   mergeBootstrapAdminEmails,
   shouldPromoteToBootstrapAdmin,
+  shouldRunAdminOnlyCleanup,
 } from "../src/lib/accessControl.ts";
 import { isPreEnforcementAccount } from "../src/services/userProfile.ts";
 
@@ -172,6 +173,25 @@ function run() {
     false,
   );
 
+  // --- Preview QA: member dashboard must not run admin-only appMetadata cleanup ---
+  const activeMember = buildLegacyActiveProfile({
+    uid: "member-uid",
+    email: "mmanikanta471mdv@gmail.com",
+    role: "member",
+  });
+  assert.equal(
+    shouldRunAdminOnlyCleanup(activeMember),
+    false,
+    "Active members must not run appMetadata cleanup/dedupe",
+  );
+  assert.equal(
+    shouldRunAdminOnlyCleanup(alreadyAdmin),
+    true,
+    "Active admins retain cleanup eligibility",
+  );
+  assert.equal(shouldRunAdminOnlyCleanup(null), false);
+  assert.equal(shouldRunAdminOnlyCleanup(pending), false);
+
   console.log("access-control-smoke: PASS");
   console.log(
     JSON.stringify(
@@ -187,6 +207,8 @@ function run() {
         newUserIsBootstrap: isListedBootstrapAdminEmail(
           "mmanikanta8818@gmail.com",
         ),
+        memberRunsCleanup: shouldRunAdminOnlyCleanup(activeMember),
+        adminRunsCleanup: shouldRunAdminOnlyCleanup(alreadyAdmin),
         orgId: HOPEBRIDGE_ORGANIZATION_ID,
       },
       null,
