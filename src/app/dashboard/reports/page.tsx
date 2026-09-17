@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import HopeBridgeSidebar from "../components/HopeBridgeSidebar";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
 import {
   buildOrganizationReport,
   downloadCsv,
@@ -65,7 +66,7 @@ export default function ReportsPage() {
           <nav className="flex items-center gap-2 text-sm text-[#607269]">
             <Link href="/dashboard" className="inline-flex items-center gap-1.5 hover:text-[#0d5f44]">
               <Home size={14} className="text-[#0d5f44]" />
-              HopeBridge Foundation
+              <OrganizationLabel />
             </Link>
             <span>/</span>
             <strong className="text-[#112e24]">Reports</strong>

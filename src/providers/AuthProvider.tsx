@@ -24,6 +24,7 @@ import {
   ensureUserProfile,
   fetchUserProfile,
 } from "@/services/userProfile";
+import { setFirestoreOrganizationContext } from "@/services/firestore";
 
 type AuthContextType = {
   user: User | null;
@@ -54,15 +55,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const current = auth.currentUser;
     if (!current) {
       setProfile(null);
+      setFirestoreOrganizationContext(null);
       return null;
     }
     setProfileLoading(true);
     try {
       const next = await ensureUserProfile(current);
+      setFirestoreOrganizationContext(next.organizationId || null);
       setProfile(next);
       return next;
     } catch {
       const fallback = await fetchUserProfile(current.uid).catch(() => null);
+      setFirestoreOrganizationContext(fallback?.organizationId || null);
       setProfile(fallback);
       return fallback;
     } finally {
@@ -77,11 +81,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthCookie();
         setProfileLoading(true);
         void ensureUserProfile(firebaseUser)
-          .then((next) => setProfile(next))
+          .then((next) => {
+            setFirestoreOrganizationContext(next.organizationId || null);
+            setProfile(next);
+          })
           .catch(async () => {
             const fallback = await fetchUserProfile(firebaseUser.uid).catch(
               () => null,
             );
+            setFirestoreOrganizationContext(fallback?.organizationId || null);
             setProfile(fallback);
           })
           .finally(() => {
@@ -90,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
       } else {
         clearAuthCookie();
+        setFirestoreOrganizationContext(null);
         setProfile(null);
         setProfileLoading(false);
         setLoading(false);
@@ -114,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
         setAuthCookie();
         const nextProfile = await ensureUserProfile(credential.user);
+        setFirestoreOrganizationContext(nextProfile.organizationId || null);
         setUser(credential.user);
         setProfile(nextProfile);
         return { user: credential.user, profile: nextProfile };
@@ -126,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
         setAuthCookie();
         const nextProfile = await createPendingUserProfile(credential.user);
+        setFirestoreOrganizationContext(null);
         setUser(credential.user);
         setProfile(nextProfile);
         return { user: credential.user, profile: nextProfile };
@@ -133,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout: async () => {
         await signOut(auth);
         clearAuthCookie();
+        setFirestoreOrganizationContext(null);
         setUser(null);
         setProfile(null);
       },

@@ -7,6 +7,7 @@ import type { HopeBridgeAiContextPayload } from "@/lib/ai/types";
  */
 export function buildHopeBridgeAiContextPayload(
   ctx: AiOrgContext,
+  organization?: { id?: string; name?: string },
 ): HopeBridgeAiContextPayload {
   const topLocations = ctx.impact.geography.locations
     .slice()
@@ -20,6 +21,8 @@ export function buildHopeBridgeAiContextPayload(
 
   return {
     loadedAt: ctx.loadedAt,
+    organizationId: organization?.id,
+    organizationName: organization?.name,
     snapshot: {
       activeCampaigns: ctx.snapshot.activeCampaigns,
       activePrograms: ctx.snapshot.activePrograms,

@@ -5,6 +5,9 @@ import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/providers/AuthProvider";
+import { useOrganizationOptional } from "@/providers/OrganizationProvider";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
+import { HOPEBRIDGE_ORGANIZATION_ID } from "@/lib/organization";
 import {
   BrainCircuit,
   ChevronRight,
@@ -25,12 +28,23 @@ type HopeBridgeSidebarProps = {
 export default function HopeBridgeSidebar({ activePath }: HopeBridgeSidebarProps) {
   const router = useRouter();
   const { user, profile, logout } = useAuth();
+  const organization = useOrganizationOptional();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navGroups: HopeBridgeNavGroup[] = useMemo(
     () => buildHopeBridgeNavGroups(profile),
     [profile],
   );
+
+  const workspaceName =
+    organization?.displayName ||
+    profile?.organizationId ||
+    "Organization workspace";
+  const productSub =
+    (organization?.organizationId || profile?.organizationId) ===
+    HOPEBRIDGE_ORGANIZATION_ID
+      ? "FOUNDATION"
+      : "WORKSPACE";
 
   const displayName =
     user?.displayName?.trim() ||
@@ -62,8 +76,10 @@ export default function HopeBridgeSidebar({ activePath }: HopeBridgeSidebarProps
         </div>
         <div>
           <div className="hb-brand-name">HOPEBRIDGE</div>
-          <div className="hb-brand-sub">FOUNDATION</div>
-          <div className="hb-brand-tag">Foundation Intelligence</div>
+          <div className="hb-brand-sub">{productSub}</div>
+          <div className="hb-brand-tag" title={workspaceName}>
+            <OrganizationLabel fallback={workspaceName} />
+          </div>
         </div>
         <button
           className="hb-mobile-close"
