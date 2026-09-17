@@ -1,33 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { AccessStatusRoute, useAuth } from "@/components/AuthGuard";
-import { resumeOrganizationOnboarding } from "@/services/userProfile";
+import { isAwaitingOrganizationInvite } from "@/lib/accessControl";
 
 export default function PendingAccessPage() {
-  const router = useRouter();
-  const { logout, profile, user, refreshProfile } = useAuth();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  async function handleSetupNonprofit() {
-    if (!user) return;
-    setBusy(true);
-    setError("");
-    try {
-      await resumeOrganizationOnboarding(user.uid);
-      await refreshProfile();
-      router.replace("/onboarding");
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Unable to open organization setup.",
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
+  const { logout, profile, user } = useAuth();
+  const awaitingInvite = isAwaitingOrganizationInvite(profile);
 
   return (
     <AccessStatusRoute expected="pending">
@@ -40,8 +19,9 @@ export default function PendingAccessPage() {
             Waiting for organization access
           </h1>
           <p className="mt-4 text-sm leading-6 text-zinc-300">
-            Your HopeBridge account is signed in and waiting for an organization
-            administrator to activate you into their workspace.
+            {awaitingInvite
+              ? "Your request to join an existing organization is pending. An organization administrator must activate your account before you can open a workspace."
+              : "Your HopeBridge account is signed in and waiting for an organization administrator to activate you into their workspace."}
           </p>
           <p className="mt-3 text-sm leading-6 text-zinc-400">
             You are signed in as{" "}
@@ -50,19 +30,15 @@ export default function PendingAccessPage() {
             </span>
             .
           </p>
-          {error ? (
-            <p className="mt-3 text-sm text-rose-300">{error}</p>
+          {awaitingInvite ? (
+            <p className="mt-3 text-sm leading-6 text-zinc-500">
+              You cannot create a new nonprofit workspace while this membership
+              request is pending. Contact your organization administrator or
+              sign out if you used the wrong account.
+            </p>
           ) : null}
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void handleSetupNonprofit()}
-              className="rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-400 disabled:opacity-60"
-            >
-              {busy ? "Opening setup..." : "Set up my nonprofit"}
-            </button>
             <button
               type="button"
               onClick={() => void logout()}

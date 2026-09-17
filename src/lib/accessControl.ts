@@ -201,6 +201,30 @@ export function shouldRunAdminOnlyCleanup(
   return isHopeBridgeAdmin(profile);
 }
 
+/**
+ * Pending user who already requested membership in an existing organization.
+ * They must remain on /auth/pending until an org admin activates them.
+ * They must NOT re-enter workspace creation /onboarding.
+ */
+export function isAwaitingOrganizationInvite(
+  profile:
+    | Pick<UserProfile, "status" | "organizationId" | "onboardingComplete">
+    | null
+    | undefined,
+): boolean {
+  return (
+    !!profile &&
+    profile.status === "pending" &&
+    !profile.organizationId.trim() &&
+    profile.onboardingComplete === true
+  );
+}
+
+/**
+ * True only for users who still need the multi-org onboarding chooser
+ * (create nonprofit vs request access). Once a join request is submitted,
+ * this becomes false and accessRedirectPath sends them to /auth/pending.
+ */
 export function needsOrganizationOnboarding(
   profile:
     | Pick<UserProfile, "status" | "organizationId" | "onboardingComplete">
@@ -209,15 +233,29 @@ export function needsOrganizationOnboarding(
 ): boolean {
   if (!profile) return false;
   if (profile.status === "disabled") return false;
+  if (isAwaitingOrganizationInvite(profile)) return false;
   if (profile.status === "active" && profile.organizationId.trim()) {
     return profile.onboardingComplete === false;
   }
-  // Pending users with no org: onboarding unless they chose "join existing".
+  // Unaffiliated pending users who have not yet chosen a path.
   return (
     profile.status === "pending" &&
     !profile.organizationId.trim() &&
     profile.onboardingComplete === false
   );
+}
+
+/**
+ * Resume-create-org escape hatch is intentionally closed once a user has
+ * submitted a pending membership request (or otherwise left the chooser).
+ */
+export function canInitiateWorkspaceCreation(
+  profile:
+    | Pick<UserProfile, "status" | "organizationId" | "onboardingComplete">
+    | null
+    | undefined,
+): boolean {
+  return needsOrganizationOnboarding(profile);
 }
 
 export function accessRedirectPath(
@@ -232,6 +270,7 @@ export function accessRedirectPath(
   if (profile.status === "active" && profile.organizationId.trim()) {
     return "/dashboard";
   }
+  // Pending membership request, pending-with-org, or incomplete profiles.
   return "/auth/pending";
 }
 

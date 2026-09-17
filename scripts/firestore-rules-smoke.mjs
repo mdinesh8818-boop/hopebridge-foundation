@@ -42,6 +42,11 @@ function run() {
   assert.match(rules, /function bootstrapSelfAdminPromote\(/);
   assert.match(rules, /mdinesh8818@gmail\.com/);
 
+  // Pending membership request is one-way — no resume-onboarding escape hatch.
+  assert.match(rules, /function awaitInviteUpdate\(\)/);
+  assert.doesNotMatch(rules, /function resumeOnboardingUpdate\(\)/);
+  assert.doesNotMatch(rules, /\|\|\s*resumeOnboardingUpdate\(\)/);
+
   console.log("firestore-rules-smoke: PASS");
   console.log(
     JSON.stringify(

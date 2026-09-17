@@ -153,29 +153,18 @@ service cloud.firestore {
     }
 
     // Mark "join existing org" without granting data access.
+    // One-way: unaffiliated pending → awaiting invite. Cannot reopen workspace creation.
     function awaitInviteUpdate() {
       return isOwner(request.auth.uid)
         && resource.data.status == "pending"
         && resource.data.get("organizationId", "") == ""
+        && resource.data.get("onboardingComplete", false) == false
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.email == resource.data.email
         && request.resource.data.status == "pending"
         && request.resource.data.role == resource.data.role
         && request.resource.data.get("organizationId", "") == ""
         && request.resource.data.onboardingComplete == true;
-    }
-
-    // Resume create-organization onboarding from the pending screen.
-    function resumeOnboardingUpdate() {
-      return isOwner(request.auth.uid)
-        && resource.data.status == "pending"
-        && resource.data.get("organizationId", "") == ""
-        && request.resource.data.uid == resource.data.uid
-        && request.resource.data.email == resource.data.email
-        && request.resource.data.status == "pending"
-        && request.resource.data.role == resource.data.role
-        && request.resource.data.get("organizationId", "") == ""
-        && request.resource.data.onboardingComplete == false;
     }
 
     function protectedFieldsUnchanged() {
@@ -240,7 +229,6 @@ service cloud.firestore {
         || bootstrapSelfAdminPromote(userId)
         || onboardingActivationUpdate()
         || awaitInviteUpdate()
-        || resumeOnboardingUpdate()
         || (isAdmin()
             && request.resource.data.uid == resource.data.uid
             && request.resource.data.organizationId == memberOrgId()

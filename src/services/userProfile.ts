@@ -274,25 +274,18 @@ export async function markAwaitingOrganizationInvite(
   return updated;
 }
 
-/** Allow a pending user without an org to resume nonprofit workspace creation. */
+/**
+ * Intentionally unavailable: once a user requests access to an existing
+ * organization (or otherwise leaves the onboarding chooser), they must wait
+ * for admin activation. Re-opening workspace creation from /auth/pending is
+ * not supported.
+ */
 export async function resumeOrganizationOnboarding(
-  uid: string,
+  _uid: string,
 ): Promise<UserProfile> {
-  const existing = await fetchUserProfile(uid);
-  if (!existing) throw new Error("User profile not found.");
-  if (existing.status !== "pending" || existing.organizationId.trim()) {
-    throw new Error(
-      "Only pending accounts without an organization can resume onboarding.",
-    );
-  }
-
-  await updateDocument(USER_PROFILES_COLLECTION, uid, {
-    onboardingComplete: false,
-  });
-
-  const updated = await fetchUserProfile(uid);
-  if (!updated) throw new Error("Profile not found after update.");
-  return updated;
+  throw new Error(
+    "Workspace creation cannot be resumed after requesting organization access. Wait for an administrator to activate your account, or sign out.",
+  );
 }
 
 /**

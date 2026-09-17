@@ -1,5 +1,5 @@
 /**
- * Access-control authorization smoke tests (no Firebase / OpenAI network).
+ * Access-control + onboarding lifecycle smoke tests (no Firebase / OpenAI network).
  * Run: npm run test:access-control
  */
 
@@ -12,11 +12,14 @@ import {
   assertNoSelfAuthorizationChanges,
   buildLegacyActiveProfile,
   buildPendingRegistrationProfile,
+  canInitiateWorkspaceCreation,
   canManageUserAccess,
   isActiveHopeBridgeMember,
+  isAwaitingOrganizationInvite,
   isHopeBridgeAdmin,
   isListedBootstrapAdminEmail,
   mergeBootstrapAdminEmails,
+  needsOrganizationOnboarding,
   shouldPromoteToBootstrapAdmin,
   shouldRunAdminOnlyCleanup,
 } from "../src/lib/accessControl.ts";
@@ -29,18 +32,46 @@ import {
 } from "../src/app/dashboard/components/hopeBridgeNav.ts";
 
 function run() {
-  const pending = buildPendingRegistrationProfile({
+  // --- Unaffiliated new signup → onboarding chooser ---
+  const unaffiliated = buildPendingRegistrationProfile({
     uid: "u1",
     email: "new@example.com",
     displayName: "New User",
   });
-  assert.equal(pending.status, "pending");
-  assert.equal(pending.role, "member");
-  assert.equal(pending.organizationId, "");
-  assert.equal(pending.onboardingComplete, false);
-  assert.equal(isActiveHopeBridgeMember(pending), false);
-  assert.equal(accessRedirectPath(pending), "/onboarding");
+  assert.equal(unaffiliated.status, "pending");
+  assert.equal(unaffiliated.role, "member");
+  assert.equal(unaffiliated.organizationId, "");
+  assert.equal(unaffiliated.onboardingComplete, false);
+  assert.equal(isActiveHopeBridgeMember(unaffiliated), false);
+  assert.equal(needsOrganizationOnboarding(unaffiliated), true);
+  assert.equal(canInitiateWorkspaceCreation(unaffiliated), true);
+  assert.equal(isAwaitingOrganizationInvite(unaffiliated), false);
+  assert.equal(accessRedirectPath(unaffiliated), "/onboarding");
 
+  // --- Pending membership request → locked on /auth/pending ---
+  const awaitingInvite = {
+    ...unaffiliated,
+    onboardingComplete: true,
+  };
+  assert.equal(isAwaitingOrganizationInvite(awaitingInvite), true);
+  assert.equal(needsOrganizationOnboarding(awaitingInvite), false);
+  assert.equal(canInitiateWorkspaceCreation(awaitingInvite), false);
+  assert.equal(accessRedirectPath(awaitingInvite), "/auth/pending");
+  // Direct /onboarding must not be the redirect target for awaiting-invite users.
+  assert.notEqual(accessRedirectPath(awaitingInvite), "/onboarding");
+
+  // Pending with an org id (waiting activation into a known org) stays pending.
+  const pendingInOrg = {
+    ...awaitingInvite,
+    organizationId: "helping-hands-abc",
+    onboardingComplete: true,
+  };
+  assert.equal(isAwaitingOrganizationInvite(pendingInOrg), false);
+  assert.equal(needsOrganizationOnboarding(pendingInOrg), false);
+  assert.equal(canInitiateWorkspaceCreation(pendingInOrg), false);
+  assert.equal(accessRedirectPath(pendingInOrg), "/auth/pending");
+
+  // --- Active member → dashboard; no User Access ---
   const legacy = buildLegacyActiveProfile({
     uid: "u2",
     email: "legacy@example.com",
@@ -50,6 +81,8 @@ function run() {
   assert.equal(legacy.legacyBackfill, true);
   assert.equal(isActiveHopeBridgeMember(legacy), true);
   assert.equal(accessRedirectPath(legacy), "/dashboard");
+  assert.equal(needsOrganizationOnboarding(legacy), false);
+  assert.equal(canInitiateWorkspaceCreation(legacy), false);
 
   const admin = {
     ...legacy,
@@ -58,15 +91,22 @@ function run() {
   assert.equal(isHopeBridgeAdmin(admin), true);
   assert.equal(canManageUserAccess(admin), true);
   assert.equal(canManageUserAccess(legacy), false);
+  assert.equal(accessRedirectPath(admin), "/dashboard");
 
+  // --- Disabled → blocked ---
   const disabled = { ...legacy, status: "disabled" };
   assert.equal(accessRedirectPath(disabled), "/auth/disabled");
   assert.equal(isActiveHopeBridgeMember(disabled), false);
+  assert.equal(needsOrganizationOnboarding(disabled), false);
+  assert.equal(canInitiateWorkspaceCreation(disabled), false);
 
   assert.throws(() => assertNoSelfAuthorizationChanges({ role: "admin" }));
   assert.throws(() => assertNoSelfAuthorizationChanges({ status: "active" }));
   assert.throws(() =>
     assertNoSelfAuthorizationChanges({ organizationId: "other" }),
+  );
+  assert.throws(() =>
+    assertNoSelfAuthorizationChanges({ onboardingComplete: false }),
   );
   assert.doesNotThrow(() =>
     assertNoSelfAuthorizationChanges({ displayName: "Safe Name" }),
@@ -132,6 +172,8 @@ function run() {
     false,
   );
   assert.equal(canManageUserAccess(alreadyAdmin), true);
+  assert.equal(accessRedirectPath(alreadyAdmin), "/dashboard");
+  assert.equal(shouldShowUserAccessNav(alreadyAdmin), true);
 
   const pendingBootstrap = buildPendingRegistrationProfile({
     uid: "admin-uid",
@@ -197,12 +239,13 @@ function run() {
     "Active admins retain cleanup eligibility",
   );
   assert.equal(shouldRunAdminOnlyCleanup(null), false);
-  assert.equal(shouldRunAdminOnlyCleanup(pending), false);
+  assert.equal(shouldRunAdminOnlyCleanup(unaffiliated), false);
 
   // --- Admin-only User Access sidebar visibility ---
   assert.equal(shouldShowUserAccessNav(alreadyAdmin), true);
   assert.equal(shouldShowUserAccessNav(activeMember), false);
-  assert.equal(shouldShowUserAccessNav(pending), false);
+  assert.equal(shouldShowUserAccessNav(unaffiliated), false);
+  assert.equal(shouldShowUserAccessNav(awaitingInvite), false);
   assert.equal(shouldShowUserAccessNav(disabled), false);
   assert.equal(USER_ACCESS_NAV_ITEM.href, "/dashboard/access");
 
@@ -237,21 +280,16 @@ function run() {
   console.log(
     JSON.stringify(
       {
-        pendingStatus: pending.status,
-        legacyActive: legacy.status,
-        adminCanManage: canManageUserAccess(admin),
-        memberCanManage: canManageUserAccess(legacy),
-        stuckMemberPromotes: shouldPromoteToBootstrapAdmin(
-          stuckMember,
-          "mdinesh8818@gmail.com",
+        unaffiliatedGoesToOnboarding: accessRedirectPath(unaffiliated),
+        awaitingInviteGoesToPending: accessRedirectPath(awaitingInvite),
+        awaitingCannotCreateWorkspace: !canInitiateWorkspaceCreation(
+          awaitingInvite,
         ),
-        newUserIsBootstrap: isListedBootstrapAdminEmail(
-          "mmanikanta8818@gmail.com",
-        ),
-        memberRunsCleanup: shouldRunAdminOnlyCleanup(activeMember),
-        adminRunsCleanup: shouldRunAdminOnlyCleanup(alreadyAdmin),
+        activeMemberDashboard: accessRedirectPath(activeMember),
+        adminDashboard: accessRedirectPath(alreadyAdmin),
         adminSeesUserAccess: shouldShowUserAccessNav(alreadyAdmin),
         memberSeesUserAccess: shouldShowUserAccessNav(activeMember),
+        disabledBlocked: accessRedirectPath(disabled),
         orgId: HOPEBRIDGE_ORGANIZATION_ID,
       },
       null,

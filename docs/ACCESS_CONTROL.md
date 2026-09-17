@@ -34,9 +34,12 @@ Roles:
 2. App writes `userProfiles/{uid}` with `status: pending`, `role: member`, **empty** `organizationId`, and `onboardingComplete: false`.
 3. User is sent to **`/onboarding`**:
    - **Create my nonprofit** → creates `organizations/{id}`, sets profile to `active` / `admin` for that org, `onboardingComplete: true`.
-   - **Join existing org** → remains `pending` with empty `organizationId` until an org admin activates them into **that admin’s** `organizationId` only → `/auth/pending`.
-4. Pending / empty-org users cannot read/write operational Firestore collections once rules are deployed.
-5. A random signup does **not** receive access to HopeBridge Foundation (`hopebridge`) or any other customer org.
+   - **Join existing org** → sets `onboardingComplete: true` while remaining `pending` with empty `organizationId` → **`/auth/pending`** until an org admin activates them into **that admin’s** `organizationId` only.
+4. **Pending membership lock:** once a user has submitted a join request (`pending` + empty `organizationId` + `onboardingComplete: true`), they stay on `/auth/pending`. Direct navigation to `/onboarding` redirects back to `/auth/pending`. The pending page does **not** offer “Set up my nonprofit” / workspace creation. Firestore rules do **not** allow flipping `onboardingComplete` back to `false`.
+5. Pending / empty-org users cannot read/write operational Firestore collections once rules are deployed.
+6. A random signup does **not** receive access to HopeBridge Foundation (`hopebridge`) or any other customer org.
+
+Unaffiliated users who have **not** yet chosen a path (`onboardingComplete: false`) may still use `/onboarding`.
 
 ### Legacy HopeBridge users
 

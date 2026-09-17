@@ -11,9 +11,11 @@ import {
   assertNoSelfAuthorizationChanges,
   buildLegacyActiveProfile,
   buildPendingRegistrationProfile,
+  canInitiateWorkspaceCreation,
   canManageUserAccess,
   isActiveHopeBridgeMember,
   isActiveOrganizationMember,
+  isAwaitingOrganizationInvite,
   isOrganizationAdmin,
   needsOrganizationOnboarding,
   sameOrganization,
@@ -137,10 +139,13 @@ function run() {
   assert.equal(accessRedirectPath(pending), "/onboarding");
   assert.equal(isActiveOrganizationMember(pending), false);
 
-  // Join-existing path stays pending
+  // Join-existing path stays pending — cannot reopen workspace creation
   const awaiting = { ...pending, onboardingComplete: true };
   assert.equal(needsOrganizationOnboarding(awaiting), false);
   assert.equal(accessRedirectPath(awaiting), "/auth/pending");
+  assert.notEqual(accessRedirectPath(awaiting), "/onboarding");
+  assert.equal(isAwaitingOrganizationInvite(awaiting), true);
+  assert.equal(canInitiateWorkspaceCreation(awaiting), false);
 
   // 2–3 / 13. Org A vs B isolation helpers
   const orgA = {

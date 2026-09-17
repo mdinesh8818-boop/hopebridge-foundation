@@ -131,7 +131,7 @@ export function AccessStatusRoute({
   return <>{children}</>;
 }
 
-/** Onboarding — authenticated users who still need to create an organization. */
+/** Onboarding — only unaffiliated users who have not submitted a join request. */
 export function OnboardingRoute({ children }: { children: React.ReactNode }) {
   const { user, profile, loading, profileLoading } = useAuth();
   const router = useRouter();
@@ -149,9 +149,12 @@ export function OnboardingRoute({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Pending membership requests and active members must not use /onboarding.
     if (!needsOrganizationOnboarding(profile)) {
       const destination = accessRedirectPath(profile);
-      router.replace(destination === "/onboarding" ? "/auth/pending" : destination);
+      router.replace(
+        destination === "/onboarding" ? "/auth/pending" : destination,
+      );
     }
   }, [loading, profile, profileLoading, router, user]);
 
