@@ -3,9 +3,14 @@
 import { useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
-import { redirectAfterAuth } from "@/lib/auth";
+import { accessRedirectPath } from "@/lib/accessControl";
+import { getSafeDashboardPath } from "@/lib/auth";
 
-export function AuthLoading({ message = "Loading your workspace..." }: { message?: string }) {
+export function AuthLoading({
+  message = "Loading your workspace...",
+}: {
+  message?: string;
+}) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-black p-6">
       <div className="text-center">
@@ -17,37 +22,101 @@ export function AuthLoading({ message = "Loading your workspace..." }: { message
 }
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, profile, loading, profileLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (loading || user) return;
+    if (loading || profileLoading) return;
 
-    const next = pathname.startsWith("/dashboard") ? pathname : "/dashboard";
-    router.replace(`/auth/login?next=${encodeURIComponent(next)}`);
-  }, [loading, pathname, router, user]);
+    if (!user) {
+      const next = pathname.startsWith("/dashboard") ? pathname : "/dashboard";
+      router.replace(`/auth/login?next=${encodeURIComponent(next)}`);
+      return;
+    }
 
-  if (loading || !user) {
+    const destination = accessRedirectPath(profile);
+    if (destination !== "/dashboard") {
+      router.replace(destination);
+    }
+  }, [loading, pathname, profile, profileLoading, router, user]);
+
+  if (loading || profileLoading || !user) {
     return <AuthLoading />;
   }
 
-  return <>{children}</>;
-}
-
-export function GuestRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-  const searchParams = useSearchParams();
-
-  useEffect(() => {
-    if (loading || !user) return;
-
-    redirectAfterAuth(searchParams.get("next"));
-  }, [loading, searchParams, user]);
-
-  if (loading || user) {
-    return <AuthLoading message="Redirecting to your workspace..." />;
+  if (!profile || profile.status !== "active") {
+    return <AuthLoading message="Checking organization access..." />;
   }
 
   return <>{children}</>;
 }
+
+/** Login/signup only — redirects authenticated users based on access status. */
+export function GuestRoute({ children }: { children: React.ReactNode }) {
+  const { user, profile, loading, profileLoading } = useAuth();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (loading || profileLoading || !user) return;
+
+    const next = getSafeDashboardPath(searchParams.get("next"));
+    const statusPath = accessRedirectPath(profile);
+    if (statusPath === "/dashboard") {
+      window.location.assign(next);
+      return;
+    }
+    window.location.assign(statusPath);
+  }, [loading, profile, profileLoading, searchParams, user]);
+
+  if (loading || profileLoading || user) {
+    return <AuthLoading message="Redirecting..." />;
+  }
+
+  return <>{children}</>;
+}
+
+/** Pending / disabled screens — require auth, block dashboard. */
+export function AccessStatusRoute({
+  children,
+  expected,
+}: {
+  children: React.ReactNode;
+  expected: "pending" | "disabled";
+}) {
+  const { user, profile, loading, profileLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading || profileLoading) return;
+
+    if (!user) {
+      router.replace("/auth/login");
+      return;
+    }
+
+    if (profile?.status === "active") {
+      router.replace("/dashboard");
+      return;
+    }
+
+    if (expected === "pending" && profile?.status === "disabled") {
+      router.replace("/auth/disabled");
+    }
+    if (expected === "disabled" && profile?.status === "pending") {
+      router.replace("/auth/pending");
+    }
+  }, [expected, loading, profile, profileLoading, router, user]);
+
+  if (loading || profileLoading || !user) {
+    return <AuthLoading />;
+  }
+
+  if (profile?.status === "active") {
+    return <AuthLoading message="Opening your workspace..." />;
+  }
+
+  return <>{children}</>;
+}
+
+export { useAuth };

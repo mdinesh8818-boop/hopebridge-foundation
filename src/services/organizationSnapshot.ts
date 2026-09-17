@@ -2,8 +2,7 @@ import type { ActivityRecord } from "../types/activity";
 import { dedupeActivityRecords } from "./activityDedupe";
 import { getDocuments } from "./firestore";
 import {
-  cleanupDuplicateActivityRecords,
-  cleanupKnownDemoRecords,
+  runIsolatedDashboardCleanup,
 } from "./demoCleanup";
 import type { MonthlyFundraisingPoint } from "./dashboardData";
 import { buildChartPaths } from "./dashboardData";
@@ -52,10 +51,12 @@ export type DashboardOrganizationData = {
   insights: DashboardInsight[];
   fundraising: FundraisingPerformance;
   notifications: DashboardNotification[];
-  cleanupReport?: Awaited<ReturnType<typeof cleanupKnownDemoRecords>>;
+  cleanupReport?: Awaited<
+    ReturnType<typeof runIsolatedDashboardCleanup>
+  >["cleanupReport"];
   activityDedupeReport?: Awaited<
-    ReturnType<typeof cleanupDuplicateActivityRecords>
-  >;
+    ReturnType<typeof runIsolatedDashboardCleanup>
+  >["activityDedupeReport"];
 };
 
 type CampaignDoc = {
@@ -676,14 +677,15 @@ function sortActivities(activities: ActivityRecord[]): ActivityRecord[] {
  * Single aggregation entry point for the Dashboard.
  * All metrics, alerts, deadlines, and performance derive from the same Firestore fetch.
  *
+ * Admin-only demo/activity cleanup runs in isolation first and must never block
+ * organization collection reads for active members.
+ *
  * Multi-tenancy: records are not yet scoped by organizationId in queries.
  * When tenant support is added, filter all collection reads here by organizationId.
  */
 export async function fetchDashboardOrganizationData(): Promise<DashboardOrganizationData> {
-  const [cleanupReport, activityDedupeReport] = await Promise.all([
-    cleanupKnownDemoRecords(),
-    cleanupDuplicateActivityRecords(),
-  ]);
+  const { cleanupReport, activityDedupeReport } =
+    await runIsolatedDashboardCleanup();
 
   const [
     campaigns,

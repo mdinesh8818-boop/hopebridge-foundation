@@ -1,73 +1,22 @@
 "use client";
 
 import type { ElementType } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import {
-  Activity,
-  BarChart3,
   BrainCircuit,
-  CalendarDays,
   ChevronRight,
-  CircleDollarSign,
-  FileBarChart,
-  FolderKanban,
-  HandHeart,
   Handshake,
-  HelpCircle,
-  Home,
-  LayoutDashboard,
   LogOut,
-  Megaphone,
   Menu,
-  Settings,
-  Target,
-  UserRound,
-  Users,
   X,
 } from "lucide-react";
-
-type NavItem = { label: string; href: string; icon: ElementType };
-
-const navGroups: { title: string; items: NavItem[] }[] = [
-  {
-    title: "FOUNDATION",
-    items: [
-      { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-      { label: "Mission & Vision", href: "/dashboard/mission-vision", icon: Target },
-      { label: "Campaigns", href: "/dashboard/campaigns", icon: Megaphone },
-      { label: "Programs", href: "/dashboard/programs", icon: FolderKanban },
-    ],
-  },
-  {
-    title: "OPERATIONS",
-    items: [
-      { label: "Donors", href: "/dashboard/donors", icon: CircleDollarSign },
-      { label: "Volunteers", href: "/dashboard/volunteers", icon: Users },
-      { label: "Beneficiaries", href: "/dashboard/beneficiaries", icon: HandHeart },
-      { label: "Teams", href: "/dashboard/teams", icon: UserRound },
-    ],
-  },
-  {
-    title: "INTELLIGENCE",
-    items: [
-      { label: "Impact Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-      { label: "AI Assistant", href: "/dashboard/ai-assistant", icon: BrainCircuit },
-      { label: "Reports", href: "/dashboard/reports", icon: FileBarChart },
-      { label: "Calendar", href: "/dashboard/calendar", icon: CalendarDays },
-      { label: "Activity", href: "/dashboard/activity", icon: Activity },
-    ],
-  },
-  {
-    title: "ADMINISTRATION",
-    items: [
-      { label: "Organization", href: "/dashboard/organization", icon: Home },
-      { label: "Settings", href: "/dashboard/settings", icon: Settings },
-      { label: "Help Center", href: "/dashboard/help", icon: HelpCircle },
-    ],
-  },
-];
+import {
+  buildHopeBridgeNavGroups,
+  type HopeBridgeNavGroup,
+} from "./hopeBridgeNav";
 
 type HopeBridgeSidebarProps = {
   activePath: string;
@@ -75,8 +24,13 @@ type HopeBridgeSidebarProps = {
 
 export default function HopeBridgeSidebar({ activePath }: HopeBridgeSidebarProps) {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, profile, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const navGroups: HopeBridgeNavGroup[] = useMemo(
+    () => buildHopeBridgeNavGroups(profile),
+    [profile],
+  );
 
   const displayName =
     user?.displayName?.trim() ||
@@ -128,7 +82,7 @@ export default function HopeBridgeSidebar({ activePath }: HopeBridgeSidebarProps
           <div className="hb-nav-group" key={group.title}>
             <div className="hb-nav-title">{group.title}</div>
             {group.items.map((item) => {
-              const Icon = item.icon;
+              const Icon = item.icon as ElementType;
               const isActive = activePath === item.href;
               return (
                 <button

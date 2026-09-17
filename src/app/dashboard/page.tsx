@@ -15,6 +15,9 @@ import {
 import { searchOrganizationRecords, type SearchResult } from "@/services/dashboardData";
 import type { DashboardNotification } from "@/services/notifications";
 import { useAuth } from "@/providers/AuthProvider";
+import {
+  buildHopeBridgeNavGroups,
+} from "./components/hopeBridgeNav";
 import type { ActivityRecord } from "../../types/activity";
 import {
   LogOut,
@@ -44,56 +47,12 @@ import {
   TrendingUp,
   UserRound,
   Users,
-  HelpCircle,
   X,
 } from "lucide-react";
 
-type NavItem = {
-  label: string;
-  href: string;
-  icon: React.ElementType;
-};
-
-const groups: { title: string; items: NavItem[] }[] = [
-  {
-    title: "FOUNDATION",
-    items: [
-      { label: "Mission & Vision", href: "/dashboard/mission-vision", icon: Target },
-      { label: "Campaigns", href: "/dashboard/campaigns", icon: Megaphone },
-      { label: "Programs", href: "/dashboard/programs", icon: BarChart3 },
-    ],
-  },
-  {
-    title: "OPERATIONS",
-    items: [
-      { label: "Donors", href: "/dashboard/donors", icon: CircleDollarSign },
-      { label: "Volunteers", href: "/dashboard/volunteers", icon: Users },
-      { label: "Beneficiaries", href: "/dashboard/beneficiaries", icon: HandHeart },
-      { label: "Teams", href: "/dashboard/teams", icon: UserRound },
-    ],
-  },
-  {
-    title: "INTELLIGENCE",
-    items: [
-      { label: "Impact Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-      { label: "AI Assistant", href: "/dashboard/ai-assistant", icon: BrainCircuit },
-      { label: "Reports", href: "/dashboard/reports", icon: FileBarChart },
-      { label: "Calendar", href: "/dashboard/calendar", icon: CalendarDays },
-    ],
-  },
-  {
-    title: "ADMINISTRATION",
-    items: [
-      { label: "Organization", href: "/dashboard/organization", icon: Home },
-      { label: "Settings", href: "/dashboard/settings", icon: Settings },
-      { label: "Help", href: "/dashboard/help", icon: HelpCircle },
-    ],
-  },
-];
-
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, profile, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -110,6 +69,14 @@ export default function DashboardPage() {
   const [liveModuleCount, setLiveModuleCount] = useState(0);
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const navGroups = useMemo(
+    () =>
+      buildHopeBridgeNavGroups(profile, {
+        includeDashboardInFoundation: false,
+      }),
+    [profile],
+  );
 
   const userRole =
     (user?.email?.includes("@") && user.email.split("@")[1]) ||
@@ -326,7 +293,7 @@ export default function DashboardPage() {
       </button>
 
       <div className="hb-nav-scroll">
-        {groups.map((group) => (
+        {navGroups.map((group) => (
           <div className="hb-nav-group" key={group.title}>
             <div className="hb-nav-title">{group.title}</div>
             {group.items.map((item) => {

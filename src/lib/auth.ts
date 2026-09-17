@@ -39,6 +39,28 @@ export function redirectAfterAuth(next: string | null | undefined) {
   window.location.assign(getSafeDashboardPath(next));
 }
 
+/** Post-signup destination for accounts awaiting organization approval. */
+export function redirectToPendingAccess() {
+  if (typeof window === "undefined") return;
+  window.location.assign("/auth/pending");
+}
+
+export function redirectForAccessStatus(
+  status: "pending" | "active" | "disabled" | null | undefined,
+  next?: string | null,
+) {
+  if (typeof window === "undefined") return;
+  if (status === "active") {
+    window.location.assign(getSafeDashboardPath(next));
+    return;
+  }
+  if (status === "disabled") {
+    window.location.assign("/auth/disabled");
+    return;
+  }
+  window.location.assign("/auth/pending");
+}
+
 export function clearAuthCookie() {
   if (typeof document === "undefined") return;
 

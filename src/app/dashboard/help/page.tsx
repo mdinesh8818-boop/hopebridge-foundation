@@ -251,12 +251,12 @@ const helpTopics: HelpTopic[] = [
     title: "Security & Data",
     section: "Security & Data",
     icon: ShieldCheck,
-    summary: "Understand how HopeBridge handles authentication and data persistence.",
+    summary: "Understand how HopeBridge handles authentication and organization access.",
     steps: [
-      "Sign in using your organization credentials through Firebase Authentication.",
-      "Operational records — campaigns, programs, donors, volunteers, beneficiaries, teams, and mission data — are stored in Firestore.",
-      "HopeBridge requires a signed-in account to read or write organizational records.",
-      "Contact your administrator for access control and account recovery.",
+      "Create an account or sign in with email and password.",
+      "New self-registered accounts stay pending until a HopeBridge administrator activates them.",
+      "Only active accounts can open the dashboard and organization records.",
+      "Administrators manage approvals from Administration → User Access.",
     ],
     tips: [
       "Do not share login credentials. Sign out on shared devices.",
