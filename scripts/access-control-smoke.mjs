@@ -21,6 +21,12 @@ import {
   shouldRunAdminOnlyCleanup,
 } from "../src/lib/accessControl.ts";
 import { isPreEnforcementAccount } from "../src/services/userProfile.ts";
+import {
+  buildAdministrationNavItems,
+  buildHopeBridgeNavGroups,
+  shouldShowUserAccessNav,
+  USER_ACCESS_NAV_ITEM,
+} from "../src/app/dashboard/components/hopeBridgeNav.ts";
 
 function run() {
   const pending = buildPendingRegistrationProfile({
@@ -192,6 +198,40 @@ function run() {
   assert.equal(shouldRunAdminOnlyCleanup(null), false);
   assert.equal(shouldRunAdminOnlyCleanup(pending), false);
 
+  // --- Admin-only User Access sidebar visibility ---
+  assert.equal(shouldShowUserAccessNav(alreadyAdmin), true);
+  assert.equal(shouldShowUserAccessNav(activeMember), false);
+  assert.equal(shouldShowUserAccessNav(pending), false);
+  assert.equal(shouldShowUserAccessNav(disabled), false);
+  assert.equal(USER_ACCESS_NAV_ITEM.href, "/dashboard/access");
+
+  const adminAdminItems = buildAdministrationNavItems(alreadyAdmin);
+  assert.equal(
+    adminAdminItems.some((item) => item.href === "/dashboard/access"),
+    true,
+  );
+  assert.equal(
+    buildAdministrationNavItems(activeMember).some(
+      (item) => item.href === "/dashboard/access",
+    ),
+    false,
+  );
+
+  const adminGroups = buildHopeBridgeNavGroups(alreadyAdmin);
+  const memberGroups = buildHopeBridgeNavGroups(activeMember);
+  const adminSection = adminGroups.find((g) => g.title === "ADMINISTRATION");
+  const memberSection = memberGroups.find((g) => g.title === "ADMINISTRATION");
+  assert.ok(adminSection);
+  assert.ok(memberSection);
+  assert.equal(
+    adminSection.items.some((item) => item.label === "User Access"),
+    true,
+  );
+  assert.equal(
+    memberSection.items.some((item) => item.label === "User Access"),
+    false,
+  );
+
   console.log("access-control-smoke: PASS");
   console.log(
     JSON.stringify(
@@ -209,6 +249,8 @@ function run() {
         ),
         memberRunsCleanup: shouldRunAdminOnlyCleanup(activeMember),
         adminRunsCleanup: shouldRunAdminOnlyCleanup(alreadyAdmin),
+        adminSeesUserAccess: shouldShowUserAccessNav(alreadyAdmin),
+        memberSeesUserAccess: shouldShowUserAccessNav(activeMember),
         orgId: HOPEBRIDGE_ORGANIZATION_ID,
       },
       null,
