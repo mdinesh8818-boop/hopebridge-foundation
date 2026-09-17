@@ -36,9 +36,10 @@ function run() {
   });
   assert.equal(pending.status, "pending");
   assert.equal(pending.role, "member");
-  assert.equal(pending.organizationId, HOPEBRIDGE_ORGANIZATION_ID);
+  assert.equal(pending.organizationId, "");
+  assert.equal(pending.onboardingComplete, false);
   assert.equal(isActiveHopeBridgeMember(pending), false);
-  assert.equal(accessRedirectPath(pending), "/auth/pending");
+  assert.equal(accessRedirectPath(pending), "/onboarding");
 
   const legacy = buildLegacyActiveProfile({
     uid: "u2",
