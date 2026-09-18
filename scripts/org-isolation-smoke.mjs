@@ -12,6 +12,7 @@ import {
   buildLegacyActiveProfile,
   buildPendingRegistrationProfile,
   canInitiateWorkspaceCreation,
+  canCompleteSelfServeOrganizationOnboarding,
   canManageUserAccess,
   isActiveHopeBridgeMember,
   isActiveOrganizationMember,
@@ -146,6 +147,8 @@ function run() {
   assert.notEqual(accessRedirectPath(awaiting), "/onboarding");
   assert.equal(isAwaitingOrganizationInvite(awaiting), true);
   assert.equal(canInitiateWorkspaceCreation(awaiting), false);
+  assert.equal(canCompleteSelfServeOrganizationOnboarding(awaiting), false);
+  assert.equal(canCompleteSelfServeOrganizationOnboarding(pending), true);
 
   // 2–3 / 13. Org A vs B isolation helpers
   const orgA = {

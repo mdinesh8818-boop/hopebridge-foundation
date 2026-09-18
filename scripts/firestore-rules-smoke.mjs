@@ -47,6 +47,24 @@ function run() {
   assert.doesNotMatch(rules, /function resumeOnboardingUpdate\(\)/);
   assert.doesNotMatch(rules, /\|\|\s*resumeOnboardingUpdate\(\)/);
 
+  // Awaiting-invite users cannot self-activate via onboardingActivationUpdate.
+  // Extract the function body and require the resource onboardingComplete == false guard.
+  const activationMatch = rules.match(
+    /function onboardingActivationUpdate\(\) \{([\s\S]*?)\n    \}/,
+  );
+  assert.ok(activationMatch, "onboardingActivationUpdate must exist");
+  const activationBody = activationMatch[1];
+  assert.match(
+    activationBody,
+    /resource\.data\.get\("onboardingComplete", false\) == false/,
+    "onboardingActivationUpdate must require resource onboardingComplete == false",
+  );
+  assert.match(activationBody, /resource\.data\.status == "pending"/);
+  assert.match(
+    activationBody,
+    /resource\.data\.get\("organizationId", ""\) == ""/,
+  );
+
   console.log("firestore-rules-smoke: PASS");
   console.log(
     JSON.stringify(

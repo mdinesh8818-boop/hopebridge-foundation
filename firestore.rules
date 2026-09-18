@@ -137,10 +137,13 @@ service cloud.firestore {
     }
 
     // Self-serve nonprofit onboarding completion (create own org as active admin).
+    // Only for unaffiliated pending users who have NOT submitted a join request.
+    // Awaiting-invite profiles (onboardingComplete == true) must wait for an org admin.
     function onboardingActivationUpdate() {
       return isOwner(request.auth.uid)
         && resource.data.status == "pending"
         && resource.data.get("organizationId", "") == ""
+        && resource.data.get("onboardingComplete", false) == false
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.email == resource.data.email
         && request.resource.data.status == "active"

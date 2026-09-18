@@ -258,6 +258,25 @@ export function canInitiateWorkspaceCreation(
   return needsOrganizationOnboarding(profile);
 }
 
+/**
+ * Self-serve create-org → active/admin is allowed only before a join request.
+ * Mirrors firestore.rules onboardingActivationUpdate resource preconditions.
+ * Awaiting-invite users must be activated by an organization administrator.
+ */
+export function canCompleteSelfServeOrganizationOnboarding(
+  profile:
+    | Pick<UserProfile, "status" | "organizationId" | "onboardingComplete">
+    | null
+    | undefined,
+): boolean {
+  return (
+    !!profile &&
+    profile.status === "pending" &&
+    !profile.organizationId.trim() &&
+    profile.onboardingComplete === false
+  );
+}
+
 export function accessRedirectPath(
   profile:
     | Pick<UserProfile, "status" | "organizationId" | "onboardingComplete">

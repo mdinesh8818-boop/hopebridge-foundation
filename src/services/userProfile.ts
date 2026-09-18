@@ -6,7 +6,9 @@ import {
   assertNoSelfAuthorizationChanges,
   buildLegacyActiveProfile,
   buildPendingRegistrationProfile,
+  canCompleteSelfServeOrganizationOnboarding,
   canManageUserAccess,
+  isAwaitingOrganizationInvite,
   isHopeBridgeAdmin,
   isListedBootstrapAdminEmail,
   isOrganizationAdmin,
@@ -281,8 +283,9 @@ export async function markAwaitingOrganizationInvite(
  * not supported.
  */
 export async function resumeOrganizationOnboarding(
-  _uid: string,
+  uid: string,
 ): Promise<UserProfile> {
+  void uid;
   throw new Error(
     "Workspace creation cannot be resumed after requesting organization access. Wait for an administrator to activate your account, or sign out.",
   );
@@ -308,6 +311,16 @@ export async function completeOrganizationOnboarding(input: {
   }
   if (existing.status === "disabled") {
     throw new Error("Disabled accounts cannot complete onboarding.");
+  }
+  if (isAwaitingOrganizationInvite(existing)) {
+    throw new Error(
+      "You already requested access to an existing organization. Wait for an administrator to activate your account.",
+    );
+  }
+  if (!canCompleteSelfServeOrganizationOnboarding(existing)) {
+    throw new Error(
+      "Only unaffiliated pending accounts can complete self-serve organization setup.",
+    );
   }
   if (existing.organizationId.trim() && existing.onboardingComplete) {
     throw new Error("Onboarding is already complete for this account.");

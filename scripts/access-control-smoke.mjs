@@ -12,6 +12,7 @@ import {
   assertNoSelfAuthorizationChanges,
   buildLegacyActiveProfile,
   buildPendingRegistrationProfile,
+  canCompleteSelfServeOrganizationOnboarding,
   canInitiateWorkspaceCreation,
   canManageUserAccess,
   isActiveHopeBridgeMember,
@@ -59,6 +60,18 @@ function run() {
   assert.equal(accessRedirectPath(awaitingInvite), "/auth/pending");
   // Direct /onboarding must not be the redirect target for awaiting-invite users.
   assert.notEqual(accessRedirectPath(awaitingInvite), "/onboarding");
+  // Security: awaiting-invite must not self-complete create-org activation.
+  assert.equal(
+    canCompleteSelfServeOrganizationOnboarding(awaitingInvite),
+    false,
+    "Awaiting-invite users must not self-activate as org admin",
+  );
+  assert.equal(
+    canCompleteSelfServeOrganizationOnboarding(unaffiliated),
+    true,
+    "Unaffiliated pending users may complete self-serve org creation",
+  );
+  assert.equal(canCompleteSelfServeOrganizationOnboarding(null), false);
 
   // Pending with an org id (waiting activation into a known org) stays pending.
   const pendingInOrg = {
@@ -70,6 +83,10 @@ function run() {
   assert.equal(needsOrganizationOnboarding(pendingInOrg), false);
   assert.equal(canInitiateWorkspaceCreation(pendingInOrg), false);
   assert.equal(accessRedirectPath(pendingInOrg), "/auth/pending");
+  assert.equal(
+    canCompleteSelfServeOrganizationOnboarding(pendingInOrg),
+    false,
+  );
 
   // --- Active member → dashboard; no User Access ---
   const legacy = buildLegacyActiveProfile({
@@ -83,6 +100,7 @@ function run() {
   assert.equal(accessRedirectPath(legacy), "/dashboard");
   assert.equal(needsOrganizationOnboarding(legacy), false);
   assert.equal(canInitiateWorkspaceCreation(legacy), false);
+  assert.equal(canCompleteSelfServeOrganizationOnboarding(legacy), false);
 
   const admin = {
     ...legacy,
@@ -99,6 +117,7 @@ function run() {
   assert.equal(isActiveHopeBridgeMember(disabled), false);
   assert.equal(needsOrganizationOnboarding(disabled), false);
   assert.equal(canInitiateWorkspaceCreation(disabled), false);
+  assert.equal(canCompleteSelfServeOrganizationOnboarding(disabled), false);
 
   assert.throws(() => assertNoSelfAuthorizationChanges({ role: "admin" }));
   assert.throws(() => assertNoSelfAuthorizationChanges({ status: "active" }));
