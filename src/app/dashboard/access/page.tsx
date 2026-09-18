@@ -16,7 +16,7 @@ import {
 } from "@/lib/accessControl";
 import {
   adminSetUserAccess,
-  listUserProfiles,
+  listUserProfilesForOrganization,
 } from "@/services/userProfile";
 
 export default function AccessManagementPage() {
@@ -39,14 +39,14 @@ export default function AccessManagementPage() {
   }, [allowed, authReady, router]);
 
   const load = useCallback(async () => {
-    if (!allowed) {
+    if (!allowed || !profile) {
       setLoadingList(false);
       return;
     }
     setLoadingList(true);
     setError("");
     try {
-      const rows = await listUserProfiles();
+      const rows = await listUserProfilesForOrganization(profile);
       setProfiles(rows);
     } catch (err) {
       setError(
@@ -58,7 +58,7 @@ export default function AccessManagementPage() {
     } finally {
       setLoadingList(false);
     }
-  }, [allowed]);
+  }, [allowed, profile]);
 
   useEffect(() => {
     // Async profile list load for admins; mirrors other dashboard modules.
@@ -133,8 +133,9 @@ export default function AccessManagementPage() {
             <p className="op-kicker">ADMINISTRATION</p>
             <h1>User access</h1>
             <p>
-              Approve pending registrations, assign roles, or disable access.
-              Only HopeBridge administrators can change authorization fields.
+              Approve pending registrations, assign roles, or disable access for
+              members of your organization. Only organization administrators can
+              change authorization fields.
             </p>
           </header>
 

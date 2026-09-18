@@ -1,9 +1,9 @@
-rules_version = '2';
+# Mirror pointer
 
-// EXAMPLE / MIRROR — production rules live in firestore.rules
-// Deploy: firebase deploy --only firestore:rules
-// See docs/ACCESS_CONTROL.md
+This file mirrors **`firestore.rules`** (canonical multi-org security rules).
 
-// This file intentionally points reviewers at the canonical rules file.
-// Copy contents from ./firestore.rules when reviewing historical PRs that
-// still reference firestore.rules.example.
+- Edit and review: `./firestore.rules`
+- Deploy: `firebase deploy --only firestore:rules`
+- Docs: `docs/ACCESS_CONTROL.md`, `docs/ORGANIZATION_WORKSPACES.md`, `docs/FIRESTORE.md`
+
+Do not maintain a separate rules copy here — keep this pointer in sync with the statement above when the canonical path changes.

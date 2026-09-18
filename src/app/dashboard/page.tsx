@@ -15,6 +15,7 @@ import {
 import { searchOrganizationRecords, type SearchResult } from "@/services/dashboardData";
 import type { DashboardNotification } from "@/services/notifications";
 import { useAuth } from "@/providers/AuthProvider";
+import { OrganizationLabel } from "@/components/OrganizationLabel";
 import {
   buildHopeBridgeNavGroups,
 } from "./components/hopeBridgeNav";
@@ -343,7 +344,9 @@ export default function DashboardPage() {
                 <Menu size={19} />
               </button>
               <Home size={16} className="hb-home-icon" />
-              <span>HopeBridge Foundation</span>
+              <span>
+                <OrganizationLabel />
+              </span>
               <b>/</b>
               <strong>Dashboard</strong>
             </div>

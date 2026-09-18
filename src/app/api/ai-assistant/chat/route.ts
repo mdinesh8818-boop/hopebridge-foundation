@@ -113,7 +113,17 @@ export async function POST(request: Request) {
   const history = sanitizeHistory(payload.history);
 
   try {
-    const systemPrompt = buildHopeBridgeSystemPrompt(payload.context);
+    const organizationName =
+      typeof (payload.context as { organizationName?: unknown }).organizationName ===
+      "string"
+        ? (payload.context as { organizationName?: string }).organizationName
+        : session.profile.organizationId === "hopebridge"
+          ? "HopeBridge Foundation"
+          : "your organization";
+    const systemPrompt = buildHopeBridgeSystemPrompt(
+      payload.context,
+      organizationName || "your organization",
+    );
     const text = await generateOpenAiAssistantReply(
       systemPrompt,
       history,

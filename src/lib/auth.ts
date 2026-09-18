@@ -39,25 +39,44 @@ export function redirectAfterAuth(next: string | null | undefined) {
   window.location.assign(getSafeDashboardPath(next));
 }
 
-/** Post-signup destination for accounts awaiting organization approval. */
+/** Post-signup destination — prefer onboarding for new nonprofit setup. */
 export function redirectToPendingAccess() {
   if (typeof window === "undefined") return;
-  window.location.assign("/auth/pending");
+  window.location.assign("/onboarding");
 }
 
 export function redirectForAccessStatus(
   status: "pending" | "active" | "disabled" | null | undefined,
   next?: string | null,
+  options?: {
+    organizationId?: string | null;
+    onboardingComplete?: boolean;
+  },
 ) {
   if (typeof window === "undefined") return;
-  if (status === "active") {
-    window.location.assign(getSafeDashboardPath(next));
-    return;
-  }
+
   if (status === "disabled") {
     window.location.assign("/auth/disabled");
     return;
   }
+
+  const organizationId = (options?.organizationId ?? "").trim();
+  const onboardingComplete = options?.onboardingComplete === true;
+
+  if (status === "active" && organizationId) {
+    if (options?.onboardingComplete === false) {
+      window.location.assign("/onboarding");
+      return;
+    }
+    window.location.assign(getSafeDashboardPath(next));
+    return;
+  }
+
+  if (status === "pending" && !organizationId && !onboardingComplete) {
+    window.location.assign("/onboarding");
+    return;
+  }
+
   window.location.assign("/auth/pending");
 }
 

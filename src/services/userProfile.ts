@@ -6,11 +6,15 @@ import {
   assertNoSelfAuthorizationChanges,
   buildLegacyActiveProfile,
   buildPendingRegistrationProfile,
+  canCompleteSelfServeOrganizationOnboarding,
   canManageUserAccess,
+  isAwaitingOrganizationInvite,
   isHopeBridgeAdmin,
   isListedBootstrapAdminEmail,
+  isOrganizationAdmin,
   isUserAccessStatus,
   isUserRole,
+  sameOrganization,
   shouldPromoteToBootstrapAdmin,
   type UserAccessStatus,
   type UserProfile,
@@ -39,8 +43,14 @@ export function normalizeUserProfile(
   const uid = coerceString(record.uid) || record.id;
   const status = isUserAccessStatus(record.status) ? record.status : "pending";
   const role = isUserRole(record.role) ? record.role : "member";
-  const organizationId =
-    coerceString(record.organizationId) || HOPEBRIDGE_ORGANIZATION_ID;
+  // Empty organizationId is allowed (pending invite / awaiting onboarding).
+  const organizationId = coerceString(record.organizationId);
+  const onboardingComplete =
+    typeof record.onboardingComplete === "boolean"
+      ? record.onboardingComplete
+      : status === "active" && organizationId.trim().length > 0
+        ? true
+        : false;
 
   return {
     id: record.id,
@@ -50,6 +60,7 @@ export function normalizeUserProfile(
     organizationId,
     role,
     status,
+    onboardingComplete,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     approvedAt: record.approvedAt,
@@ -108,6 +119,7 @@ async function promoteBootstrapAdminProfile(
     role: "admin",
     status: "active",
     organizationId: HOPEBRIDGE_ORGANIZATION_ID,
+    onboardingComplete: true,
     approvedAt: new Date().toISOString(),
     approvedBy: uid,
     disabledAt: null,
@@ -123,8 +135,8 @@ async function promoteBootstrapAdminProfile(
 /**
  * Ensures a Firestore userProfiles/{uid} document exists.
  *
- * - New self-registration → pending / member
- * - Pre-existing users (have userSettings) → active / member (or admin if bootstrap email)
+ * - New self-registration → pending / member (empty org — may self-serve onboard)
+ * - Pre-existing users (have userSettings) → active / hopebridge (or admin if bootstrap email)
  * - Known bootstrap admin emails are elevated to active/admin even if an earlier
  *   login already created an active/member legacy profile
  * - Never silently grants admin to all authenticated accounts
@@ -188,7 +200,38 @@ export async function createPendingUserProfile(
   user: User,
 ): Promise<UserProfile> {
   const existing = await fetchUserProfile(user.uid);
-  if (existing) return existing;
+  if (existing) {
+    const metadata = await fetchAccessControlMetadata();
+    if (
+      shouldPromoteToBootstrapAdmin(
+        existing,
+        user.email ?? "",
+        metadata.bootstrapAdminEmails,
+      )
+    ) {
+      return promoteBootstrapAdminProfile(user.uid);
+    }
+    return existing;
+  }
+
+  const email = (user.email ?? "").trim().toLowerCase();
+  const metadata = await fetchAccessControlMetadata();
+  if (isListedBootstrapAdminEmail(email, metadata.bootstrapAdminEmails)) {
+    await setDocument(USER_PROFILES_COLLECTION, user.uid, {
+      ...buildLegacyActiveProfile({
+        uid: user.uid,
+        email,
+        displayName: user.displayName,
+        role: "admin",
+      }),
+      createdAt: new Date().toISOString(),
+    });
+    const created = await fetchUserProfile(user.uid);
+    if (!created) {
+      throw new Error("Unable to create HopeBridge bootstrap admin profile.");
+    }
+    return created;
+  }
 
   const payload = buildPendingRegistrationProfile({
     uid: user.uid,
@@ -208,10 +251,161 @@ export async function createPendingUserProfile(
   return created;
 }
 
+/**
+ * User chose to join an existing organization instead of creating one.
+ * Keeps status pending with no organizationId until an org admin activates them.
+ */
+export async function markAwaitingOrganizationInvite(
+  uid: string,
+): Promise<UserProfile> {
+  const existing = await fetchUserProfile(uid);
+  if (!existing) throw new Error("User profile not found.");
+  if (existing.status === "disabled") {
+    throw new Error("Disabled accounts cannot request organization access.");
+  }
+  if (existing.status === "active" && existing.organizationId.trim()) {
+    return existing;
+  }
+
+  await updateDocument(USER_PROFILES_COLLECTION, uid, {
+    onboardingComplete: true,
+  });
+
+  const updated = await fetchUserProfile(uid);
+  if (!updated) throw new Error("Profile not found after update.");
+  return updated;
+}
+
+/**
+ * Intentionally unavailable: once a user requests access to an existing
+ * organization (or otherwise leaves the onboarding chooser), they must wait
+ * for admin activation. Re-opening workspace creation from /auth/pending is
+ * not supported.
+ */
+export async function resumeOrganizationOnboarding(
+  uid: string,
+): Promise<UserProfile> {
+  void uid;
+  throw new Error(
+    "Workspace creation cannot be resumed after requesting organization access. Wait for an administrator to activate your account, or sign out.",
+  );
+}
+
+/**
+ * Completes nonprofit onboarding: attach user as active admin of a new org.
+ * Uses a constrained update path (not generic self-edit).
+ */
+export async function completeOrganizationOnboarding(input: {
+  uid: string;
+  organizationId: string;
+  displayName?: string;
+}): Promise<UserProfile> {
+  const organizationId = input.organizationId.trim();
+  if (!organizationId) {
+    throw new Error("organizationId is required to complete onboarding.");
+  }
+
+  const existing = await fetchUserProfile(input.uid);
+  if (!existing) {
+    throw new Error("User profile not found.");
+  }
+  if (existing.status === "disabled") {
+    throw new Error("Disabled accounts cannot complete onboarding.");
+  }
+  if (isAwaitingOrganizationInvite(existing)) {
+    throw new Error(
+      "You already requested access to an existing organization. Wait for an administrator to activate your account.",
+    );
+  }
+  if (!canCompleteSelfServeOrganizationOnboarding(existing)) {
+    throw new Error(
+      "Only unaffiliated pending accounts can complete self-serve organization setup.",
+    );
+  }
+  if (existing.organizationId.trim() && existing.onboardingComplete) {
+    throw new Error("Onboarding is already complete for this account.");
+  }
+  if (
+    existing.organizationId.trim() &&
+    existing.organizationId !== organizationId
+  ) {
+    throw new Error("Account already belongs to a different organization.");
+  }
+
+  await updateDocument(USER_PROFILES_COLLECTION, input.uid, {
+    organizationId,
+    role: "admin",
+    status: "active",
+    onboardingComplete: true,
+    approvedAt: new Date().toISOString(),
+    approvedBy: input.uid,
+    disabledAt: null,
+    disabledBy: null,
+    ...(input.displayName !== undefined
+      ? { displayName: input.displayName.trim() }
+      : {}),
+  });
+
+  const updated = await fetchUserProfile(input.uid);
+  if (!updated) throw new Error("Profile not found after onboarding.");
+  return updated;
+}
+
+/**
+ * Lists profiles for an organization admin's workspace.
+ * Includes org members plus pending users with empty organizationId (awaiting invite).
+ */
+export async function listUserProfilesForOrganization(
+  actor: UserProfile,
+): Promise<UserProfile[]> {
+  if (!canManageUserAccess(actor)) {
+    throw new Error("Only organization administrators can manage user access.");
+  }
+  const organizationId = actor.organizationId.trim();
+  if (!organizationId) {
+    return [];
+  }
+
+  const { collection, getDocs, query, where } = await import(
+    "firebase/firestore"
+  );
+  const { db } = await import("@/app/lib/firebase");
+
+  const orgQuery = query(
+    collection(db, USER_PROFILES_COLLECTION),
+    where("organizationId", "==", organizationId),
+  );
+  const pendingQuery = query(
+    collection(db, USER_PROFILES_COLLECTION),
+    where("organizationId", "==", ""),
+    where("status", "==", "pending"),
+  );
+
+  const [orgSnap, pendingSnap] = await Promise.all([
+    getDocs(orgQuery),
+    getDocs(pendingQuery).catch(() => null),
+  ]);
+
+  const byId = new Map<string, UserProfile>();
+  for (const snap of [orgSnap, pendingSnap]) {
+    if (!snap) continue;
+    for (const docSnap of snap.docs) {
+      const profile = normalizeUserProfile({
+        ...(docSnap.data() as Record<string, unknown>),
+        id: docSnap.id,
+      });
+      if (profile) byId.set(profile.uid, profile);
+    }
+  }
+
+  return [...byId.values()].sort((a, b) => a.email.localeCompare(b.email));
+}
+
+/** @deprecated Prefer listUserProfilesForOrganization */
 export async function listUserProfiles(): Promise<UserProfile[]> {
   const docs = await getDocuments(USER_PROFILES_COLLECTION);
   return docs
-    .map((doc) => normalizeUserProfile(doc))
+    .map((docRecord) => normalizeUserProfile(docRecord))
     .filter((profile): profile is UserProfile => !!profile)
     .sort((a, b) => a.email.localeCompare(b.email));
 }
@@ -234,17 +428,50 @@ export async function adminSetUserAccess(input: {
   targetUid: string;
   status: UserAccessStatus;
   role?: UserRole;
+  /** Admins may assign pending users (no org yet) into their own organization. */
+  organizationId?: string;
 }): Promise<UserProfile> {
   if (!canManageUserAccess(input.actor)) {
-    throw new Error("Only HopeBridge administrators can manage user access.");
+    throw new Error("Only organization administrators can manage user access.");
   }
   if (input.targetUid === input.actor.uid && input.status !== "active") {
     throw new Error("Administrators cannot disable their own account.");
   }
 
+  const target = await fetchUserProfile(input.targetUid);
+  if (!target) {
+    throw new Error("Target profile not found.");
+  }
+
+  const actorOrg = input.actor.organizationId.trim();
+  if (!actorOrg) {
+    throw new Error("Administrator has no organization.");
+  }
+
+  const targetOrg = target.organizationId.trim();
+  if (targetOrg) {
+    if (!sameOrganization(input.actor, target)) {
+      throw new Error(
+        "You cannot manage users that belong to another organization.",
+      );
+    }
+  }
+
+  const assignOrg = (input.organizationId ?? actorOrg).trim();
+  if (assignOrg !== actorOrg) {
+    throw new Error("You can only assign users to your own organization.");
+  }
+
   const patch: Record<string, unknown> = {
     status: input.status,
   };
+
+  // Claim pending empty-org users into the actor's organization; never move orgs.
+  if (!targetOrg) {
+    patch.organizationId = actorOrg;
+  } else {
+    patch.organizationId = targetOrg;
+  }
 
   if (input.role) {
     patch.role = input.role;
@@ -255,6 +482,10 @@ export async function adminSetUserAccess(input: {
     patch.approvedBy = input.actor.uid;
     patch.disabledAt = null;
     patch.disabledBy = null;
+    patch.onboardingComplete = true;
+    if (!targetOrg) {
+      patch.organizationId = actorOrg;
+    }
   }
 
   if (input.status === "disabled") {
@@ -275,4 +506,4 @@ export async function adminSetUserAccess(input: {
   return updated;
 }
 
-export { isHopeBridgeAdmin, canManageUserAccess };
+export { isHopeBridgeAdmin, isOrganizationAdmin, canManageUserAccess };

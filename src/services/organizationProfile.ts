@@ -1,4 +1,12 @@
-import { getDocument, setDocument } from "./firestore";
+import {
+  getDocument,
+  getFirestoreOrganizationContext,
+  setDocument,
+} from "./firestore";
+import {
+  HOPEBRIDGE_ORGANIZATION_ID,
+  HOPEBRIDGE_ORGANIZATION_NAME,
+} from "@/lib/organization";
 
 export type OrganizationProfile = {
   organizationName: string;
@@ -23,7 +31,7 @@ export type OrganizationProfile = {
 };
 
 const COLLECTION = "organizationProfile";
-const DOC_ID = "foundation";
+const LEGACY_HOPEBRIDGE_DOC_ID = "foundation";
 
 export const EMPTY_ORGANIZATION_PROFILE: OrganizationProfile = {
   organizationName: "HopeBridge Foundation",
@@ -46,6 +54,10 @@ export const EMPTY_ORGANIZATION_PROFILE: OrganizationProfile = {
   resourcesLabel: "Core Strategy Resources",
 };
 
+function profileDocId(): string {
+  return getFirestoreOrganizationContext() || HOPEBRIDGE_ORGANIZATION_ID;
+}
+
 function toText(value: unknown): string {
   return typeof value === "string" ? value : value == null ? "" : String(value);
 }
@@ -57,12 +69,17 @@ function toNumber(value: unknown, fallback: number): number {
 
 function normalizeProfile(
   record: Record<string, unknown> | null,
+  fallbackName = EMPTY_ORGANIZATION_PROFILE.organizationName,
 ): OrganizationProfile {
-  if (!record) return { ...EMPTY_ORGANIZATION_PROFILE };
+  if (!record) {
+    return {
+      ...EMPTY_ORGANIZATION_PROFILE,
+      organizationName: fallbackName,
+    };
+  }
 
   return {
-    organizationName:
-      toText(record.organizationName) || EMPTY_ORGANIZATION_PROFILE.organizationName,
+    organizationName: toText(record.organizationName) || fallbackName,
     legalName: toText(record.legalName),
     ein: toText(record.ein),
     addressLine1: toText(record.addressLine1),
@@ -87,17 +104,60 @@ function normalizeProfile(
   };
 }
 
+function isPermissionDenied(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const code =
+    "code" in error && typeof (error as { code?: unknown }).code === "string"
+      ? (error as { code: string }).code
+      : "";
+  return code.includes("permission-denied");
+}
+
+/**
+ * Read one profile doc. Treat permission-denied as missing so a probe of the
+ * canonical org id can fall back to the HopeBridge legacy "foundation" id
+ * when older rules still require resource.data on get.
+ */
+async function readProfileDoc(
+  docId: string,
+): Promise<Record<string, unknown> | null> {
+  try {
+    return await getDocument(COLLECTION, docId);
+  } catch (error) {
+    if (isPermissionDenied(error)) return null;
+    throw error;
+  }
+}
+
 export async function fetchOrganizationProfile(): Promise<OrganizationProfile> {
-  const record = await getDocument(COLLECTION, DOC_ID);
-  return normalizeProfile(record);
+  const orgId = profileDocId();
+  const fallbackName =
+    orgId === HOPEBRIDGE_ORGANIZATION_ID
+      ? HOPEBRIDGE_ORGANIZATION_NAME
+      : EMPTY_ORGANIZATION_PROFILE.organizationName;
+
+  // Canonical id first (matches org context / post-migration saves).
+  let record = await readProfileDoc(orgId);
+
+  // Legacy HopeBridge singleton doc id when canonical doc is absent.
+  if (!record && orgId === HOPEBRIDGE_ORGANIZATION_ID) {
+    record = await readProfileDoc(LEGACY_HOPEBRIDGE_DOC_ID);
+  }
+
+  return normalizeProfile(record, fallbackName);
 }
 
 export async function saveOrganizationProfile(
   profile: OrganizationProfile,
 ): Promise<OrganizationProfile> {
+  const orgId = profileDocId();
+  const fallbackName =
+    orgId === HOPEBRIDGE_ORGANIZATION_ID
+      ? HOPEBRIDGE_ORGANIZATION_NAME
+      : EMPTY_ORGANIZATION_PROFILE.organizationName;
+
   const payload: OrganizationProfile = {
-    organizationName:
-      profile.organizationName.trim() || EMPTY_ORGANIZATION_PROFILE.organizationName,
+    organizationName: profile.organizationName.trim() || fallbackName,
     legalName: profile.legalName.trim(),
     ein: profile.ein.trim(),
     addressLine1: profile.addressLine1.trim(),
@@ -120,9 +180,9 @@ export async function saveOrganizationProfile(
       profile.resourcesLabel.trim() || EMPTY_ORGANIZATION_PROFILE.resourcesLabel,
   };
 
-  await setDocument(COLLECTION, DOC_ID, payload);
+  // setDocument injects organizationId for scoped collections.
+  await setDocument(COLLECTION, orgId, payload);
 
-  // Re-read to confirm persistence without wiping existing fields.
   const confirmed = await fetchOrganizationProfile();
   return confirmed;
 }
@@ -147,7 +207,7 @@ export function describeOrganizationSaveError(error: unknown): string {
       ? (error as { code: string }).code
       : "";
   if (code.includes("permission-denied")) {
-    return "Unable to save organization profile: Firestore permission denied for organizationProfile/foundation.";
+    return "Unable to save organization profile: Firestore permission denied for organizationProfile.";
   }
   if (code.includes("unavailable")) {
     return "Unable to save organization profile: Firestore is temporarily unavailable. Please retry.";

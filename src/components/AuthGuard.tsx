@@ -3,7 +3,10 @@
 import { useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
-import { accessRedirectPath } from "@/lib/accessControl";
+import {
+  accessRedirectPath,
+  needsOrganizationOnboarding,
+} from "@/lib/accessControl";
 import { getSafeDashboardPath } from "@/lib/auth";
 
 export function AuthLoading({
@@ -45,7 +48,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <AuthLoading />;
   }
 
-  if (!profile || profile.status !== "active") {
+  if (!profile || profile.status !== "active" || !profile.organizationId.trim()) {
     return <AuthLoading message="Checking organization access..." />;
   }
 
@@ -95,7 +98,12 @@ export function AccessStatusRoute({
       return;
     }
 
-    if (profile?.status === "active") {
+    if (needsOrganizationOnboarding(profile)) {
+      router.replace("/onboarding");
+      return;
+    }
+
+    if (profile?.status === "active" && profile.organizationId.trim()) {
       router.replace("/dashboard");
       return;
     }
@@ -112,8 +120,50 @@ export function AccessStatusRoute({
     return <AuthLoading />;
   }
 
-  if (profile?.status === "active") {
+  if (needsOrganizationOnboarding(profile)) {
+    return <AuthLoading message="Opening organization setup..." />;
+  }
+
+  if (profile?.status === "active" && profile.organizationId.trim()) {
     return <AuthLoading message="Opening your workspace..." />;
+  }
+
+  return <>{children}</>;
+}
+
+/** Onboarding — only unaffiliated users who have not submitted a join request. */
+export function OnboardingRoute({ children }: { children: React.ReactNode }) {
+  const { user, profile, loading, profileLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading || profileLoading) return;
+
+    if (!user) {
+      router.replace("/auth/login");
+      return;
+    }
+
+    if (profile?.status === "disabled") {
+      router.replace("/auth/disabled");
+      return;
+    }
+
+    // Pending membership requests and active members must not use /onboarding.
+    if (!needsOrganizationOnboarding(profile)) {
+      const destination = accessRedirectPath(profile);
+      router.replace(
+        destination === "/onboarding" ? "/auth/pending" : destination,
+      );
+    }
+  }, [loading, profile, profileLoading, router, user]);
+
+  if (loading || profileLoading || !user) {
+    return <AuthLoading message="Preparing onboarding..." />;
+  }
+
+  if (!needsOrganizationOnboarding(profile)) {
+    return <AuthLoading message="Redirecting..." />;
   }
 
   return <>{children}</>;

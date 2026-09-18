@@ -18,6 +18,10 @@ function isAccessStatusPath(pathname: string) {
   return pathname === "/auth/pending" || pathname === "/auth/disabled";
 }
 
+function isOnboardingPath(pathname: string) {
+  return pathname === "/onboarding" || pathname.startsWith("/onboarding/");
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession =
@@ -31,7 +35,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAccessStatusPath(pathname) && !hasSession) {
+  if ((isAccessStatusPath(pathname) || isOnboardingPath(pathname)) && !hasSession) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/auth/login";
     loginUrl.search = "";
@@ -57,5 +61,7 @@ export const config = {
     "/auth/signup",
     "/auth/pending",
     "/auth/disabled",
+    "/onboarding",
+    "/onboarding/:path*",
   ],
 };

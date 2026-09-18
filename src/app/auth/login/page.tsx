@@ -33,7 +33,10 @@ export default function LoginPage() {
 
     try {
       const result = await login(email, password);
-      redirectForAccessStatus(result.profile.status, searchParams.get("next"));
+      redirectForAccessStatus(result.profile.status, searchParams.get("next"), {
+        organizationId: result.profile.organizationId,
+        onboardingComplete: result.profile.onboardingComplete,
+      });
     } catch (err: unknown) {
       setError(getAuthErrorMessage(err));
     } finally {

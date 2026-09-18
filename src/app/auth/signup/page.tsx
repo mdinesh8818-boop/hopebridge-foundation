@@ -45,7 +45,7 @@ export default function SignupPage() {
 
     try {
       await signup(email, password);
-      // New accounts stay pending until an admin activates them.
+      // New accounts set up their own nonprofit (or request to join an existing org).
       redirectToPendingAccess();
     } catch (err: unknown) {
       setError(getAuthErrorMessage(err));

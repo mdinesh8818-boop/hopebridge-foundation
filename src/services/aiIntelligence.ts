@@ -9,6 +9,7 @@ import {
   type AttentionItem,
   type OrganizationSnapshot,
 } from "./organizationMetrics";
+import { EMPTY_WORKSPACE_COPY } from "@/lib/emptyWorkspace";
 
 export type AiCoverageState = "connected" | "no_records" | "limited";
 
@@ -1185,11 +1186,11 @@ export function answerOrganizationalQuestion(
     return formatAnswer([
       {
         heading: "FACT",
-        body: "HopeBridge does not yet have enough operational records to answer organizational questions.",
+        body: EMPTY_WORKSPACE_COPY.ai.title,
       },
       {
         heading: "AI RECOMMENDATION",
-        body: "Create campaigns, programs, donors, volunteers, or beneficiaries to enable intelligence.",
+        body: EMPTY_WORKSPACE_COPY.ai.body,
       },
     ]);
   }

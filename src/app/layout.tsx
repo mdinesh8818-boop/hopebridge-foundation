@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "../providers/AuthProvider";
+import { OrganizationProvider } from "../providers/OrganizationProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HopeBridge Foundation",
+  title: "HopeBridge",
   description: "Nonprofit intelligence and management platform",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
@@ -38,7 +39,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <OrganizationProvider>{children}</OrganizationProvider>
+        </AuthProvider>
       </body>
     </html>
   );
