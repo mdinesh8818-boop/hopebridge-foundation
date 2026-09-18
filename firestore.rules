@@ -274,7 +274,15 @@ service cloud.firestore {
     }
 
     match /organizationProfile/{docId} {
-      allow get, list: if canAccessOrgDoc()
+      // get on a missing doc has no resource — canAccessOrgDoc() alone denies and
+      // breaks clients that probe organizationProfile/{memberOrgId} before the
+      // legacy HopeBridge "foundation" fallback. Allow get by document id match
+      // (tenant slot) plus the HopeBridge legacy singleton id.
+      allow get: if isActiveMember() && (
+        docId == memberOrgId()
+        || (memberOrgId() == hopebridgeOrgId() && docId == "foundation")
+      );
+      allow list: if canAccessOrgDoc()
         || (isActiveMember()
             && memberOrgId() == hopebridgeOrgId()
             && docId == "foundation");

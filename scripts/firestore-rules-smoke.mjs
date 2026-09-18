@@ -65,6 +65,29 @@ function run() {
     /resource\.data\.get\("organizationId", ""\) == ""/,
   );
 
+  // organizationProfile get must allow missing-doc probes by member org id
+  // (resource is null when the doc does not exist).
+  const orgProfileMatch = rules.match(
+    /match \/organizationProfile\/\{docId\} \{([\s\S]*?)\n    \}/,
+  );
+  assert.ok(orgProfileMatch, "organizationProfile match block must exist");
+  const orgProfileBody = orgProfileMatch[1];
+  assert.match(
+    orgProfileBody,
+    /allow get:\s*if isActiveMember\(\) && \([\s\S]*?docId == memberOrgId\(\)/,
+    "organizationProfile get must allow docId == memberOrgId() for missing-doc reads",
+  );
+  assert.match(
+    orgProfileBody,
+    /docId == "foundation"/,
+    "organizationProfile get must retain HopeBridge legacy foundation id",
+  );
+  // Must not rely solely on canAccessOrgDoc() for get (fails when resource is null).
+  assert.doesNotMatch(
+    orgProfileBody,
+    /allow get,\s*list:\s*if canAccessOrgDoc\(\)/,
+  );
+
   console.log("firestore-rules-smoke: PASS");
   console.log(
     JSON.stringify(
@@ -72,6 +95,7 @@ function run() {
         bytes: rules.length,
         hasOrgIsolation: true,
         hasOnboardingActivation: true,
+        hasOrgProfileMissingDocGet: true,
       },
       null,
       2,

@@ -104,6 +104,31 @@ function normalizeProfile(
   };
 }
 
+function isPermissionDenied(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const code =
+    "code" in error && typeof (error as { code?: unknown }).code === "string"
+      ? (error as { code: string }).code
+      : "";
+  return code.includes("permission-denied");
+}
+
+/**
+ * Read one profile doc. Treat permission-denied as missing so a probe of the
+ * canonical org id can fall back to the HopeBridge legacy "foundation" id
+ * when older rules still require resource.data on get.
+ */
+async function readProfileDoc(
+  docId: string,
+): Promise<Record<string, unknown> | null> {
+  try {
+    return await getDocument(COLLECTION, docId);
+  } catch (error) {
+    if (isPermissionDenied(error)) return null;
+    throw error;
+  }
+}
+
 export async function fetchOrganizationProfile(): Promise<OrganizationProfile> {
   const orgId = profileDocId();
   const fallbackName =
@@ -111,11 +136,12 @@ export async function fetchOrganizationProfile(): Promise<OrganizationProfile> {
       ? HOPEBRIDGE_ORGANIZATION_NAME
       : EMPTY_ORGANIZATION_PROFILE.organizationName;
 
-  let record = await getDocument(COLLECTION, orgId);
+  // Canonical id first (matches org context / post-migration saves).
+  let record = await readProfileDoc(orgId);
 
-  // Legacy HopeBridge singleton doc id.
+  // Legacy HopeBridge singleton doc id when canonical doc is absent.
   if (!record && orgId === HOPEBRIDGE_ORGANIZATION_ID) {
-    record = await getDocument(COLLECTION, LEGACY_HOPEBRIDGE_DOC_ID);
+    record = await readProfileDoc(LEGACY_HOPEBRIDGE_DOC_ID);
   }
 
   return normalizeProfile(record, fallbackName);
